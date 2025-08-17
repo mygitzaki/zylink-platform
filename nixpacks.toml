@@ -1,0 +1,13 @@
+[phases.build]
+cmds = [
+  'cd backend',
+  'npm install',
+  'npx prisma generate'
+]
+
+[phases.start]
+cmd = 'cd backend && npm start'
+
+[variables]
+NODE_ENV = 'production'
+PORT = '4000'
