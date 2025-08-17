@@ -1,14 +1,18 @@
-const { customAlphabet } = require('nanoid');
+// Use crypto.randomUUID instead of nanoid to avoid ES module issues
+const crypto = require('crypto');
 
 class LinkShortener {
   constructor() {
     this.alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    // 12-char uppercase alphanumeric for high entropy (~62 bits)
-    this.nanoid = customAlphabet(this.alphabet, 12);
   }
 
   generateShortCode() {
-    return this.nanoid();
+    // Generate 12-char code using crypto
+    let result = '';
+    for (let i = 0; i < 12; i++) {
+      result += this.alphabet[Math.floor(Math.random() * this.alphabet.length)];
+    }
+    return result;
   }
 
   createShortLink(destinationUrl, creatorId) {
