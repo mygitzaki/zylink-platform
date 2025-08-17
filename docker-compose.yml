@@ -1,0 +1,27 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: zylink_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: zylink
+      POSTGRES_PASSWORD: zylink
+      POSTGRES_DB: zylink
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zylink"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  db_data:
+
+
+
+
+
+
+

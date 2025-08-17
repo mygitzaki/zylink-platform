@@ -1,0 +1,195 @@
+// Prisma schema generated from ZYLINK_DOCUMENTATION_SIMPLE guide
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Creator {
+  id               String            @id @default(uuid())
+  impactSubId      String?           @unique
+  name             String
+  email            String            @unique
+  password         String
+  adminRole        AdminRole?
+  bio              String?
+  socialMediaLinks Json?
+  groupLinks       Json?
+  applicationStatus ApplicationStatus @default(PENDING)
+  isActive         Boolean           @default(false)
+  commissionRate   Int               @default(70)
+  salesBonus       Decimal           @default(0)
+  referralCode     String?           @unique
+  referredBy       String?
+  walletAddress    String            @default("0x0000000000000000000000000000000000000000")
+  applicationNotes String?
+  rejectionReason  String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  links            Link[]
+  earnings         Earning[]
+  referralsGiven   ReferralEarning[] @relation("Referrer")
+  referralsReceived ReferralEarning[] @relation("Referred")
+  paymentAccount   PaymentAccount?
+  shortLinks       ShortLink[]
+  payouts          PayoutRequest[]
+  refreshTokens    RefreshToken[]
+
+  @@index([email])
+  @@index([applicationStatus])
+  @@index([isActive])
+  @@index([referralCode])
+}
+
+model Link {
+  id             String   @id @default(uuid())
+  creatorId      String
+  destinationUrl String
+  impactLink     String
+  shortLink      String
+  qrCodeUrl      String?
+  clicks         Int      @default(0)
+  conversions    Int      @default(0)
+  revenue        Decimal  @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  creator        Creator  @relation(fields: [creatorId], references: [id])
+  earnings       Earning[]
+
+  @@index([creatorId])
+}
+
+model Earning {
+  id                  String        @id @default(uuid())
+  creatorId           String
+  linkId              String?
+  amount              Decimal
+  type                EarningType
+  status              PaymentStatus @default(PENDING)
+  impactTransactionId String?
+  createdAt           DateTime      @default(now())
+
+  creator             Creator       @relation(fields: [creatorId], references: [id])
+  link                Link?         @relation(fields: [linkId], references: [id])
+
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+model ReferralEarning {
+  id         String   @id @default(uuid())
+  referrerId String
+  referredId String
+  amount     Decimal
+  startDate  DateTime
+  endDate    DateTime
+  createdAt  DateTime @default(now())
+
+  referrer   Creator  @relation("Referrer", fields: [referrerId], references: [id])
+  referred   Creator  @relation("Referred", fields: [referredId], references: [id])
+}
+
+model PaymentAccount {
+  id             String            @id @default(uuid())
+  creatorId      String            @unique
+  accountType    PaymentAccountType
+  accountDetails Json
+  isVerified     Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  creator        Creator           @relation(fields: [creatorId], references: [id])
+}
+
+model ShortLink {
+  id              String   @id @default(uuid())
+  shortCode       String   @unique
+  destinationUrl  String
+  creatorId       String
+  clicks          Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  creator         Creator  @relation(fields: [creatorId], references: [id])
+  clickLogs       ClickLog[]
+
+  @@index([shortCode])
+  @@index([creatorId])
+}
+
+model ClickLog {
+  id          String   @id @default(uuid())
+  shortLinkId String
+  ipAddress   String?
+  userAgent   String?
+  referrer    String?
+  clickedAt   DateTime @default(now())
+
+  shortLink   ShortLink @relation(fields: [shortLinkId], references: [id])
+}
+
+model PayoutRequest {
+  id          String        @id @default(uuid())
+  creatorId   String
+  amount      Decimal
+  status      PaymentStatus @default(PENDING)
+  requestedAt DateTime      @default(now())
+  processedAt DateTime?
+
+  creator     Creator       @relation(fields: [creatorId], references: [id])
+
+  @@index([status])
+  @@index([creatorId])
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  token      String    @unique
+  creatorId  String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  creator    Creator   @relation(fields: [creatorId], references: [id])
+
+  @@index([token])
+  @@index([creatorId])
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum EarningType {
+  COMMISSION
+  SALES_BONUS
+  REFERRAL_BONUS
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentAccountType {
+  BANK_ACCOUNT
+  PAYPAL
+  CRYPTO_WALLET
+}
+
+enum AdminRole {
+  ADMIN
+  SUPER_ADMIN
+}

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Prevent committing changes to the documentation guide
+PROTECTED_FILE="docs/ZYLINK_DOCUMENTATION_SIMPLE.html"
+
+if git diff --name-only --cached | grep -q "^${PROTECTED_FILE}$"; then
+  echo "\n[HOOK] Commit blocked: ${PROTECTED_FILE} is protected and must remain unedited." 1>&2
+  echo "If you truly need to change it, update the policy or temporarily bypass locally (not recommended)." 1>&2
+  exit 1
+fi
+
+exit 0
+
+
+
+
+
+
+

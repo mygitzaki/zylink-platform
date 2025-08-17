@@ -1,0 +1,204 @@
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './hooks/useAuth'
+import Login from './pages/Login'
+import LinkGenerator from './pages/LinkGenerator'
+import MyLinks from './pages/MyLinks'
+import CreatorAnalytics from './pages/CreatorAnalytics'
+import Earnings from './pages/Earnings'
+import PaymentSetup from './pages/PaymentSetup'
+import Signup from './pages/Signup'
+import Settings from './pages/Settings'
+import Referrals from './pages/Referrals'
+import Payouts from './pages/Payouts'
+import ApplicationPending from './pages/ApplicationPending'
+import CreatorApplication from './pages/CreatorApplication'
+import AdminOverview from './pages/admin/AdminOverview'
+import PendingApplications from './pages/admin/PendingApplications'
+import CreatorManagement from './pages/admin/CreatorManagement'
+import PerformanceAnalytics from './pages/admin/PerformanceAnalytics'
+import SystemSettings from './pages/admin/SystemSettings'
+import PayoutQueue from './pages/admin/PayoutQueue'
+
+function Placeholder({ title }) {
+  return (
+    <div style={{ padding: '1.5rem' }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>{title}</h1>
+      <p style={{ color: '#6b7280' }}>Page coming soon per ZYLINK guide.</p>
+    </div>
+  )
+}
+
+function Nav() {
+  const { user, token, setToken } = useAuth() || {}
+  const isAdmin = user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
+  
+  console.log('Nav component:', { user, isAdmin, role: user?.role }) // Debug log
+  
+  if (!token) return null // Don't show nav on login/signup pages
+  
+  return (
+    <nav className="nav-bar">
+      <div className="nav-container">
+        <Link to="/" className="nav-logo">
+          <div className="nav-logo-icon">
+            <svg style={{width: '1.25rem', height: '1.25rem', color: 'white'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </div>
+          <span className="nav-logo-text">Zylink</span>
+        </Link>
+
+        <div className="nav-links">
+          {isAdmin ? (
+            <>
+              <Link to="/admin" className="nav-link">Overview</Link>
+              <Link to="/admin/creators" className="nav-link">Creators</Link>
+              <Link to="/admin/payout-queue" className="nav-link">Payouts</Link>
+              <Link to="/admin/pending-applications" className="nav-link">Applications</Link>
+              <Link to="/admin/performance-analytics" className="nav-link">Analytics</Link>
+            </>
+          ) : (
+            <>
+              <Link to="/link-generator" className="nav-link">Links</Link>
+              <Link to="/analytics" className="nav-link">Analytics</Link>
+              <Link to="/earnings" className="nav-link">Earnings</Link>
+              <Link to="/referrals" className="nav-link">Referrals</Link>
+            </>
+          )}
+          <button onClick={()=>setToken('')} className="nav-link" style={{color: '#dc2626'}}>
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+function RequireAuth({ children }){
+  const { token, user, loading } = useAuth()
+  
+  if (!token) return <Navigate to="/login" replace />
+  
+  // Wait for user data to load
+  if (loading || !user) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <div className="loading-spinner"></div>
+      Loading...
+    </div>
+  }
+  
+  // Check if creator account is not activated (for regular users, not admins)
+  if (user.role === 'USER' && user.applicationStatus === 'PENDING') {
+    return <Navigate to="/application-pending" replace />
+  }
+  
+  if (user.role === 'USER' && !user.isActive) {
+    return <Navigate to="/application-pending" replace />
+  }
+  
+  return children
+}
+
+function RequireAdmin({ children }) {
+  const { token, user, loading } = useAuth()
+  
+  console.log('RequireAdmin - Full debug:', { token: !!token, user, loading, userRole: user?.role }) // Enhanced debug log
+  
+  if (!token) return <Navigate to="/login" replace />
+  
+  // Wait for user data to load
+  if (loading || !user) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <div className="loading-spinner"></div>
+      Loading...
+    </div>
+  }
+  
+  const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+  
+  console.log('RequireAdmin - Final check:', { user, isAdmin, role: user.role, willRedirect: !isAdmin }) // Enhanced debug log
+  
+  if (!isAdmin) return <Navigate to="/link-generator" replace />
+  return children
+}
+
+function RoleBasedRedirect() {
+  const { user, loading } = useAuth()
+  
+  console.log('RoleBasedRedirect - Full debug:', { user, loading, userRole: user?.role }) // Enhanced debug log
+  
+  // Wait for user data to load
+  if (loading || !user) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <div className="loading-spinner"></div>
+      Loading...
+    </div>
+  }
+  
+  const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+  
+  console.log('RoleBasedRedirect - Final check:', { user, isAdmin, role: user.role, willRedirectTo: isAdmin ? '/admin' : '/link-generator' }) // Enhanced debug log
+  
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />
+  } else {
+    return <Navigate to="/link-generator" replace />
+  }
+}
+
+function Layout({ children }) {
+  const { token } = useAuth()
+  
+  if (!token) {
+    return children // No layout for login/signup pages
+  }
+  
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)',
+      padding: '2rem' 
+    }}>
+      <main style={{ maxWidth: '80rem', margin: '0 auto' }}>
+        {children}
+      </main>
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Nav />
+        <Layout>
+          <Routes>
+            <Route path="/" element={<RequireAuth><RoleBasedRedirect /></RequireAuth>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/application-pending" element={<ApplicationPending />} />
+            <Route path="/creator-application" element={<CreatorApplication />} />
+            <Route path="/link-generator" element={<RequireAuth><LinkGenerator /></RequireAuth>} />
+            <Route path="/my-links" element={<RequireAuth><MyLinks /></RequireAuth>} />
+            <Route path="/analytics" element={<RequireAuth><CreatorAnalytics /></RequireAuth>} />
+            <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
+            <Route path="/payment-setup" element={<RequireAuth><PaymentSetup /></RequireAuth>} />
+            <Route path="/payouts" element={<RequireAuth><Payouts /></RequireAuth>} />
+            <Route path="/referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+
+            <Route path="/admin" element={<RequireAdmin><AdminOverview /></RequireAdmin>} />
+            <Route path="/admin/pending-applications" element={<RequireAdmin><PendingApplications /></RequireAdmin>} />
+            <Route path="/admin/creators" element={<RequireAdmin><CreatorManagement /></RequireAdmin>} />
+            <Route path="/admin/payout-queue" element={<RequireAdmin><PayoutQueue /></RequireAdmin>} />
+            <Route path="/admin/performance-analytics" element={<RequireAdmin><PerformanceAnalytics /></RequireAdmin>} />
+            <Route path="/admin/system-settings" element={<RequireAdmin><SystemSettings /></RequireAdmin>} />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}

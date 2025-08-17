@@ -1,0 +1,124 @@
+const express = require('express');
+const path = require('path');
+const morgan = require('morgan');
+const dotenv = require('dotenv');
+const { buildSecurityMiddleware } = require('./src/middleware/security');
+const cookieParser = require('cookie-parser');
+
+// 🛡️ SAFETY SYSTEMS - Prevent crashes
+const { ErrorBoundary } = require('./src/services/errorBoundary');
+const { healthMonitor } = require('./src/services/healthMonitor');
+const { 
+  requestTimeout, 
+  requestLogger, 
+  memoryMonitor, 
+  rateLimiter, 
+  preventShutdown 
+} = require('./src/middleware/safetyMiddleware');
+
+dotenv.config();
+
+// Initialize safety systems
+new ErrorBoundary();
+preventShutdown();
+
+const app = express();
+const port = Number(process.env.PORT) || 4000;
+
+// 🛡️ Safety middleware (before everything else)
+app.use(requestTimeout(30000)); // 30 second timeout
+app.use(requestLogger);
+app.use(memoryMonitor);
+app.use(rateLimiter());
+
+app.use(morgan('dev'));
+app.use(express.json());
+app.use(...buildSecurityMiddleware());
+app.use(cookieParser());
+
+// Serve the docs directory statically but only allow GET/HEAD
+app.use('/docs', (req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return res.status(405).send('Method Not Allowed');
+  }
+  next();
+});
+
+app.use('/docs', express.static(path.join(__dirname, '..', 'docs'), {
+  extensions: ['html'],
+  index: false,
+  fallthrough: false
+}));
+
+// 🛡️ Health monitoring endpoint (first priority)
+app.use('/api/health', require('./src/routes/health'));
+
+// 🧪 Safe testing endpoint (for development safety)
+app.use('/api/safe-test', require('./src/routes/safeTesting'));
+
+// API routes (stubs per guide)
+app.use('/api/auth', require('./src/routes/auth'));
+app.use('/api/creator', require('./src/routes/creator'));
+app.use('/api/admin', require('./src/routes/admin'));
+app.use('/api/links', require('./src/routes/links'));
+app.use('/api/webhooks', require('./src/routes/webhooks'));
+app.use('/api/shortlinks', require('./src/routes/shortlinks'));
+app.use('/api/analytics', require('./src/routes/analytics'));
+
+// Redirect root to the docs html explicitly
+app.get('/', (req, res) => {
+  res.redirect('/docs/ZYLINK_DOCUMENTATION_SIMPLE.html');
+});
+
+// Public shortlink redirect per guide (support GET and HEAD)
+async function handleShortRedirect(req, res) {
+  try {
+    // Lazy load getPrisma only when needed
+    const { getPrisma } = require('./src/utils/prisma');
+    const prisma = getPrisma();
+    
+    if (!prisma) {
+      const { getShortLink } = require('./src/utils/memoryStore');
+      const url = getShortLink(req.params.shortCode);
+      if (!url) return res.status(404).send('Not found');
+      return res.redirect(url);
+    }
+    const { shortCode } = req.params;
+    const short = await prisma.shortLink.findUnique({ where: { shortCode } });
+    if (!short || !short.destinationUrl) return res.status(404).send('Not found');
+    await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
+    return res.redirect(short.destinationUrl);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send('Internal Server Error');
+  }
+}
+
+app.get('/s/:shortCode', handleShortRedirect);
+app.head('/s/:shortCode', handleShortRedirect);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).send('Internal Server Error');
+});
+
+const server = app
+  .listen(port, () => {
+    console.log(`Backend listening on http://localhost:${port}`);
+    console.log('Docs available at /docs/ZYLINK_DOCUMENTATION_SIMPLE.html');
+  })
+  .on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      console.error(`Port ${port} is already in use. Update backend/.env PORT or stop the conflicting process.`);
+    } else {
+      console.error('Server error:', err);
+    }
+    process.exit(1);
+  });
+
+
