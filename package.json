@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "Zylink Creator Platform - Affiliate Marketing Platform",
   "scripts": {
-    "build": "cd backend && npm install && npx prisma generate",
-    "start": "cd backend && npm start",
-    "dev": "cd backend && npm run dev"
+    "start": "echo 'Use Docker or deploy backend directly'"
   },
   "engines": {
     "node": ">=18.0.0"
