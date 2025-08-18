@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const { buildSecurityMiddleware, applyCorsPreflight, applySimpleCors } = require('./src/middleware/security');
+const { buildSecurityMiddleware, applySimpleCors } = require('./src/middleware/security');
 const cookieParser = require('cookie-parser');
 
 // 🛡️ SAFETY SYSTEMS - Prevent crashes
@@ -30,6 +30,9 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
+// CORS first so every request (including OPTIONS) gets headers
+applySimpleCors(app);
+
 // 🛡️ Safety middleware (before everything else)
 app.use(requestTimeout(30000)); // 30 second timeout
 app.use(requestLogger);
@@ -38,10 +41,6 @@ app.use(memoryMonitor);
 // Logging and parsers
 app.use(morgan('dev'));
 app.use(express.json());
-
-// Ensure preflight requests succeed for cross-origin calls (must be early)
-applyCorsPreflight(app);
-applySimpleCors(app);
 
 // Security middlewares including CORS should run before anything that can end the response
 app.use(...buildSecurityMiddleware());
