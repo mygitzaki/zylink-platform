@@ -35,6 +35,43 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Simple endpoint to create admin account
+router.post('/setup-admin', async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+
+    // Check if admin already exists
+    const existingAdmin = await prisma.creator.findFirst({
+      where: { email: 'realadmin@test.com' }
+    });
+
+    if (existingAdmin) {
+      return res.json({ message: 'Admin account already exists', admin: existingAdmin });
+    }
+
+    // Create admin account
+    const hashedPassword = await bcrypt.hash('adminpass123', 10);
+    const admin = await prisma.creator.create({
+      data: {
+        name: 'Admin User',
+        email: 'realadmin@test.com',
+        password: hashedPassword,
+        isActive: true,
+        commissionRate: 70,
+        adminRole: 'ADMIN',
+        walletAddress: '0x0000000000000000000000000000000000000000',
+        applicationStatus: 'APPROVED'
+      }
+    });
+
+    res.json({ message: 'Admin account created successfully', admin });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.post('/create-admin', async (req, res) => {
   try {
     const { name, email, password } = req.body;
