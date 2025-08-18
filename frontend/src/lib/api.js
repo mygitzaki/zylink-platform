@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || __API_URL__ || import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+// Use production API URL directly for deployment
+const API_BASE = import.meta.env.VITE_API_URL || 
+                 (import.meta.env.PROD ? 'https://zylink-platform-production.up.railway.app' : 'http://localhost:4000');
 
 export async function apiFetch(path, { method = 'GET', body, token, headers: customHeaders } = {}) {
   const headers = { 'Content-Type': 'application/json' };
