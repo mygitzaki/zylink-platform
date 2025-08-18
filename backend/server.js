@@ -3,7 +3,6 @@ const path = require('path');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { buildSecurityMiddleware, applySimpleCors } = require('./src/middleware/security');
-const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
 // 🛡️ SAFETY SYSTEMS - Prevent crashes
@@ -32,8 +31,16 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // CORS first so every request (including OPTIONS) gets headers
-app.use(cors({ origin: true, credentials: true, methods: ['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'] }));
-app.options('*', cors({ origin: true, credentials: true }));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Vary', 'Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 applySimpleCors(app);
 // Extra safeguard: explicit catch-all OPTIONS handler
 app.options('*', (req, res) => {
