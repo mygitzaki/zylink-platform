@@ -1,15 +1,6 @@
-# Use Node.js 18 slim image (better Prisma compatibility)
-FROM node:18-slim AS builder
-
-# Install build dependencies including Python and build tools
-RUN apt-get update && apt-get install -y \
-    openssl \
-    ca-certificates \
-    python3 \
-    python3-pip \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+# Multi-stage build for production
+# FORCE REBUILD: Updated to ensure latest code is deployed
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -26,23 +17,45 @@ RUN cd backend && npm install
 # Copy remaining backend source code
 COPY backend ./backend
 
-# Production stage
-FROM node:18-slim AS production
+# Copy frontend package files
+COPY frontend/package*.json ./frontend/
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y \
-    openssl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Install frontend dependencies
+RUN cd frontend && npm install
+
+# Copy frontend source code
+COPY frontend ./frontend
+
+# Build frontend
+RUN cd frontend && npm run build
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
 
 # Set working directory
 WORKDIR /app
 
-# Copy built application from builder stage
+# Copy built frontend
+COPY --from=builder /app/frontend/dist ./frontend/dist
+
+# Copy backend
 COPY --from=builder /app/backend ./backend
 
+# Copy Prisma schema and migrations
+COPY --from=builder /app/backend/prisma ./backend/prisma
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
 # Expose port
-EXPOSE 4000
+EXPOSE 3000
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
-CMD ["sh", "-c", "cd backend && npm start"]
+CMD ["node", "backend/server.js"]
