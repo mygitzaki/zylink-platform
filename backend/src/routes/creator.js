@@ -154,6 +154,7 @@ router.get('/profile', requireAuth, async (req, res) => {
       groupLinks: creator.groupLinks,
       isActive: creator.isActive,
       applicationStatus: creator.applicationStatus,
+      role: creator.adminRole || 'USER',
     });
   } catch (err) {
     console.error(err);
