@@ -51,19 +51,12 @@ export default function CreatorManagement(){
       console.log('🔍 Loading creator profile for:', creatorId)
       setLoadingProfile(true)
       setError('') // Clear any previous errors
-      console.log('📡 Making API call...')
       
-      // Add timeout wrapper
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('API call timeout - taking too long')), 15000)
-      )
-      
-      const apiPromise = apiFetch(`/api/admin/creators/${creatorId}/profile`, { 
+      const data = await apiFetch(`/api/admin/creators/${creatorId}/profile`, { 
         method: 'GET',
         token 
       })
       
-      const data = await Promise.race([apiPromise, timeoutPromise])
       console.log('✅ Profile data received:', data)
       
       if (!data || !data.creator) {
@@ -72,19 +65,13 @@ export default function CreatorManagement(){
       
       setCreatorProfileData(data)
       setShowCreatorProfile(creatorId)
-      console.log('🎯 Modal should now show')
-      console.log('🔍 Modal state:', {
-        showCreatorProfile: creatorId,
-        hasProfileData: !!data,
-        creatorName: data?.creator?.name
-      })
+      console.log('🎯 Modal should now show for:', data.creator.name)
+      
     } catch (error) {
       console.error('❌ Failed to load creator profile:', error)
       setError(`Failed to load creator profile: ${error.message}`)
-      alert(`Error loading profile: ${error.message}`) // Temporary debug alert
     } finally {
       setLoadingProfile(false)
-      console.log('🏁 Loading finished')
     }
   }
 
