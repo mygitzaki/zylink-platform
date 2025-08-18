@@ -74,6 +74,7 @@ function applySimpleCors(app) {
     const origin = req.headers.origin;
     // Always respond to preflight early and include ACAO
     if (req.method === 'OPTIONS') {
+      res.header('X-Debug-CORS', 'preflight');
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Vary', 'Origin');
       res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
@@ -82,6 +83,7 @@ function applySimpleCors(app) {
     }
 
     if (isOriginAllowed(origin)) {
+      res.header('X-Debug-CORS', 'runtime');
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Vary', 'Origin');
       res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
