@@ -35,11 +35,27 @@ if (process.env.NODE_ENV === 'production') {
 // CORS first so every request (including OPTIONS) gets headers
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  res.header('Access-Control-Allow-Origin', origin || '*');
+  
+  // Explicitly allow Vercel domain and localhost
+  const allowedOrigins = [
+    'https://zylink-platform.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
   res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
+  
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
@@ -47,12 +63,23 @@ applySimpleCors(app);
 // Extra safeguard: explicit catch-all OPTIONS handler
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  if (origin) {
+  
+  // Explicitly allow Vercel domain and localhost
+  const allowedOrigins = [
+    'https://zylink-platform.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-    res.header('Vary', 'Origin');
+  } else if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
   } else {
     res.header('Access-Control-Allow-Origin', '*');
   }
+  
+  res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, content-type, Authorization, authorization');
