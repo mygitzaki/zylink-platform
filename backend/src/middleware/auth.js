@@ -41,12 +41,18 @@ function requireApprovedCreator(req, res, next) {
         return res.status(404).json({ message: 'Creator not found' });
       }
       
-      if (creator.applicationStatus !== 'APPROVED' || !creator.isActive) {
+      // Allow creators with PENDING status to create links (they can test the system)
+      // Only block REJECTED creators
+      if (creator.applicationStatus === 'REJECTED') {
         return res.status(403).json({ 
-          message: 'Your application is pending approval. Please wait for admin review.',
-          status: creator.applicationStatus,
-          isActive: creator.isActive
+          message: 'Your application was rejected. Please contact support.',
+          status: creator.applicationStatus
         });
+      }
+      
+      // For PENDING creators, show a warning but allow them to proceed
+      if (creator.applicationStatus === 'PENDING') {
+        console.log(`⚠️ Creator ${creator.id} creating link with PENDING status`);
       }
       
       next();

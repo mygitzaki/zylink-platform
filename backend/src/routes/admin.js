@@ -43,6 +43,43 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
   res.json({ updated });
 });
 
+// Get detailed creator profile for admin view
+router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) => {
+  if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+  
+  try {
+    const creator = await prisma.creator.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        socialMediaLinks: true,
+        groupLinks: true,
+        applicationStatus: true,
+        isActive: true,
+        commissionRate: true,
+        salesBonus: true,
+        referralCode: true,
+        applicationNotes: true,
+        rejectionReason: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!creator) {
+      return res.status(404).json({ message: 'Creator not found' });
+    }
+    
+    res.json({ creator });
+  } catch (error) {
+    console.error('Error fetching creator profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
   const [creatorCount, linkCount] = await Promise.all([

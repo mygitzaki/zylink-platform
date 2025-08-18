@@ -112,30 +112,7 @@ router.post('/referral-code', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
-    
-    const prisma = getPrisma();
-    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-    
-    const creator = await prisma.creator.findUnique({ where: { email } });
-    if (!creator) return res.status(401).json({ message: 'Invalid credentials' });
-    
-    const ok = await bcrypt.compare(password, creator.password);
-    if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
-    
-    // Determine role from database
-    const role = creator.adminRole || 'USER';
-    const token = signToken({ id: creator.id, role });
-    
-    res.json({ token, role });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
+// Login endpoint removed - using /api/auth/login instead
 
 router.get('/profile', requireAuth, async (req, res) => {
   try {
@@ -188,6 +165,7 @@ router.put('/profile', requireAuth, async (req, res) => {
     const updateData = { name, bio, socialMediaLinks, groupLinks };
     if (isApplicationSubmission) {
       updateData.applicationStatus = 'PENDING';
+      console.log('📝 Setting application status to PENDING for creator:', req.user.id);
     }
     
     const updated = await prisma.creator.update({
@@ -289,7 +267,24 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
     });
   } catch (err) {
     console.error('Link creation error:', err);
-    res.status(500).json({ message: 'Internal server error' });
+    
+    // Provide more specific error messages
+    if (err.message?.includes('Impact.com API')) {
+      res.status(500).json({ 
+        message: 'Failed to create tracking link. Please try again.',
+        details: 'Impact.com API temporarily unavailable'
+      });
+    } else if (err.message?.includes('Database')) {
+      res.status(503).json({ 
+        message: 'Database connection issue. Please try again.',
+        details: 'Service temporarily unavailable'
+      });
+    } else {
+      res.status(500).json({ 
+        message: 'Failed to create link. Please try again.',
+        details: err.message || 'Unknown error occurred'
+      });
+    }
   }
 });
 
