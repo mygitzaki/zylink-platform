@@ -2,13 +2,27 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-function buildSecurityMiddleware() {
-  const limiter = rateLimit({ windowMs: 60 * 1000, max: 100 });
-  
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  if (origin.includes('vercel.app')) return true;
+  const allowList = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175',
+    'https://zylink-platform.vercel.app',
+    'https://zylink-platform-iuey5dep4-muhammad-zakaryas-projects.vercel.app'
+  ];
+  return allowList.includes(origin) || /^https:\/\/zylink-platform.*\.vercel\.app$/.test(origin);
+}
+
+function getCorsOptions() {
   // Allow multiple origins for development and production
   const allowedOrigins = [
     'http://localhost:5173',
-    'http://localhost:5174', 
+    'http://localhost:5174',
     'http://localhost:5175',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
@@ -19,42 +33,59 @@ function buildSecurityMiddleware() {
     // Allow all Vercel deployments for this project
     /^https:\/\/zylink-platform.*\.vercel\.app$/
   ];
-  
-  const corsOptions = {
+
+  return {
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       console.log(`CORS check for origin: ${origin}`);
-      
-      // Temporarily allow all Vercel origins for debugging
-      if (origin && origin.includes('vercel.app')) {
-        console.log(`CORS allowing Vercel origin: ${origin}`);
+
+      const isAllowed = isOriginAllowed(origin);
+
+      if (isAllowed) {
+        console.log(`CORS allowing configured origin: ${origin}`);
         return callback(null, true);
       }
-      
-      // Check string origins
-      if (allowedOrigins.some(allowed => {
-        if (typeof allowed === 'string') {
-          return allowed === origin;
-        } else if (allowed instanceof RegExp) {
-          return allowed.test(origin);
-        }
-        return false;
-      })) {
-        console.log(`CORS allowing configured origin: ${origin}`);
-        callback(null, true);
-      } else {
-        console.log(`CORS blocked origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
-      }
+
+      console.log(`CORS blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'content-type', 'Authorization', 'authorization']
   };
-  
-  return [helmet(), cors(corsOptions), limiter];
 }
 
-module.exports = { buildSecurityMiddleware };
+function buildSecurityMiddleware() {
+  const limiter = rateLimit({ windowMs: 60 * 1000, max: 100 });
+  const corsOptions = getCorsOptions();
+  // Run CORS before Helmet to ensure headers are set on preflights and requests
+  return [cors(corsOptions), helmet(), limiter];
+}
+
+function applyCorsPreflight(app) {
+  const corsOptions = getCorsOptions();
+  app.options('*', cors(corsOptions));
+}
+
+function applySimpleCors(app) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (isOriginAllowed(origin)) {
+      res.header('Access-Control-Allow-Origin', origin || '*');
+      res.header('Vary', 'Origin');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, content-type, Authorization, authorization');
+      if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+      }
+    }
+    next();
+  });
+}
+
+module.exports = { buildSecurityMiddleware, applyCorsPreflight, applySimpleCors };
 
 

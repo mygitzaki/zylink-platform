@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const { buildSecurityMiddleware } = require('./src/middleware/security');
+const { buildSecurityMiddleware, applyCorsPreflight, applySimpleCors } = require('./src/middleware/security');
 const cookieParser = require('cookie-parser');
 
 // 🛡️ SAFETY SYSTEMS - Prevent crashes
@@ -34,12 +34,21 @@ if (process.env.NODE_ENV === 'production') {
 app.use(requestTimeout(30000)); // 30 second timeout
 app.use(requestLogger);
 app.use(memoryMonitor);
-app.use(rateLimiter());
 
+// Logging and parsers
 app.use(morgan('dev'));
 app.use(express.json());
+
+// Ensure preflight requests succeed for cross-origin calls (must be early)
+applyCorsPreflight(app);
+applySimpleCors(app);
+
+// Security middlewares including CORS should run before anything that can end the response
 app.use(...buildSecurityMiddleware());
 app.use(cookieParser());
+
+// Apply custom rate limiter AFTER CORS so preflights receive CORS headers even when limited
+app.use(rateLimiter());
 
 // Serve the docs directory statically but only allow GET/HEAD
 app.use('/docs', (req, res, next) => {
