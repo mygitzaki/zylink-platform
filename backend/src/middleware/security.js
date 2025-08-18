@@ -25,6 +25,14 @@ function buildSecurityMiddleware() {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
+      console.log(`CORS check for origin: ${origin}`);
+      
+      // Temporarily allow all Vercel origins for debugging
+      if (origin && origin.includes('vercel.app')) {
+        console.log(`CORS allowing Vercel origin: ${origin}`);
+        return callback(null, true);
+      }
+      
       // Check string origins
       if (allowedOrigins.some(allowed => {
         if (typeof allowed === 'string') {
@@ -34,6 +42,7 @@ function buildSecurityMiddleware() {
         }
         return false;
       })) {
+        console.log(`CORS allowing configured origin: ${origin}`);
         callback(null, true);
       } else {
         console.log(`CORS blocked origin: ${origin}`);
