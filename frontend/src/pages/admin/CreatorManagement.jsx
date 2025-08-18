@@ -439,36 +439,38 @@ export default function CreatorManagement(){
                 </div>
               )}
 
-              {/* Performance Metrics */}
-              <div className="profile-section">
-                <h3>📊 Performance Metrics</h3>
-                <div className="metrics-grid">
-                  <div className="metric-card">
-                    <div className="metric-value">${creatorProfileData.performance.totalEarnings.toFixed(2)}</div>
-                    <div className="metric-label">Total Earnings</div>
-                  </div>
-                  <div className="metric-card">
-                    <div className="metric-value">${creatorProfileData.performance.totalReferralEarnings.toFixed(2)}</div>
-                    <div className="metric-label">Referral Earnings</div>
-                  </div>
-                  <div className="metric-card">
-                    <div className="metric-value">{creatorProfileData.performance.totalClicks}</div>
-                    <div className="metric-label">Total Clicks</div>
-                  </div>
-                  <div className="metric-card">
-                    <div className="metric-value">{creatorProfileData.performance.totalConversions}</div>
-                    <div className="metric-label">Conversions</div>
-                  </div>
-                  <div className="metric-card">
-                    <div className="metric-value">{creatorProfileData.performance.conversionRate}%</div>
-                    <div className="metric-label">Conversion Rate</div>
-                  </div>
-                  <div className="metric-card">
-                    <div className="metric-value">{creatorProfileData.performance.linksCount}</div>
-                    <div className="metric-label">Active Links</div>
+              {/* Performance Metrics - Only show if data exists */}
+              {creatorProfileData.performance && (
+                <div className="profile-section">
+                  <h3>📊 Performance Metrics</h3>
+                  <div className="metrics-grid">
+                    <div className="metric-card">
+                      <div className="metric-value">${(creatorProfileData.performance.totalEarnings || 0).toFixed(2)}</div>
+                      <div className="metric-label">Total Earnings</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">${(creatorProfileData.performance.totalReferralEarnings || 0).toFixed(2)}</div>
+                      <div className="metric-label">Referral Earnings</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{creatorProfileData.performance.totalClicks || 0}</div>
+                      <div className="metric-label">Total Clicks</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{creatorProfileData.performance.totalConversions || 0}</div>
+                      <div className="metric-label">Conversions</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{(creatorProfileData.performance.conversionRate || 0).toFixed(1)}%</div>
+                      <div className="metric-label">Conversion Rate</div>
+                    </div>
+                    <div className="metric-card">
+                      <div className="metric-value">{creatorProfileData.performance.linksCount || 0}</div>
+                      <div className="metric-label">Active Links</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Payment Information */}
               <div className="profile-section">
@@ -478,7 +480,7 @@ export default function CreatorManagement(){
                     <div className="info-grid">
                       <div className="info-item">
                         <span className="label">Payment Method:</span>
-                        <span className="value">{creatorProfileData.paymentDetails.type}</span>
+                        <span className="value">{creatorProfileData.paymentDetails.type || 'N/A'}</span>
                       </div>
                       <div className="info-item">
                         <span className="label">Status:</span>
@@ -488,7 +490,7 @@ export default function CreatorManagement(){
                       </div>
                       <div className="info-item">
                         <span className="label">Submitted:</span>
-                        <span className="value">{new Date(creatorProfileData.paymentDetails.createdAt).toLocaleDateString()}</span>
+                        <span className="value">{creatorProfileData.paymentDetails.createdAt ? new Date(creatorProfileData.paymentDetails.createdAt).toLocaleDateString() : 'N/A'}</span>
                       </div>
                     </div>
 
@@ -546,53 +548,57 @@ export default function CreatorManagement(){
                 )}
               </div>
 
-              {/* Recent Activity */}
-              <div className="profile-section">
-                <h3>🔗 Recent Links ({creatorProfileData.recentLinks.length})</h3>
-                {creatorProfileData.recentLinks.length > 0 ? (
-                  <div className="recent-links-list">
-                    {creatorProfileData.recentLinks.slice(0, 5).map(link => (
-                      <div key={link.id} className="link-item">
-                        <div className="link-info">
-                          <div className="link-title">{link.title || 'Untitled Link'}</div>
-                          <div className="link-url">{link.destinationUrl}</div>
+              {/* Recent Activity - Only show if data exists */}
+              {creatorProfileData.recentLinks && (
+                <div className="profile-section">
+                  <h3>🔗 Recent Links ({creatorProfileData.recentLinks.length || 0})</h3>
+                  {creatorProfileData.recentLinks.length > 0 ? (
+                    <div className="recent-links-list">
+                      {creatorProfileData.recentLinks.slice(0, 5).map(link => (
+                        <div key={link.id} className="link-item">
+                          <div className="link-info">
+                            <div className="link-title">{link.title || 'Untitled Link'}</div>
+                            <div className="link-url">{link.destinationUrl}</div>
+                          </div>
+                          <div className="link-stats">
+                            <span>{link.clicks || 0} clicks</span>
+                            <span>{link.conversions || 0} conversions</span>
+                          </div>
                         </div>
-                        <div className="link-stats">
-                          <span>{link.clicks || 0} clicks</span>
-                          <span>{link.conversions || 0} conversions</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No links created yet</p>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No links created yet</p>
+                  )}
+                </div>
+              )}
 
-              {/* Recent Earnings */}
-              <div className="profile-section">
-                <h3>💰 Recent Earnings ({creatorProfileData.recentEarnings.length})</h3>
-                {creatorProfileData.recentEarnings.length > 0 ? (
-                  <div className="recent-earnings-list">
-                    {creatorProfileData.recentEarnings.slice(0, 5).map(earning => (
-                      <div key={earning.id} className="earning-item">
-                        <div className="earning-info">
-                          <div className="earning-amount">${Number(earning.amount).toFixed(2)}</div>
-                          <div className="earning-type">{earning.type}</div>
+              {/* Recent Earnings - Only show if data exists */}
+              {creatorProfileData.recentEarnings && (
+                <div className="profile-section">
+                  <h3>💰 Recent Earnings ({creatorProfileData.recentEarnings.length || 0})</h3>
+                  {creatorProfileData.recentEarnings.length > 0 ? (
+                    <div className="recent-earnings-list">
+                      {creatorProfileData.recentEarnings.slice(0, 5).map(earning => (
+                        <div key={earning.id} className="earning-item">
+                          <div className="earning-info">
+                            <div className="earning-amount">${Number(earning.amount || 0).toFixed(2)}</div>
+                            <div className="earning-type">{earning.type || 'Unknown'}</div>
+                          </div>
+                          <div className="earning-date">
+                            {earning.createdAt ? new Date(earning.createdAt).toLocaleDateString() : 'N/A'}
+                          </div>
                         </div>
-                        <div className="earning-date">
-                          {new Date(earning.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p>No earnings yet</p>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No earnings yet</p>
+                  )}
+                </div>
+              )}
 
-              {/* Referrals */}
-              {creatorProfileData.referrals.length > 0 && (
+              {/* Referrals - Only show if data exists */}
+              {creatorProfileData.referrals && creatorProfileData.referrals.length > 0 && (
                 <div className="profile-section">
                   <h3>👥 Referrals ({creatorProfileData.referrals.length})</h3>
                   <div className="referrals-list">
@@ -603,6 +609,14 @@ export default function CreatorManagement(){
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Info Message */}
+              {(!creatorProfileData.performance && !creatorProfileData.recentLinks && !creatorProfileData.recentEarnings && !creatorProfileData.referrals) && (
+                <div className="profile-section info-message">
+                  <h3>ℹ️ Profile Information</h3>
+                  <p>This creator has a basic profile. Performance metrics and activity data will appear here once they start using the platform.</p>
                 </div>
               )}
             </div>
