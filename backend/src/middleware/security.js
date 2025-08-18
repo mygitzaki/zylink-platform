@@ -70,12 +70,15 @@ function applyCorsPreflight(app) {
 function applySimpleCors(app) {
   app.use((req, res, next) => {
     const origin = req.headers.origin;
+    const configuredOrigin = process.env.CORS_ORIGIN || null;
+    const allowOrigin = configuredOrigin || origin || '*';
     // Unconditionally set permissive CORS headers to unblock client
-    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Origin', allowOrigin);
     res.header('Vary', 'Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', '*');
+    res.header('Access-Control-Max-Age', '86400');
 
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
