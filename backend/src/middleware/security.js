@@ -16,10 +16,8 @@ function buildSecurityMiddleware() {
     // Production Vercel domains
     'https://zylink-platform.vercel.app',
     'https://zylink-platform-iuey5dep4-muhammad-zakaryas-projects.vercel.app',
-    // Allow all Vercel preview deployments - fixed regex
-    /^https:\/\/zylink-platform-[a-zA-Z0-9-]+\.vercel\.app$/,
-    // Allow all variations of this specific deployment
-    /^https:\/\/zylink-platform-.*muhammad-zakaryas-projects\.vercel\.app$/
+    // Allow all Vercel deployments for this project
+    /^https:\/\/zylink-platform.*\.vercel\.app$/
   ];
   
   const corsOptions = {
