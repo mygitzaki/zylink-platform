@@ -63,7 +63,7 @@ const SkeletonText = ({ lines = 3, className = '' }) => (
 
 // Skeleton metric card (Zylike style)
 const SkeletonMetric = ({ className = '' }) => (
-  <div className={`p-4 sm:p-6 bg-glass-white backdrop-blur-xl rounded-2xl border border-white/10 space-y-4 ${className}`}>
+  <div className={`p-4 sm:p-6 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 space-y-4 ${className}`}>
     <div className="flex items-center justify-between">
       <Skeleton variant="icon" />
       <Skeleton variant="text" className="w-16 h-6" />
@@ -89,7 +89,7 @@ const SkeletonNavItem = ({ className = '' }) => (
 
 // Skeleton general card
 const SkeletonCard = ({ className = '' }) => (
-  <div className={`p-6 bg-glass-white backdrop-blur-xl rounded-2xl border border-white/10 space-y-4 ${className}`}>
+  <div className={`p-6 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 space-y-4 ${className}`}>
     <div className="flex items-center space-x-4">
       <Skeleton variant="icon" />
       <div className="flex-1">
@@ -103,7 +103,7 @@ const SkeletonCard = ({ className = '' }) => (
 
 // Skeleton link generator form
 const SkeletonLinkForm = ({ className = '' }) => (
-  <div className={`p-6 bg-glass-white backdrop-blur-xl rounded-2xl border border-white/10 space-y-6 ${className}`}>
+  <div className={`p-6 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10 space-y-6 ${className}`}>
     <div className="flex items-center space-x-3">
       <Skeleton variant="icon" />
       <div className="flex-1">

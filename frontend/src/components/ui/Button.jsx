@@ -16,11 +16,11 @@ const Button = ({
   const baseClasses = 'font-medium rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation';
   
   const variants = {
-    primary: 'bg-gradient-to-r from-brand-500 to-accent-500 hover:from-brand-600 hover:to-accent-600 text-white shadow-zylike hover:scale-105 focus:ring-brand-500',
-    secondary: 'bg-glass-white hover:bg-glass-white-20 text-white border border-white/20 hover:border-white/30 backdrop-blur-sm',
-    ghost: 'bg-transparent hover:bg-glass-white text-white',
-    danger: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-zylike hover:scale-105',
-    outline: 'border-2 border-brand-500 text-brand-500 hover:bg-brand-500 hover:text-white'
+    primary: 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:scale-105 focus:ring-blue-500',
+    secondary: 'bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/30 backdrop-blur-sm',
+    ghost: 'bg-transparent hover:bg-white/10 text-white',
+    danger: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:scale-105',
+    outline: 'border-2 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white'
   };
   
   const sizes = {

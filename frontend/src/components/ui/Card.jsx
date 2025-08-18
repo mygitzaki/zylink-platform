@@ -16,15 +16,15 @@ const Card = ({
   
   const variants = {
     // Glassmorphism (Zylike style)
-    glass: 'bg-glass-white backdrop-blur-xl border border-white/10 shadow-glass',
-    'glass-strong': 'bg-glass-white-20 backdrop-blur-xl border border-white/20 shadow-glass-lg',
+    glass: 'bg-white/10 backdrop-blur-xl border border-white/10 shadow-lg',
+    'glass-strong': 'bg-white/20 backdrop-blur-xl border border-white/20 shadow-xl',
     
     // Gradient backgrounds
-    gradient: 'bg-gradient-to-br from-brand-500/20 to-accent-500/20 backdrop-blur-xl border border-brand-500/30 shadow-zylike',
-    'gradient-strong': 'bg-gradient-to-br from-brand-500/30 to-accent-500/30 backdrop-blur-xl border border-brand-500/50',
+    gradient: 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-xl border border-blue-500/30 shadow-lg',
+    'gradient-strong': 'bg-gradient-to-br from-blue-500/30 to-purple-500/30 backdrop-blur-xl border border-blue-500/50',
     
     // Solid backgrounds
-    solid: 'bg-gray-800/95 border border-gray-700/50 shadow-zylike',
+    solid: 'bg-gray-800/95 border border-gray-700/50 shadow-lg',
     dark: 'bg-gray-900/95 border border-gray-800/50',
     
     // Transparent
@@ -39,7 +39,7 @@ const Card = ({
     xl: 'p-6 sm:p-8 lg:p-10'
   };
   
-  const hoverEffects = hover ? 'hover:scale-[1.02] hover:shadow-glass-lg hover:border-white/30' : '';
+  const hoverEffects = hover ? 'hover:scale-[1.02] hover:shadow-xl hover:border-white/30' : '';
   
   const classes = [
     baseClasses,
