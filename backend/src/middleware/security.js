@@ -59,14 +59,12 @@ function getCorsOptions() {
 
 function buildSecurityMiddleware() {
   const limiter = rateLimit({ windowMs: 60 * 1000, max: 100 });
-  const corsOptions = getCorsOptions();
-  // Run CORS before Helmet to ensure headers are set on preflights and requests
-  return [cors(corsOptions), helmet(), limiter];
+  // We rely on applySimpleCors for CORS to avoid conflicts
+  return [helmet(), limiter];
 }
 
 function applyCorsPreflight(app) {
-  const corsOptions = getCorsOptions();
-  app.options('*', cors(corsOptions));
+  // No-op: handled by applySimpleCors
 }
 
 function applySimpleCors(app) {
