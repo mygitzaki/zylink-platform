@@ -7,9 +7,13 @@ export default function ApplicationPending() {
   const email = location.state?.email
   const navigationSubmitted = location.state?.submitted
   
-  // Check if application was submitted based on user's applicationStatus
-  // If user has PENDING or APPROVED status, they definitely submitted their application
-  const submitted = navigationSubmitted || (user?.applicationStatus === 'PENDING' || user?.applicationStatus === 'APPROVED')
+  // Check if application was actually submitted by looking at the data
+  // Just having PENDING status doesn't mean they filled the form
+  const hasApplicationData = user?.bio && user?.socialMediaLinks && 
+    (user.bio.trim() !== '' || Object.values(user.socialMediaLinks || {}).some(link => link && link.trim() !== ''))
+  
+  // Only consider submitted if they have actual application data OR explicitly came from form submission
+  const submitted = navigationSubmitted || hasApplicationData
 
   return (
     <div className="application-status-container">
@@ -58,15 +62,15 @@ export default function ApplicationPending() {
                 <div className="step-icon">{submitted ? '✅' : '📝'}</div>
                 <div className="step-content">
                   <h3>Complete Application</h3>
-                  <p>Fill out your creator application with traffic links</p>
+                  <p>{submitted ? 'Application form completed successfully' : 'Fill out your creator application with traffic links'}</p>
                 </div>
               </div>
               
               <div className={`step-item ${submitted ? 'current' : ''}`}>
-                <div className="step-icon">⏳</div>
+                <div className="step-icon">{submitted ? '⏳' : '🔒'}</div>
                 <div className="step-content">
                   <h3>Admin Review</h3>
-                  <p>Our team will review your application</p>
+                  <p>{submitted ? 'Our team will review your application' : 'Application must be completed first'}</p>
                 </div>
               </div>
               
