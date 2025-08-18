@@ -188,8 +188,15 @@ router.put('/profile', requireAuth, async (req, res) => {
 
 router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
   try {
+    console.log('🔗 Link creation started for user:', req.user.id);
     const { destinationUrl } = req.body;
-    if (!destinationUrl) return res.status(400).json({ message: 'destinationUrl required' });
+    
+    if (!destinationUrl) {
+      console.log('❌ No destination URL provided');
+      return res.status(400).json({ message: 'destinationUrl required' });
+    }
+    
+    console.log('✅ URL validation passed:', destinationUrl);
     
     const impact = new ImpactWebService();
     const shortener = new LinkShortener();
@@ -197,21 +204,30 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
 
     // Validate URL
     if (!impact.isValidUrl(destinationUrl)) {
+      console.log('❌ Invalid URL format:', destinationUrl);
       return res.status(400).json({ message: 'Invalid destination URL format' });
     }
 
+    console.log('🌐 Creating Impact.com tracking link...');
     // Create Impact.com tracking link using real API
     const impactResult = await impact.createTrackingLink(destinationUrl, req.user.id);
     const impactLink = impactResult.trackingUrl;
+    console.log('✅ Impact.com link created:', impactLink);
 
+    console.log('🔗 Creating short link...');
     // Create short link
     let { shortCode, shortLink } = shortener.createShortLink(destinationUrl, req.user.id);
+    console.log('✅ Short link created:', shortLink);
     
+    console.log('📱 Generating QR code...');
     // Generate QR code
     const qrCodeUrl = await qr.generateQRCode(shortLink);
+    console.log('✅ QR code generated:', qrCodeUrl);
 
     const prisma = getPrisma();
     if (prisma) {
+      console.log('💾 Database available, saving links...');
+      
       // Collision-safe insert for short link
       let attempts = 0;
       while (attempts < 5) {
@@ -224,9 +240,11 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
               creatorId: req.user.id 
             } 
           });
+          console.log('✅ Short link saved to database');
           break;
         } catch (e) {
           if (e.code === 'P2002') {
+            console.log('⚠️ Short code collision, retrying...');
             const next = shortener.createShortLink(destinationUrl, req.user.id);
             shortLink = next.shortLink;
             shortCode = next.shortCode;
@@ -237,6 +255,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
         }
       }
 
+      console.log('🔗 Creating main link record...');
       // Create link record
       const link = await prisma.link.create({
         data: {
@@ -247,6 +266,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
           qrCodeUrl,
         },
       });
+      console.log('✅ Main link record created:', link.id);
 
       return res.status(201).json({ 
         link,
@@ -256,6 +276,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
       });
     }
 
+    console.log('⚠️ Database not available, using in-memory store');
     // Fallback to in-memory store when DB is not configured
     const { saveShortLink } = require('../utils/memoryStore');
     saveShortLink(shortCode, destinationUrl);
@@ -266,7 +287,8 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
       ...(impactResult.error && { apiError: impactResult.error })
     });
   } catch (err) {
-    console.error('Link creation error:', err);
+    console.error('❌ Link creation error:', err);
+    console.error('❌ Error stack:', err.stack);
     
     // Provide more specific error messages
     if (err.message?.includes('Impact.com API')) {
@@ -293,6 +315,15 @@ router.get('/links', requireAuth, async (req, res) => {
   if (!prisma) return res.json({ links: [] });
   const links = await prisma.link.findMany({ where: { creatorId: req.user.id } });
   res.json({ links });
+});
+
+// Test endpoint to check if authentication and middleware are working
+router.get('/test-auth', requireAuth, async (req, res) => {
+  res.json({ 
+    message: 'Authentication working',
+    user: { id: req.user.id, role: req.user.role },
+    timestamp: new Date().toISOString()
+  });
 });
 
 router.get('/earnings', requireAuth, requireApprovedCreator, async (req, res) => {
