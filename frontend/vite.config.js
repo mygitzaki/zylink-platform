@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   base: '/',
   define: {
-    // Fallback API URL for production if env var not set
-    __API_URL__: JSON.stringify(process.env.VITE_API_URL || 'https://zylike-creator-platform-production.up.railway.app')
+    // Ensure no hardcoded remote URL leaks into the build
+    __API_URL__: JSON.stringify(process.env.VITE_API_URL || '')
   },
   build: {
     outDir: 'dist',

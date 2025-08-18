@@ -1,6 +1,10 @@
-// Use production API URL directly for deployment
-const API_BASE = import.meta.env.VITE_API_URL || 
-                 (import.meta.env.PROD ? 'https://zylike-creator-platform-production.up.railway.app' : 'http://localhost:4000');
+// In production on Vercel, force relative "/api" so the rewrite proxies to backend (avoids CORS),
+// even if a VITE_API_URL was accidentally set.
+const isBrowser = typeof window !== 'undefined';
+const isVercelHost = isBrowser && /\.vercel\.app$/.test(window.location.hostname);
+const API_BASE = (import.meta.env.PROD && isVercelHost)
+  ? ''
+  : (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:4000'));
 
 export async function apiFetch(path, { method = 'GET', body, token, headers: customHeaders } = {}) {
   const headers = { 'Content-Type': 'application/json' };
