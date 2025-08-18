@@ -25,6 +25,11 @@ preventShutdown();
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 
+// Trust proxy for Railway deployment
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // 🛡️ Safety middleware (before everything else)
 app.use(requestTimeout(30000)); // 30 second timeout
 app.use(requestLogger);
@@ -44,7 +49,28 @@ app.use('/docs', (req, res, next) => {
   next();
 });
 
-app.use('/docs', express.static(path.join(__dirname, '..', 'docs'), {
+// Try multiple possible paths for docs directory
+const possibleDocsPaths = [
+  path.join(__dirname, '..', 'docs'),     // Local development
+  path.join(process.cwd(), 'docs'),       // Railway deployment
+  path.join(__dirname, 'docs')            // Alternative structure
+];
+
+let docsPath = possibleDocsPaths[0]; // Default
+for (const testPath of possibleDocsPaths) {
+  try {
+    const fs = require('fs');
+    if (fs.existsSync(testPath)) {
+      docsPath = testPath;
+      console.log(`📁 Using docs path: ${docsPath}`);
+      break;
+    }
+  } catch (err) {
+    // Continue to next path
+  }
+}
+
+app.use('/docs', express.static(docsPath, {
   extensions: ['html'],
   index: false,
   fallthrough: false
