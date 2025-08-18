@@ -34,11 +34,43 @@ export default function LinkGenerator() {
   const loadDashboardData = async () => {
     try {
       setDataLoading(true)
-      const [analyticsRes, earningsRes, linksRes] = await Promise.all([
-        apiFetch('/api/creator/analytics', { token }),
-        apiFetch('/api/creator/earnings', { token }),
-        apiFetch('/api/creator/links', { token })
-      ])
+      
+      // Try direct API calls first to bypass Vercel rewrite issues
+      let analyticsRes, earningsRes, linksRes
+      
+      try {
+        console.log('🌐 Loading dashboard data via direct API calls...')
+        const [analyticsPromise, earningsPromise, linksPromise] = [
+          fetch('https://zylink-platform-production.up.railway.app/api/creator/analytics', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch('https://zylink-platform-production.up.railway.app/api/creator/earnings', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }),
+          fetch('https://zylink-platform-production.up.railway.app/api/creator/links', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        ]
+        
+        const [analyticsResponse, earningsResponse, linksResponse] = await Promise.all([
+          analyticsPromise, earningsPromise, linksPromise
+        ])
+        
+        analyticsRes = await analyticsResponse.json()
+        earningsRes = await earningsResponse.json()
+        linksRes = await linksResponse.json()
+        
+        console.log('✅ Direct API calls successful')
+      } catch (directError) {
+        console.log('⚠️ Direct API calls failed, trying Vercel rewrite...')
+        
+        // Fallback to Vercel rewrite
+        [analyticsRes, earningsRes, linksRes] = await Promise.all([
+          apiFetch('/api/creator/analytics', { token }),
+          apiFetch('/api/creator/earnings', { token }),
+          apiFetch('/api/creator/links', { token })
+        ])
+      }
       
       setDashboardData({
         totalLinks: linksRes.links?.length || 0,
@@ -64,11 +96,40 @@ export default function LinkGenerator() {
     setGeneratedLink(null)
     
     try {
-      const result = await apiFetch('/api/creator/links', {
-        method: 'POST',
-        body: { destinationUrl: productUrl },
-        token
-      })
+      console.log('🔗 Attempting to generate link for:', productUrl)
+      console.log('🔑 Token available:', !!token)
+      
+      // Try direct API call first (bypass Vercel rewrite rules)
+      let result
+      try {
+        console.log('🌐 Trying direct API call...')
+        result = await fetch('https://zylink-platform-production.up.railway.app/api/creator/links', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ destinationUrl: productUrl })
+        })
+        
+        if (!result.ok) {
+          throw new Error(`HTTP ${result.status}: ${result.statusText}`)
+        }
+        
+        result = await result.json()
+        console.log('✅ Direct API call successful:', result)
+      } catch (directError) {
+        console.log('⚠️ Direct API call failed, trying Vercel rewrite...')
+        
+        // Fallback to Vercel rewrite
+        result = await apiFetch('/api/creator/links', {
+          method: 'POST',
+          body: { destinationUrl: productUrl },
+          token
+        })
+        
+        console.log('✅ Vercel rewrite successful:', result)
+      }
       
       // Extract the link data from the response
       setGeneratedLink(result.link)
@@ -80,6 +141,13 @@ export default function LinkGenerator() {
       
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
+      console.error('❌ Link generation failed:', err)
+      console.error('❌ Error details:', {
+        message: err.message,
+        status: err.status,
+        response: err.response
+      })
+      
       if (err.status === 401) {
         setError('Session expired. Please log in again.')
         // Redirect to login after a delay
