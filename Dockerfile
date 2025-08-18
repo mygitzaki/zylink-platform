@@ -17,14 +17,14 @@ WORKDIR /app
 # Copy backend package files
 COPY backend/package*.json ./backend/
 
+# Copy Prisma schema first (needed for postinstall script)
+COPY backend/prisma ./backend/prisma
+
 # Install backend dependencies
 RUN cd backend && npm install
 
-# Copy backend source code
+# Copy remaining backend source code
 COPY backend ./backend
-
-# Generate Prisma client for the correct platform
-RUN cd backend && npx prisma generate
 
 # Production stage
 FROM node:18-slim AS production
