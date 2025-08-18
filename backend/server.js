@@ -1,3 +1,5 @@
+console.log('🚀 SERVER STARTING - VERSION WITH ROLE FIELD FIX -', new Date().toISOString());
+
 const express = require('express');
 const path = require('path');
 const morgan = require('morgan');
