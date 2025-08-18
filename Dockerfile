@@ -17,18 +17,6 @@ RUN cd backend && npm install
 # Copy remaining backend source code
 COPY backend ./backend
 
-# Copy frontend package files
-COPY frontend/package*.json ./frontend/
-
-# Install frontend dependencies
-RUN cd frontend && npm install
-
-# Copy frontend source code
-COPY frontend ./frontend
-
-# Build frontend
-RUN cd frontend && npm run build
-
 # Production stage
 FROM node:18-alpine AS production
 
@@ -37,9 +25,6 @@ RUN apk add --no-cache dumb-init
 
 # Set working directory
 WORKDIR /app
-
-# Copy built frontend
-COPY --from=builder /app/frontend/dist ./frontend/dist
 
 # Copy backend
 COPY --from=builder /app/backend ./backend
