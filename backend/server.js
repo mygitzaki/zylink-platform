@@ -32,6 +32,20 @@ if (process.env.NODE_ENV === 'production') {
 
 // CORS first so every request (including OPTIONS) gets headers
 applySimpleCors(app);
+// Extra safeguard: explicit catch-all OPTIONS handler
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+  } else {
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, content-type, Authorization, authorization');
+  return res.sendStatus(204);
+});
 
 // 🛡️ Safety middleware (before everything else)
 app.use(requestTimeout(30000)); // 30 second timeout
