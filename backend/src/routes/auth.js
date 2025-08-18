@@ -104,12 +104,17 @@ router.post('/create-admin', async (req, res) => {
 
 router.get('/profile', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Auth profile endpoint called - checking for role field fix');
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ message: 'Database not configured' });
     
     const user = await prisma.creator.findUnique({ where: { id: req.user.id } });
-    if (!user) return res.status(404).json({ message: 'Not found' });
-    
+    if (!user) {
+      return res.status(404).json({ message: 'Creator not found' });
+    }
+
+    console.log('👤 Auth profile - Creator found:', { id: user.id, email: user.email, adminRole: user.adminRole });
+
     // Return the role from the database (adminRole field) instead of from JWT token
     const role = user.adminRole || 'USER';
     
@@ -117,12 +122,15 @@ router.get('/profile', requireAuth, async (req, res) => {
       id: user.id, 
       name: user.name, 
       email: user.email, 
-      role: role, 
+      bio: user.bio,
+      socialMediaLinks: user.socialMediaLinks,
+      groupLinks: user.groupLinks,
       isActive: user.isActive, 
-      applicationStatus: user.applicationStatus 
+      applicationStatus: user.applicationStatus,
+      role: role, // This should fix the admin detection
     });
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error in auth profile:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

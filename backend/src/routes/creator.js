@@ -139,12 +139,20 @@ router.post('/login', async (req, res) => {
 
 router.get('/profile', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Creator profile endpoint called - checking for role field fix');
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ message: 'Database not configured' });
     
-    const creator = await prisma.creator.findUnique({ where: { id: req.user.id } });
-    if (!creator) return res.status(404).json({ message: 'Not found' });
-    
+    const creator = await prisma.creator.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!creator) {
+      return res.status(404).json({ message: 'Creator not found' });
+    }
+
+    console.log('👤 Creator found:', { id: creator.id, email: creator.email, adminRole: creator.adminRole });
+
     res.json({
       id: creator.id,
       name: creator.name,
@@ -154,10 +162,10 @@ router.get('/profile', requireAuth, async (req, res) => {
       groupLinks: creator.groupLinks,
       isActive: creator.isActive,
       applicationStatus: creator.applicationStatus,
-      role: creator.adminRole || 'USER',
+      role: creator.adminRole || 'USER', // This should fix the admin detection
     });
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error in creator profile:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
