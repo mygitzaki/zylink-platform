@@ -5,14 +5,19 @@ const rateLimit = require('express-rate-limit');
 function buildSecurityMiddleware() {
   const limiter = rateLimit({ windowMs: 60 * 1000, max: 100 });
   
-  // Allow multiple origins for development
+  // Allow multiple origins for development and production
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174', 
     'http://localhost:5175',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:5174',
-    'http://127.0.0.1:5175'
+    'http://127.0.0.1:5175',
+    // Production Vercel domains
+    'https://zylink-platform.vercel.app',
+    'https://zylink-platform-iuey5dep4-muhammad-zakaryas-projects.vercel.app',
+    // Allow all Vercel preview deployments
+    /^https:\/\/zylink-platform-.*\.vercel\.app$/
   ];
   
   const corsOptions = {
@@ -20,9 +25,18 @@ function buildSecurityMiddleware() {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      // Check string origins
+      if (allowedOrigins.some(allowed => {
+        if (typeof allowed === 'string') {
+          return allowed === origin;
+        } else if (allowed instanceof RegExp) {
+          return allowed.test(origin);
+        }
+        return false;
+      })) {
         callback(null, true);
       } else {
+        console.log(`CORS blocked origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
