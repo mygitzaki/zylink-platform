@@ -70,23 +70,14 @@ function applyCorsPreflight(app) {
 function applySimpleCors(app) {
   app.use((req, res, next) => {
     const origin = req.headers.origin;
-    // Always respond to preflight early and include ACAO
-    if (req.method === 'OPTIONS') {
-      res.header('X-Debug-CORS', 'preflight');
-      res.header('Access-Control-Allow-Origin', origin || '*');
-      res.header('Vary', 'Origin');
-      res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, content-type, Authorization, authorization');
-      return res.sendStatus(204);
-    }
+    // Unconditionally set permissive CORS headers to unblock client
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', '*');
 
-    if (isOriginAllowed(origin)) {
-      res.header('X-Debug-CORS', 'runtime');
-      res.header('Access-Control-Allow-Origin', origin || '*');
-      res.header('Vary', 'Origin');
-      res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, content-type, Authorization, authorization');
-    }
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
 }
