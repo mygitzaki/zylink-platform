@@ -26,7 +26,7 @@ function Placeholder({ title }) {
   return (
     <div style={{ padding: '1.5rem' }}>
       <h1 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>{title}</h1>
-      <p style={{ color: '#6b7280' }}>Page coming soon per ZYLINK guide.</p>
+      <p style={{ color: '#6b7280' }}>Page coming soon per ZYLIKE guide.</p>
     </div>
   )
 }
@@ -73,7 +73,7 @@ function Nav() {
                 </svg>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Zylink</h1>
+                <h1 className="text-xl font-bold text-white">Zylike</h1>
                 {user && (
                   <p className="text-purple-200 text-sm">Welcome, {user.name} ✨</p>
                 )}

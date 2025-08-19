@@ -89,7 +89,7 @@ export default function CreatorApplication() {
         <div className="form-header">
           <h1 className="form-title">Complete Your Creator Application</h1>
           <p className="form-subtitle">
-            Tell us about yourself and your audience to get approved for the Zylink creator program.
+            Tell us about yourself and your audience to get approved for the Zylike creator program.
           </p>
         </div>
 

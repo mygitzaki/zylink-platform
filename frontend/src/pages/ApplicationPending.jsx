@@ -43,7 +43,7 @@ export default function ApplicationPending() {
           <p className="status-message">
             {submitted 
               ? 'Your creator application has been submitted for review. Our team will evaluate your application within 24-48 hours.'
-              : `Welcome to Zylink! Your account has been created${email ? ` for ${email}` : ''}.`
+              : `Welcome to Zylike! Your account has been created${email ? ` for ${email}` : ''}.`
             }
           </p>
           

@@ -54,7 +54,7 @@ export default function Login() {
         <div className="form-container">
           <div className="form-header">
             <h2 className="form-title">Welcome Back</h2>
-            <p className="form-subtitle">Sign in to your Zylink account</p>
+            <p className="form-subtitle">Sign in to your Zylike account</p>
           </div>
 
           <form onSubmit={onSubmit}>

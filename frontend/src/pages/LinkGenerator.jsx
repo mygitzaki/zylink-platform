@@ -166,8 +166,8 @@ export default function LinkGenerator() {
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text)
         .then(() => {
-          setSuccess(`${linkType} copied to clipboard!`)
-          setTimeout(() => setSuccess(''), 3000)
+          setSuccess(`✅ ${linkType} copied successfully!`)
+          setTimeout(() => setSuccess(''), 4000)
         })
         .catch(() => {
           // Fallback to old method
