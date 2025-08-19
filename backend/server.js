@@ -157,6 +157,7 @@ async function handleShortRedirect(req, res) {
 }
 
 app.get('/s/:shortCode', handleShortRedirect);
+app.get('/:shortCode', handleShortRedirect); // Handle short links at root path for s.zylike.com
 app.head('/s/:shortCode', handleShortRedirect);
 
 // Health check
