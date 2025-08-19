@@ -8,6 +8,26 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const prisma = getPrisma();
 
+// GET /api/links - List all links for the authenticated creator
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    
+    const links = await prisma.link.findMany({
+      where: { creatorId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        shortLinks: true
+      }
+    });
+    
+    res.json({ links });
+  } catch (err) {
+    console.error('Error fetching links:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.post('/generate', requireAuth, async (req, res) => {
   try {
     const { destinationUrl } = req.body;
