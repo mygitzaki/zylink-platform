@@ -58,12 +58,12 @@ router.post('/generate', requireAuth, async (req, res) => {
     let createdShort = null;
     while (attempts < 5) {
       try {
-        createdShort = await prisma.shortLink.create({ data: { shortCode, destinationUrl, creatorId: req.user.id } });
+        createdShort = await prisma.shortLink.create({ data: { shortCode, originalUrl: impactLink, creatorId: req.user.id } });
         break;
       } catch (e) {
         if (e.code === 'P2002') {
           // collision on unique shortCode → regenerate
-          const next = shortener.createShortLink(destinationUrl, req.user.id);
+          const next = shortener.createShortLink(impactLink, req.user.id);
           shortLink = next.shortLink;
           shortCode = next.shortCode;
           attempts++;

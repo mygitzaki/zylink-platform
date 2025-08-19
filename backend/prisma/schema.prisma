@@ -110,7 +110,7 @@ model PaymentAccount {
 model ShortLink {
   id              String   @id @default(uuid())
   shortCode       String   @unique
-  destinationUrl  String
+  originalUrl     String
   creatorId       String
   clicks          Int      @default(0)
   createdAt       DateTime @default(now())
