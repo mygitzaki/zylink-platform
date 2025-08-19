@@ -17,7 +17,7 @@ class LinkShortener {
 
   createShortLink(destinationUrl, creatorId) {
     const shortCode = this.generateShortCode();
-    const base = process.env.SHORTLINK_BASE || 'https://zylink-platform-production.up.railway.app/s';
+    const base = process.env.SHORTLINK_BASE || 'https://s.zylike.com';
     const baseTrimmed = base.replace(/\/$/, '');
     const shortLink = `${baseTrimmed}/${shortCode}`;
     return { shortCode, shortLink, destinationUrl, creatorId };
