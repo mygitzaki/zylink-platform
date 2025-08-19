@@ -4,7 +4,7 @@ const express = require('express');
 const path = require('path');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
-const { buildSecurityMiddleware, applySimpleCors } = require('./src/middleware/security');
+const { buildSecurityMiddleware } = require('./src/middleware/security');
 const cookieParser = require('cookie-parser');
 
 // 🛡️ SAFETY SYSTEMS - Prevent crashes
@@ -32,15 +32,14 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
-// CORS first so every request (including OPTIONS) gets headers
+// Simplified CORS configuration - single, clear implementation
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   console.log(`🌐 CORS Request: ${req.method} ${req.path} from origin: ${origin}`);
   
-  // Always allow Vercel domain
-  if (origin === 'https://zylink-platform.vercel.app') {
-    console.log('✅ Allowing Vercel origin with full CORS headers');
+  // Allow Vercel domains
+  if (origin && (origin.includes('vercel.app') || origin.includes('localhost'))) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
@@ -49,59 +48,12 @@ app.use((req, res, next) => {
     
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
-      console.log('🔄 Handling OPTIONS preflight for Vercel');
+      console.log('🔄 Handling OPTIONS preflight');
       return res.status(200).end();
     }
-    return next();
   }
   
-  // Allow other origins
-  if (origin) {
-    console.log('🌍 Allowing other origin:', origin);
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    console.log('🌍 No origin, allowing all');
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.header('Vary', 'Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
-  
-  if (req.method === 'OPTIONS') {
-    console.log('🔄 Handling OPTIONS preflight for other origin');
-    return res.sendStatus(204);
-  }
   next();
-});
-applySimpleCors(app);
-// Extra safeguard: explicit catch-all OPTIONS handler
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  
-  // Always allow Vercel domain
-  if (origin === 'https://zylink-platform.vercel.app') {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.header('Vary', 'Origin');
-    return res.status(200).end();
-  }
-  
-  // Handle other origins
-  if (origin) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.header('Vary', 'Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  return res.status(200).end();
 });
 
 // 🛡️ Safety middleware (before everything else)
@@ -113,11 +65,11 @@ app.use(memoryMonitor);
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Security middlewares including CORS should run before anything that can end the response
+// Security middlewares
 app.use(...buildSecurityMiddleware());
 app.use(cookieParser());
 
-// Apply custom rate limiter AFTER CORS so preflights receive CORS headers even when limited
+// Apply custom rate limiter
 app.use(rateLimiter());
 
 // Serve the docs directory statically but only allow GET/HEAD

@@ -19,7 +19,7 @@ model Creator {
   bio              String?
   socialMediaLinks Json?
   groupLinks       Json?
-  applicationStatus ApplicationStatus @default(PENDING)
+  applicationStatus ApplicationStatus?
   isActive         Boolean           @default(false)
   commissionRate   Int               @default(70)
   salesBonus       Decimal           @default(0)
