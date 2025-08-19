@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import { useState } from 'react'
-import { quickReLogin } from './utils/quickAuth'
+
 import Login from './pages/Login'
 import LinkGenerator from './pages/LinkGenerator'
 import MyLinks from './pages/MyLinks'
@@ -35,20 +35,7 @@ function Nav() {
   const { user, token, setToken } = useAuth() || {}
   const isAdmin = user && (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  
-  const handleQuickRefresh = async () => {
-    setRefreshing(true)
-    try {
-      await quickReLogin()
-      // quickReLogin will redirect to login, so we don't need to do anything else
-    } catch (error) {
-      console.error('Failed to refresh auth:', error)
-      // Don't show alert since we're redirecting to login
-    } finally {
-      setRefreshing(false)
-    }
-  }
+
   
   console.log('Nav component:', { user, isAdmin, role: user?.role }) // Debug log
   
@@ -117,21 +104,12 @@ function Nav() {
               </div>
               <div className="hidden lg:block">
                 <p className="text-white text-sm font-medium">{user?.name || 'Creator'}</p>
-                <p className="text-purple-200 text-xs">{isAdmin ? 'Admin' : 'Creator'}</p>
+                <p className="text-purple-200 text-xs">{user?.email || 'email@example.com'}</p>
+                <p className="text-blue-200 text-xs">{isAdmin ? 'Admin Account' : 'Creator Account'}</p>
               </div>
             </div>
             
-            {/* Logout Button */}
-                        <button 
-              onClick={handleQuickRefresh}
-              disabled={refreshing}
-              className="flex items-center space-x-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 hover:text-green-300 px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50"
-            >
-              <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span className="hidden lg:block">{refreshing ? 'Redirecting...' : 'Re-Login'}</span>
-            </button>
+
             <button 
               onClick={() => setToken('')}
               className="flex items-center space-x-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:scale-105"
@@ -184,7 +162,8 @@ function Nav() {
                   </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-white text-base">{user?.name || 'Creator Name'}</h4>
-                    <p className="text-sm text-gray-300">{isAdmin ? 'Admin Account' : 'Creator Account'}</p>
+                    <p className="text-sm text-gray-300">{user?.email || 'email@example.com'}</p>
+                    <p className="text-sm text-blue-300">{isAdmin ? 'Admin Account' : 'Creator Account'}</p>
                   </div>
                 </div>
               </div>
