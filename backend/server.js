@@ -38,8 +38,12 @@ app.use((req, res, next) => {
   
   console.log(`🌐 CORS Request: ${req.method} ${req.path} from origin: ${origin}`);
   
-  // Allow Vercel domains
-  if (origin && (origin.includes('vercel.app') || origin.includes('localhost'))) {
+  // Allow Vercel domains and localhost
+  if (origin && (
+    origin.includes('vercel.app') || 
+    origin.includes('localhost') ||
+    origin.includes('zylink-platform.vercel.app')
+  )) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
