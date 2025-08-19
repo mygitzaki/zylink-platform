@@ -118,57 +118,57 @@ export default function CreatorApplication() {
             
             <div className="form-grid">
               <div className="form-field">
-                <label>📷 Instagram</label>
+                <label className="form-label-mobile">📷 Instagram</label>
                 <input
                   type="text"
                   value={formData.socialMediaLinks.instagram}
                   onChange={(e) => handleSocialChange('instagram', e.target.value)}
                   placeholder="@yourusername or instagram.com/yourusername"
-                  className="form-input"
+                  className="form-input form-input-mobile"
                 />
               </div>
               
               <div className="form-field">
-                <label>▶️ YouTube</label>
+                <label className="form-label-mobile">▶️ YouTube</label>
                 <input
                   type="text"
                   value={formData.socialMediaLinks.youtube}
                   onChange={(e) => handleSocialChange('youtube', e.target.value)}
                   placeholder="@yourusername or your channel name"
-                  className="form-input"
+                  className="form-input form-input-mobile"
                 />
               </div>
               
               <div className="form-field">
-                <label>🎵 TikTok</label>
+                <label className="form-label-mobile">🎵 TikTok</label>
                 <input
                   type="text"
                   value={formData.socialMediaLinks.tiktok}
                   onChange={(e) => handleSocialChange('tiktok', e.target.value)}
                   placeholder="@yourusername or tiktok.com/@yourusername"
-                  className="form-input"
+                  className="form-input form-input-mobile"
                 />
               </div>
               
               <div className="form-field">
-                <label>📘 Facebook Page</label>
+                <label className="form-label-mobile">📘 Facebook Page</label>
                 <input
                   type="text"
                   value={formData.socialMediaLinks.facebook}
                   onChange={(e) => handleSocialChange('facebook', e.target.value)}
                   placeholder="Your page name or facebook.com/yourpage"
-                  className="form-input"
+                  className="form-input form-input-mobile"
                 />
               </div>
               
               <div className="form-field">
-                <label>🌐 Website/Blog</label>
+                <label className="form-label-mobile">🌐 Website/Blog</label>
                 <input
                   type="text"
                   value={formData.socialMediaLinks.website}
                   onChange={(e) => handleSocialChange('website', e.target.value)}
                   placeholder="yourwebsite.com or blog name"
-                  className="form-input"
+                  className="form-input form-input-mobile"
                 />
               </div>
             </div>

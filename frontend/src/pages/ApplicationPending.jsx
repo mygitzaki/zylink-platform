@@ -48,55 +48,55 @@ export default function ApplicationPending() {
           </p>
           
           <div className="next-steps">
-            <h2>Next Steps:</h2>
-            <div className="steps-list">
-              <div className="step-item completed">
-                <div className="step-icon">✅</div>
-                <div className="step-content">
-                  <h3>Account Created</h3>
-                  <p>Your basic account has been set up</p>
+            <h2 className="steps-title-mobile">Next Steps:</h2>
+            <div className="steps-list steps-list-mobile">
+              <div className="step-item step-item-mobile completed">
+                <div className="step-icon step-icon-mobile">✅</div>
+                <div className="step-content step-content-mobile">
+                  <h3 className="step-title-mobile">Account Created</h3>
+                  <p className="step-description-mobile">Your basic account has been set up</p>
                 </div>
               </div>
               
-              <div className={`step-item ${submitted ? 'completed' : 'current'}`}>
-                <div className="step-icon">{submitted ? '✅' : '📝'}</div>
-                <div className="step-content">
-                  <h3>Complete Application</h3>
-                  <p>{submitted ? 'Application form completed successfully' : 'Fill out your creator application with traffic links'}</p>
+              <div className={`step-item step-item-mobile ${submitted ? 'completed' : 'current'}`}>
+                <div className="step-icon step-icon-mobile">{submitted ? '✅' : '📝'}</div>
+                <div className="step-content step-content-mobile">
+                  <h3 className="step-title-mobile">Complete Application</h3>
+                  <p className="step-description-mobile">{submitted ? 'Application form completed successfully' : 'Fill out your creator application with traffic links'}</p>
                 </div>
               </div>
               
-              <div className={`step-item ${submitted ? 'current' : ''}`}>
-                <div className="step-icon">{submitted ? '⏳' : '🔒'}</div>
-                <div className="step-content">
-                  <h3>Admin Review</h3>
-                  <p>{submitted ? 'Our team will review your application' : 'Application must be completed first'}</p>
+              <div className={`step-item step-item-mobile ${submitted ? 'current' : ''}`}>
+                <div className="step-icon step-icon-mobile">{submitted ? '⏳' : '🔒'}</div>
+                <div className="step-content step-content-mobile">
+                  <h3 className="step-title-mobile">Admin Review</h3>
+                  <p className="step-description-mobile">{submitted ? 'Our team will review your application' : 'Application must be completed first'}</p>
                 </div>
               </div>
               
-              <div className="step-item">
-                <div className="step-icon">🎉</div>
-                <div className="step-content">
-                  <h3>Account Activation</h3>
-                  <p>Start creating affiliate links and earning!</p>
+              <div className="step-item step-item-mobile">
+                <div className="step-icon step-icon-mobile">🎉</div>
+                <div className="step-content step-content-mobile">
+                  <h3 className="step-title-mobile">Account Activation</h3>
+                  <p className="step-description-mobile">Start creating affiliate links and earning!</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="action-buttons">
+          <div className="action-buttons action-buttons-mobile">
             {!submitted ? (
               <>
-                <Link to="/creator-application" className="primary-btn large">
+                <Link to="/creator-application" className="primary-btn large primary-btn-mobile">
                   Complete Application
                 </Link>
-                <Link to="/login" className="secondary-btn">
+                <Link to="/login" className="secondary-btn secondary-btn-mobile">
                   Sign In Later
                 </Link>
               </>
             ) : (
               <>
-                <Link to="/login" className="primary-btn large">
+                <Link to="/login" className="primary-btn large primary-btn-mobile">
                   Sign In to Check Status
                 </Link>
               </>

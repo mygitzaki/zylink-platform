@@ -30,7 +30,7 @@ export default function Login() {
         <div className="marketing-content">
           <h1 className="marketing-title">
             Welcome to<br/>
-            <span style={{color: '#fbbf24'}}>Zylike</span>
+            <span style={{color: '#8B5CF6'}}>Zylike</span>
           </h1>
           <p className="marketing-subtitle">
             The ultimate creator platform. Track performance, manage links, and maximize your earnings.
