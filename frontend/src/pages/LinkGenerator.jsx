@@ -162,9 +162,43 @@ export default function LinkGenerator() {
   }
 
   const copyToClipboard = (text, linkType) => {
-    navigator.clipboard.writeText(text)
-    setSuccess(`${linkType} copied to clipboard!`)
-    setTimeout(() => setSuccess(''), 3000)
+    // Try modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          setSuccess(`${linkType} copied to clipboard!`)
+          setTimeout(() => setSuccess(''), 3000)
+        })
+        .catch(() => {
+          // Fallback to old method
+          fallbackCopyTextToClipboard(text, linkType)
+        })
+    } else {
+      // Fallback for older browsers
+      fallbackCopyTextToClipboard(text, linkType)
+    }
+  }
+
+  const fallbackCopyTextToClipboard = (text, linkType) => {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    
+    try {
+      document.execCommand('copy')
+      setSuccess(`${linkType} copied to clipboard!`)
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError('Failed to copy to clipboard')
+      setTimeout(() => setError(''), 3000)
+    }
+    
+    document.body.removeChild(textArea)
   }
 
   // Helper function to truncate long URLs for display

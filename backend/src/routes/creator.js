@@ -432,14 +432,13 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
     // Get recent click activity from short links
     const recentActivity = await prisma.shortLink.findMany({
       where: { creatorId: req.user.id },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: 10,
       select: {
         shortCode: true,
-        destinationUrl: true,
+        originalUrl: true,
         clicks: true,
-        createdAt: true,
-        updatedAt: true
+        createdAt: true
       }
     });
     
@@ -459,9 +458,9 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
       })),
       recentActivity: recentActivity.map(activity => ({
         shortCode: activity.shortCode,
-        url: activity.destinationUrl,
+        url: activity.originalUrl,
         clicks: activity.clicks || 0,
-        lastClick: activity.updatedAt,
+        lastClick: activity.createdAt,
         createdAt: activity.createdAt
       }))
     });

@@ -146,9 +146,9 @@ async function handleShortRedirect(req, res) {
     }
     const { shortCode } = req.params;
     const short = await prisma.shortLink.findUnique({ where: { shortCode } });
-    if (!short || !short.destinationUrl) return res.status(404).send('Not found');
+    if (!short || !short.originalUrl) return res.status(404).send('Not found');
     await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
-    return res.redirect(short.destinationUrl);
+    return res.redirect(short.originalUrl);
   } catch (err) {
     console.error(err);
     return res.status(500).send('Internal Server Error');

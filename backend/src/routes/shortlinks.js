@@ -7,12 +7,12 @@ router.get('/s/:shortCode', async (req, res) => {
   const { shortCode } = req.params;
   if (!prisma) return res.status(501).send('Shortlink storage not configured');
   const short = await prisma.shortLink.findUnique({ where: { shortCode } });
-  if (!short || !short.destinationUrl) return res.status(404).send('Not found');
+  if (!short || !short.originalUrl) return res.status(404).send('Not found');
   await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
   try {
-    await prisma.clickLog.create({ data: { shortCode, ip: req.ip, userAgent: req.headers['user-agent'] || '', referrer: req.headers.referer || '' } });
+    await prisma.clickLog.create({ data: { shortLinkId: short.id, ipAddress: req.ip, userAgent: req.headers['user-agent'] || '', referrer: req.headers.referer || '' } });
   } catch {}
-  res.redirect(short.destinationUrl);
+  res.redirect(short.originalUrl);
 });
 
 router.get('/:shortCode', async (req, res) => {
@@ -24,8 +24,8 @@ router.get('/:shortCode', async (req, res) => {
 
 router.post('/', async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  const { shortCode, destinationUrl, creatorId } = req.body;
-  const created = await prisma.shortLink.create({ data: { shortCode, destinationUrl, creatorId } });
+  const { shortCode, originalUrl, creatorId } = req.body;
+  const created = await prisma.shortLink.create({ data: { shortCode, originalUrl, creatorId } });
   res.status(201).json(created);
 });
 
