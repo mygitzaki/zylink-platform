@@ -39,6 +39,8 @@ model Creator {
   shortLinks       ShortLink[]
   payouts          PayoutRequest[]
   refreshTokens    RefreshToken[]
+  resetToken       String?
+  resetTokenExpiry DateTime?
 
   @@index([email])
   @@index([applicationStatus])

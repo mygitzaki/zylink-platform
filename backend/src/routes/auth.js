@@ -35,72 +35,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Simple endpoint to create admin account
-router.post('/setup-admin', async (req, res) => {
-  try {
-    const prisma = getPrisma();
-    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
 
-    // Check if admin already exists
-    const existingAdmin = await prisma.creator.findFirst({
-      where: { email: 'realadmin@test.com' }
-    });
-
-    if (existingAdmin) {
-      return res.json({ message: 'Admin account already exists', admin: existingAdmin });
-    }
-
-    // Create admin account
-    const hashedPassword = await bcrypt.hash('adminpass123', 10);
-    const admin = await prisma.creator.create({
-      data: {
-        name: 'Admin User',
-        email: 'realadmin@test.com',
-        password: hashedPassword,
-        isActive: true,
-        commissionRate: 70,
-        adminRole: 'ADMIN',
-        walletAddress: '0x0000000000000000000000000000000000000000',
-        applicationStatus: 'APPROVED'
-      }
-    });
-
-    res.json({ message: 'Admin account created successfully', admin });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-router.post('/create-admin', async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
-    
-    const prisma = getPrisma();
-    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-    
-    const hashed = await bcrypt.hash(password, 10);
-    const admin = await prisma.creator.create({
-      data: { 
-        name: name || 'Admin', 
-        email, 
-        password: hashed, 
-        isActive: true, 
-        commissionRate: 70, 
-        adminRole: 'ADMIN',
-        walletAddress: '0x0000000000000000000000000000000000000000'
-      }
-    });
-    
-    const token = signToken({ id: admin.id, role: 'ADMIN' });
-    res.status(201).json({ id: admin.id, token });
-  } catch (err) {
-    if (err.code === 'P2002') return res.status(409).json({ message: 'Email already exists' });
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
 
 router.get('/profile', requireAuth, async (req, res) => {
   try {
@@ -137,6 +72,85 @@ router.get('/profile', requireAuth, async (req, res) => {
 
 router.post('/logout', async (req, res) => {
   res.json({ message: 'ok' });
+});
+
+// Password reset request
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email required' });
+    
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    
+    const creator = await prisma.creator.findUnique({ where: { email } });
+    if (!creator) {
+      // Don't reveal if email exists or not for security
+      return res.json({ message: 'If an account with this email exists, a password reset link has been sent' });
+    }
+    
+    // Generate reset token (valid for 1 hour)
+    const resetToken = require('crypto').randomBytes(32).toString('hex');
+    const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    
+    // Store reset token in database
+    await prisma.creator.update({
+      where: { id: creator.id },
+      data: {
+        resetToken,
+        resetTokenExpiry: resetExpiry
+      }
+    });
+    
+    // Send password reset email
+    const { EmailService } = require('../services/emailService');
+    const emailService = new EmailService();
+    await emailService.initialize();
+    await emailService.sendPasswordResetEmail(creator, resetToken);
+    
+    res.json({ message: 'If an account with this email exists, a password reset link has been sent' });
+  } catch (err) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Password reset with token
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ message: 'Token and new password required' });
+    
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    
+    const creator = await prisma.creator.findFirst({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { gt: new Date() }
+      }
+    });
+    
+    if (!creator) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+    
+    // Hash new password and clear reset token
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.creator.update({
+      where: { id: creator.id },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null
+      }
+    });
+    
+    res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 module.exports = router;

@@ -6,8 +6,8 @@ import { useNavigate, Link } from 'react-router-dom'
 export default function Login() {
   const { setToken } = useAuth()
   const nav = useNavigate()
-  const [email, setEmail] = useState('realadmin@test.com')
-  const [password, setPassword] = useState('adminpass123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -109,32 +109,6 @@ export default function Login() {
           <div className="form-footer">
             Don't have an account?{' '}
             <Link to="/signup" className="form-link">Sign up here</Link>
-          </div>
-
-          {/* Demo Credentials */}
-          <div style={{
-            background: '#eff6ff',
-            padding: '1rem',
-            borderRadius: '0.5rem',
-            marginTop: '1.5rem',
-            border: '1px solid #bfdbfe'
-          }}>
-            <div style={{
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              color: '#1e40af',
-              marginBottom: '0.5rem'
-            }}>
-              Demo Credentials:
-            </div>
-            <div style={{
-              fontSize: '0.75rem',
-              color: '#3730a3',
-              lineHeight: '1.5'
-            }}>
-              <strong>Admin:</strong> admin@zylink.app / Pass1234!<br/>
-              <strong>Creator:</strong> Create new account via signup
-            </div>
           </div>
         </div>
       </div>
