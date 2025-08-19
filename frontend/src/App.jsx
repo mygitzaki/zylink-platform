@@ -40,12 +40,11 @@ function Nav() {
   const handleQuickRefresh = async () => {
     setRefreshing(true)
     try {
-      const newToken = await quickReLogin()
-      setToken(newToken)
-      window.location.reload() // Refresh the page to clear any cached errors
+      await quickReLogin()
+      // quickReLogin will redirect to login, so we don't need to do anything else
     } catch (error) {
       console.error('Failed to refresh auth:', error)
-      alert('Authentication refresh failed. Please login manually.')
+      // Don't show alert since we're redirecting to login
     } finally {
       setRefreshing(false)
     }
@@ -131,7 +130,7 @@ function Nav() {
               <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              <span className="hidden lg:block">{refreshing ? 'Refreshing...' : 'Refresh Auth'}</span>
+              <span className="hidden lg:block">{refreshing ? 'Redirecting...' : 'Re-Login'}</span>
             </button>
             <button 
               onClick={() => setToken('')}

@@ -14,11 +14,69 @@ After purchasing your domain, configure DNS records:
 
 ```
 Type    Name    Value
-A       @       [Your Railway Backend IP]
-CNAME   www     zylike.com
-CNAME   api     zylike.com
-A       s       [Your Railway Backend IP]
+A       @       76.76.19.34
+CNAME   www     cname.vercel-dns.com
+CNAME   api     zylink-platform-production.up.railway.app
+CNAME   s       zylink-platform-production.up.railway.app
 ```
+
+**Note**: Replace `zylink-platform-production.up.railway.app` with your actual Railway domain if different.
+
+### **1.3 GoDaddy DNS Setup (Step-by-Step)**
+
+#### **Step 1: Access DNS Management**
+1. Go to [GoDaddy DNS Management](https://dcc.godaddy.com/control/dnsmanagement)
+2. Select your domain `zylike.com`
+3. Click "DNS" in the left sidebar
+
+#### **Step 2: Remove Conflicting Records**
+1. **Delete** any CNAME record with "@" name
+2. **Keep** the A record with "@" name (we'll update it)
+
+#### **Step 3: Update Root Domain**
+1. **Click "Edit"** on the existing A record
+2. **Change Value** from "Parked" to: `76.76.19.34`
+3. **Set TTL** to "1 Hour"
+4. **Click "Save"**
+
+#### **Step 4: Add www Subdomain**
+1. **Click "Add More Records"**
+2. **Type**: CNAME
+3. **Name**: www
+4. **Value**: `cname.vercel-dns.com`
+5. **TTL**: 1 Hour
+6. **Click "Add"**
+
+#### **Step 5: Add api Subdomain**
+1. **Click "Add More Records"**
+2. **Type**: CNAME
+3. **Name**: api
+4. **Value**: `zylink-platform-production.up.railway.app`
+5. **TTL**: 1 Hour
+6. **Click "Add"**
+
+#### **Step 6: Add s Subdomain (Short Links)**
+1. **Click "Add More Records"**
+2. **Type**: CNAME
+3. **Name**: s
+4. **Value**: `zylink-platform-production.up.railway.app`
+5. **TTL**: 1 Hour
+6. **Click "Add"**
+
+#### **Step 7: Verify Records**
+Your final DNS table should look like this:
+
+| Type | Name | Value | TTL |
+|------|------|-------|-----|
+| A | @ | 76.76.19.34 | 1 Hour |
+| CNAME | www | cname.vercel-dns.com | 1 Hour |
+| CNAME | api | zylink-platform-production.up.railway.app | 1 Hour |
+| CNAME | s | zylink-platform-production.up.railway.app | 1 Hour |
+
+#### **Step 8: Wait for Propagation**
+- DNS changes can take 1-48 hours to propagate globally
+- Usually works within 1-2 hours
+- Test with: `nslookup api.zylike.com`
 
 ## 🎯 **Phase 2: Email Service Setup**
 

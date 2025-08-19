@@ -1,29 +1,24 @@
 import { apiFetch } from '../lib/api'
 
 /**
- * Quick authentication helper using saved admin credentials
- * This provides a seamless re-login experience when tokens expire
+ * Quick authentication helper that handles expired tokens gracefully
+ * Since we can't store passwords securely, we redirect to login when tokens expire
  */
 export async function quickReLogin() {
   try {
-    console.log('🔄 Attempting quick re-login...')
-    const response = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: {
-        email: 'realadmin@test.com',
-        password: 'adminpass123'
-      }
-    })
+    console.log('🔄 Token expired - redirecting to login for fresh authentication...')
     
-    if (!response.token) {
-      throw new Error('No token received from login')
-    }
+    // Clear expired token
+    localStorage.removeItem('token')
     
-    console.log('✅ Quick re-login successful')
-    return response.token
+    // Redirect to login page for fresh authentication
+    window.location.href = '/login'
+    
+    // This function won't return a token since we're redirecting
+    throw new Error('Redirecting to login for fresh authentication')
   } catch (error) {
-    console.error('❌ Quick re-login failed:', error)
-    throw new Error(`Failed to refresh authentication: ${error.message}`)
+    console.error('❌ Auth refresh failed:', error)
+    throw new Error(`Authentication expired - please login again`)
   }
 }
 
