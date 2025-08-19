@@ -36,18 +36,31 @@ if (process.env.NODE_ENV === 'production') {
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  // Explicitly allow Vercel domain and localhost
-  const allowedOrigins = [
-    'https://zylink-platform.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ];
+  console.log(`🌐 CORS Request: ${req.method} ${req.path} from origin: ${origin}`);
   
-  if (origin && allowedOrigins.includes(origin)) {
+  // Always allow Vercel domain
+  if (origin === 'https://zylink-platform.vercel.app') {
+    console.log('✅ Allowing Vercel origin with full CORS headers');
     res.header('Access-Control-Allow-Origin', origin);
-  } else if (origin) {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Vary', 'Origin');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      console.log('🔄 Handling OPTIONS preflight for Vercel');
+      return res.status(200).end();
+    }
+    return next();
+  }
+  
+  // Allow other origins
+  if (origin) {
+    console.log('🌍 Allowing other origin:', origin);
     res.header('Access-Control-Allow-Origin', origin);
   } else {
+    console.log('🌍 No origin, allowing all');
     res.header('Access-Control-Allow-Origin', '*');
   }
   
@@ -56,7 +69,10 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || '*');
   
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method === 'OPTIONS') {
+    console.log('🔄 Handling OPTIONS preflight for other origin');
+    return res.sendStatus(204);
+  }
   next();
 });
 applySimpleCors(app);
@@ -64,16 +80,18 @@ applySimpleCors(app);
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
   
-  // Explicitly allow Vercel domain and localhost
-  const allowedOrigins = [
-    'https://zylink-platform.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ];
-  
-  if (origin && allowedOrigins.includes(origin)) {
+  // Always allow Vercel domain
+  if (origin === 'https://zylink-platform.vercel.app') {
     res.header('Access-Control-Allow-Origin', origin);
-  } else if (origin) {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Vary', 'Origin');
+    return res.status(200).end();
+  }
+  
+  // Handle other origins
+  if (origin) {
     res.header('Access-Control-Allow-Origin', origin);
   } else {
     res.header('Access-Control-Allow-Origin', '*');
@@ -82,8 +100,8 @@ app.options('*', (req, res) => {
   res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, content-type, Authorization, authorization');
-  return res.sendStatus(204);
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  return res.status(200).end();
 });
 
 // 🛡️ Safety middleware (before everything else)
