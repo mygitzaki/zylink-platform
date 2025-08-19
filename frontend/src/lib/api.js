@@ -1,14 +1,14 @@
 // API configuration for different environments
-// In production, call the Railway backend directly
-// In development, use localhost backend
+// Uses environment variables for production deployment
 const API_BASE = import.meta.env.DEV 
   ? 'http://localhost:4000' 
-  : 'https://zylink-platform-production.up.railway.app';
+  : (import.meta.env.VITE_API_URL || 'https://your-railway-backend-url.railway.app');
 
 console.log('🌐 API Configuration:', {
   DEV: import.meta.env.DEV,
   PROD: import.meta.env.PROD,
   API_BASE,
+  VITE_API_URL: import.meta.env.VITE_API_URL,
   NODE_ENV: import.meta.env.NODE_ENV
 });
 
