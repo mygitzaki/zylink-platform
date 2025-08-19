@@ -347,6 +347,41 @@ export default function LinkGenerator() {
           </div>
         </div>
 
+        {/* Success/Error Messages */}
+        {success && (
+          <Card variant="glass" className="border-green-500/50 bg-green-500/10 mb-6">
+            <div className="flex items-center space-x-3 text-green-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>{success}</span>
+            </div>
+          </Card>
+        )}
+        
+        {error && (
+          <Card variant="glass" className="border-red-500/50 bg-red-500/10 mb-6">
+            <div className="flex items-center justify-between text-red-400">
+              <div className="flex items-center space-x-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>{error}</span>
+              </div>
+              {error.includes('Session expired') && (
+                <Button 
+                  onClick={() => navigate('/login')} 
+                  variant="primary" 
+                  size="sm"
+                  className="ml-4"
+                >
+                  Login Again
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Link Generation Form - Zylike Style */}
         <Card variant="gradient" className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3 mb-6">
@@ -517,40 +552,6 @@ export default function LinkGenerator() {
           </Card>
         )}
 
-        {/* Messages */}
-        {success && (
-          <Card variant="glass" className="border-green-500/50 bg-green-500/10">
-            <div className="flex items-center space-x-3 text-green-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>{success}</span>
-            </div>
-          </Card>
-        )}
-        
-        {error && (
-          <Card variant="glass" className="border-red-500/50 bg-red-500/10">
-            <div className="flex items-center justify-between text-red-400">
-              <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                <span>{error}</span>
-              </div>
-              {error.includes('Session expired') && (
-                <Button 
-                  onClick={() => navigate('/login')} 
-                  variant="primary" 
-                  size="sm"
-                  className="ml-4"
-                >
-                  Login Again
-                </Button>
-              )}
-            </div>
-          </Card>
-        )}
       </Container>
     </div>
   )
