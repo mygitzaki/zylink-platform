@@ -383,17 +383,7 @@ export default function LinkGenerator() {
           </Card>
         )}
         
-        {/* Debug: Test Success Message */}
-        <div className="mb-4 text-center">
-          <Button 
-            onClick={() => setSuccess('🧪 Test success message - this should be visible!')}
-            variant="ghost"
-            size="sm"
-            className="text-yellow-400 hover:text-yellow-300"
-          >
-            🧪 Test Success Message
-          </Button>
-        </div>
+
         
         {error && (
           <Card variant="glass" className="border-red-500/50 bg-gradient-to-r from-red-500/20 to-pink-500/20 mb-6 animate-fadeIn">
@@ -433,7 +423,7 @@ export default function LinkGenerator() {
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
+            <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-6">
               <Input
                 type="url"
                 value={productUrl}
@@ -441,7 +431,7 @@ export default function LinkGenerator() {
                 placeholder="https://walmart.com/product/example"
                 label="Product URL"
                 error={!urlValidation.isValid ? urlValidation.message : ''}
-                className="flex-1 min-w-0"
+                className="flex-1 min-w-0 lg:mr-2"
                 required
               />
               <Button 
@@ -449,7 +439,7 @@ export default function LinkGenerator() {
                 disabled={loading || !productUrl.trim()}
                 loading={loading}
                 size="lg"
-                className="w-full lg:w-auto lg:min-w-[120px] self-end bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                className="w-full lg:w-auto lg:min-w-[100px] lg:flex-shrink-0 self-end bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
                 {!loading && (
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
