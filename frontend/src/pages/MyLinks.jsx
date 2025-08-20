@@ -130,24 +130,23 @@ export default function MyLinks() {
           </div>
         </div>
 
-        <div className="link-analytics">
-          <div className="analytics-grid">
-            <div className="metric">
-              <span className="metric-value">{link.clicks || 0}</span>
-              <span className="metric-label">Clicks</span>
-            </div>
-            <div className="metric">
-              <span className="metric-value">{link.conversions || 0}</span>
-              <span className="metric-label">Conversions</span>
-            </div>
-            <div className="metric">
-              <span className="metric-value">{conversionRate}%</span>
-              <span className="metric-label">CVR</span>
-            </div>
-            <div className="metric">
-              <span className="metric-value">${Number(link.revenue || 0).toFixed(2)}</span>
-              <span className="metric-label">Revenue</span>
-            </div>
+                  <div className="performance-metrics">
+                      <div className="metric-item">
+            <div className="metric-value">{link.clicks || 0}</div>
+            <div className="metric-label">Clicks</div>
+          </div>
+          <div className="metric-item">
+            <div className="metric-value">{link.conversions || 0}</div>
+            <div className="metric-label">Conversions</div>
+          </div>
+          <div className="metric-item">
+            <div className="metric-value">{conversionRate}%</div>
+            <div className="metric-label">CVR</div>
+          </div>
+          <div className="metric-item">
+            <div className="metric-value">${Number(link.revenue || 0).toFixed(2)}</div>
+            <div className="metric-label">Revenue</div>
+          </div>
           </div>
         </div>
       </div>
