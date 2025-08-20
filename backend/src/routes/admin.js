@@ -6,8 +6,55 @@ const prisma = getPrisma();
 
 router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  const creators = await prisma.creator.findMany({ orderBy: { createdAt: 'desc' } });
-  res.json({ creators });
+  
+  try {
+    // Get all creators with basic info
+    const creators = await prisma.creator.findMany({ 
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        commissionRate: true,
+        applicationStatus: true,
+        createdAt: true
+      }
+    });
+    
+    // Enrich creators with performance data
+    const enrichedCreators = await Promise.all(creators.map(async (creator) => {
+      // Get creator's short links and click data
+      const shortLinkStats = await prisma.shortLink.aggregate({
+        where: { creatorId: creator.id },
+        _sum: { clicks: true },
+        _count: { id: true }
+      });
+      
+      // Get creator's links and revenue data
+      const linkStats = await prisma.link.aggregate({
+        where: { creatorId: creator.id },
+        _sum: { conversions: true, revenue: true },
+        _count: { id: true }
+      });
+      
+      return {
+        ...creator,
+        performance: {
+          totalClicks: shortLinkStats._sum.clicks || 0,
+          totalLinks: linkStats._count.id || 0,
+          totalShortLinks: shortLinkStats._count.id || 0,
+          totalConversions: linkStats._sum.conversions || 0,
+          totalRevenue: Number(linkStats._sum.revenue || 0)
+        }
+      };
+    }));
+    
+    res.json({ creators: enrichedCreators });
+  } catch (error) {
+    console.error('Error fetching creators with performance:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 router.get('/applications/pending', requireAuth, requireAdmin, async (req, res) => {

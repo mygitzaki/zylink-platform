@@ -106,6 +106,22 @@ export default function CreatorManagement(){
                 {paymentDetails ? `💳 ${paymentDetails.type}` : '❌ No Payment Info'}
               </span>
             </div>
+            
+            {/* Performance Metrics */}
+            <div className="creator-performance">
+              <div className="performance-metric">
+                <span className="metric-label">Clicks:</span>
+                <span className="metric-value">{creator.performance?.totalClicks || 0}</span>
+              </div>
+              <div className="performance-metric">
+                <span className="metric-label">Links:</span>
+                <span className="metric-value">{creator.performance?.totalLinks || 0}</span>
+              </div>
+              <div className="performance-metric">
+                <span className="metric-label">Revenue:</span>
+                <span className="metric-value">${(creator.performance?.totalRevenue || 0).toFixed(2)}</span>
+              </div>
+            </div>
           </div>
         </div>
       
