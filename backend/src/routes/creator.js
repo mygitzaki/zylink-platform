@@ -205,7 +205,20 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
     // Validate URL
     if (!impact.isValidUrl(destinationUrl)) {
       console.log('❌ Invalid URL format:', destinationUrl);
-      return res.status(400).json({ message: 'Invalid destination URL format' });
+      
+      // Provide specific error message for common issues
+      let errorMessage = 'Invalid destination URL format';
+      if (destinationUrl.includes('wwhttps://') || destinationUrl.includes('https://https://')) {
+        errorMessage = 'URL contains duplicate protocol (https://). Please check the URL format.';
+      } else if (destinationUrl.match(/\/ip\/[^\/\?]+/g)?.length > 1) {
+        errorMessage = 'URL contains multiple product IDs. Please use a single product URL.';
+      }
+      
+      return res.status(400).json({ 
+        message: errorMessage,
+        invalidUrl: destinationUrl,
+        suggestion: 'Please provide a clean Walmart product URL like: https://www.walmart.com/ip/PRODUCT-NAME/PRODUCT-ID'
+      });
     }
 
     console.log('🌐 Creating Impact.com tracking link...');

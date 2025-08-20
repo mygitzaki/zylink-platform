@@ -165,7 +165,24 @@ class ImpactWebService {
   isValidUrl(urlString) {
     try {
       const url = new URL(urlString);
-      return ['http:', 'https:'].includes(url.protocol);
+      
+      // Check for basic protocol
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return false;
+      }
+      
+      // Check for malformed Walmart URLs (duplicate domains, corrupted structure)
+      if (urlString.includes('wwhttps://') || urlString.includes('https://https://')) {
+        return false;
+      }
+      
+      // Check for multiple product IDs in same URL
+      const productIdMatches = urlString.match(/\/ip\/[^\/\?]+/g);
+      if (productIdMatches && productIdMatches.length > 1) {
+        return false;
+      }
+      
+      return true;
     } catch {
       return false;
     }
