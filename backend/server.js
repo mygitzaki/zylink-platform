@@ -150,14 +150,38 @@ async function handleShortRedirect(req, res) {
     if (!short || !short.originalUrl) return res.status(404).send('Not found');
     
     // Get the Impact.com tracking link from the main link record
+    // Use a more flexible search to find the link record
     const link = await prisma.link.findFirst({ 
       where: { 
-        shortLink: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}` 
+        OR: [
+          { shortLink: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}` },
+          { shortLink: { contains: shortCode } },
+          { shortLink: { endsWith: shortCode } }
+        ]
       } 
     });
     
+    console.log('🔍 Short link lookup:', {
+      shortCode,
+      shortLink: short?.shortLink,
+      impactLink: link?.impactLink,
+      originalUrl: short.originalUrl,
+      searchPattern: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}`
+    });
+    
+    // Debug: Check all links for this creator to see what's stored
+    if (short?.creatorId) {
+      const allLinks = await prisma.link.findMany({
+        where: { creatorId: short.creatorId },
+        select: { shortLink: true, impactLink: true, destinationUrl: true }
+      });
+      console.log('🔍 All links for creator:', allLinks);
+    }
+    
     // Redirect to Impact.com tracking link if available, otherwise fallback to original URL
     const redirectUrl = link?.impactLink || short.originalUrl;
+    
+    console.log('🔄 Redirecting to:', redirectUrl);
     
     await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
     return res.redirect(redirectUrl);
