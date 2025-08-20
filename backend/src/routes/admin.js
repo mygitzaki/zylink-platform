@@ -400,10 +400,43 @@ router.get('/payment-accounts', requireAuth, requireAdmin, async (req, res) => {
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ message: 'Database not configured' });
     
-    // Temporarily return empty array until database schema is updated
-    // This prevents the deployment crash from missing PaymentAccount.accountType column
-    res.json({ paymentAccounts: [] });
+    const paymentAccounts = await prisma.paymentAccount.findMany({
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            isActive: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
     
+    // Map schema enum values back to frontend values for display
+    const formattedAccounts = paymentAccounts.map(account => {
+      const frontendTypeMapping = {
+        'BANK_ACCOUNT': 'Bank Transfer',
+        'PAYPAL': 'PayPal', 
+        'CRYPTO_WALLET': 'Cryptocurrency'
+      };
+      
+      return {
+        id: account.id,
+        creatorId: account.creatorId,
+        creator: account.creator,
+        type: frontendTypeMapping[account.accountType] || account.accountType,
+        accountDetails: account.accountDetails,
+        isVerified: account.isVerified || false,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt
+      };
+    });
+    
+    res.json({ paymentAccounts: formattedAccounts });
   } catch (error) {
     console.error('Failed to fetch payment accounts:', error);
     res.status(500).json({ message: 'Failed to fetch payment accounts', error: error.message });
@@ -422,6 +455,7 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     const creator = await prisma.creator.findUnique({
       where: { id: creatorId },
       include: {
+        paymentAccount: true,
         links: {
           orderBy: { createdAt: 'desc' },
           take: 10 // Latest 10 links
