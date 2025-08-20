@@ -43,9 +43,23 @@ class ImpactWebService {
 
           if (response.ok) {
             const data = await response.json();
+            const trackingUrl = data.TrackingURL || data.TrackingUrl || data.trackingUrl;
+            
+            // Check if the tracking URL contains template variables (broken)
+            if (trackingUrl && (trackingUrl.includes('{clickid}') || trackingUrl.includes('{irpid}') || trackingUrl.includes('{iradid}') || trackingUrl.includes('{ircid}'))) {
+              console.log('⚠️ Impact.com returned template URL with variables, using fallback');
+              return {
+                success: false,
+                trackingUrl: this.generateWorkingLinkFormat(null, creatorId, destinationUrl),
+                originalUrl: destinationUrl,
+                fallback: true,
+                error: 'Impact.com returned template URL instead of actual tracking URL'
+              };
+            }
+            
             return {
               success: true,
-              trackingUrl: data.TrackingURL || data.TrackingUrl || data.trackingUrl,
+              trackingUrl: trackingUrl,
               originalUrl: destinationUrl,
               apiEndpoint: url
             };
@@ -71,9 +85,23 @@ class ImpactWebService {
 
           if (response.ok) {
             const data = await response.json();
+            const trackingUrl = data.TrackingURL || data.TrackingUrl || data.trackingUrl;
+            
+            // Check if the tracking URL contains template variables (broken)
+            if (trackingUrl && (trackingUrl.includes('{clickid}') || trackingUrl.includes('{irpid}') || trackingUrl.includes('{iradid}') || trackingUrl.includes('{ircid}'))) {
+              console.log('⚠️ Impact.com returned template URL with variables, using fallback');
+              return {
+                success: false,
+                trackingUrl: this.generateWorkingLinkFormat(null, creatorId, destinationUrl),
+                originalUrl: destinationUrl,
+                fallback: true,
+                error: 'Impact.com returned template URL instead of actual tracking URL'
+              };
+            }
+            
             return {
               success: true,
-              trackingUrl: data.TrackingURL || data.TrackingUrl || data.trackingUrl,
+              trackingUrl: trackingUrl,
               originalUrl: destinationUrl,
               apiEndpoint: url
             };
@@ -103,6 +131,11 @@ class ImpactWebService {
 
   // FALLBACK: Generate working link format (as backup)
   generateWorkingLinkFormat(campaignId, subId, destinationUrl) {
+    // Generate unique tracking identifiers
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substr(2, 9);
+    const clickId = `imp_${timestamp}_${randomId}`;
+    
     // Use direct Walmart affiliate format as fallback
     const params = new URLSearchParams({
       irgwc: '1',
@@ -110,13 +143,21 @@ class ImpactWebService {
       wmlspartner_creator: `imp_${this.mediaPartnerId}`,
       affiliates_ad_id_creator: this.mediaPartnerId,
       campaign_id_creator: this.programId,
-      clickid: `imp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sourceid: `imp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      clickid: clickId,
+      sourceid: clickId,
       subId1: subId || 'default'
     });
     
     // Append the destination URL as a parameter
     const finalUrl = `${destinationUrl}${destinationUrl.includes('?') ? '&' : '?'}${params.toString()}`;
+    
+    console.log('🔧 Fallback link generated:', {
+      original: destinationUrl,
+      final: finalUrl,
+      clickId,
+      params: Object.fromEntries(params)
+    });
+    
     return finalUrl;
   }
 
