@@ -148,8 +148,19 @@ async function handleShortRedirect(req, res) {
     const { shortCode } = req.params;
     const short = await prisma.shortLink.findUnique({ where: { shortCode } });
     if (!short || !short.originalUrl) return res.status(404).send('Not found');
+    
+    // Get the Impact.com tracking link from the main link record
+    const link = await prisma.link.findFirst({ 
+      where: { 
+        shortLink: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}` 
+      } 
+    });
+    
+    // Redirect to Impact.com tracking link if available, otherwise fallback to original URL
+    const redirectUrl = link?.impactLink || short.originalUrl;
+    
     await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
-    return res.redirect(short.originalUrl);
+    return res.redirect(redirectUrl);
   } catch (err) {
     console.error(err);
     return res.status(500).send('Internal Server Error');
