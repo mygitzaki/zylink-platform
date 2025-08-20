@@ -1,4 +1,4 @@
-console.log('🚀 SERVER STARTING - VERSION WITH ROLE FIELD FIX -', new Date().toISOString());
+console.log('🚀 SERVER STARTING - VERSION WITH PAYMENT ACCOUNT FIX - 2025-08-20T12:30:00.000Z');
 
 const express = require('express');
 const path = require('path');
