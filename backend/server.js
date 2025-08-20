@@ -178,8 +178,30 @@ async function handleShortRedirect(req, res) {
       console.log('🔍 All links for creator:', allLinks);
     }
     
-    // Redirect to Impact.com tracking link if available, otherwise fallback to original URL
-    const redirectUrl = link?.impactLink || short.originalUrl;
+    // Check if Impact.com link contains template variables (broken)
+    let redirectUrl = short.originalUrl; // Default fallback
+    
+    if (link?.impactLink) {
+      const impactLink = link.impactLink;
+      
+      // Check for template variables in the stored Impact.com link
+      if (impactLink.includes('{clickid}') || impactLink.includes('%7Bclickid%7D') || 
+          impactLink.includes('{irpid}') || impactLink.includes('%7Birpid%7D') ||
+          impactLink.includes('{iradid}') || impactLink.includes('%7Biradid%7D') ||
+          impactLink.includes('{ircid}') || impactLink.includes('%7Bircid%7D')) {
+        
+        console.log('⚠️ Stored Impact.com link contains template variables, generating fresh fallback');
+        
+        // Generate a fresh working link using the fallback method
+        const { ImpactWebService } = require('./src/services/impactWebService');
+        const impact = new ImpactWebService();
+        redirectUrl = impact.generateWorkingLinkFormat(null, short.creatorId, short.originalUrl);
+        
+      } else {
+        // Impact.com link is good, use it
+        redirectUrl = impactLink;
+      }
+    }
     
     console.log('🔄 Redirecting to:', redirectUrl);
     
