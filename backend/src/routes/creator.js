@@ -407,27 +407,57 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
   if (!prisma) return res.json({ clicks: 0, conversions: 0, revenue: 0, topLinks: [], recentActivity: [] });
   
   try {
-    // Get aggregate stats
-    const agg = await prisma.link.aggregate({
+    // Get aggregate stats from Link table (conversions, revenue)
+    const linkAgg = await prisma.link.aggregate({
       where: { creatorId: req.user.id },
-      _sum: { clicks: true, conversions: true, revenue: true },
+      _sum: { conversions: true, revenue: true },
     });
     
-    // Get top performing links
+    // Get aggregate clicks from ShortLink table (where clicks are actually tracked)
+    const shortLinkAgg = await prisma.shortLink.aggregate({
+      where: { creatorId: req.user.id },
+      _sum: { clicks: true },
+    });
+    
+    // Combine the data safely
+    const agg = {
+      _sum: {
+        clicks: shortLinkAgg._sum.clicks || 0,
+        conversions: linkAgg._sum.conversions || 0,
+        revenue: linkAgg._sum.revenue || 0
+      }
+    };
+    
+    // Get top performing links with real click data from ShortLink table
     const topLinks = await prisma.link.findMany({
       where: { creatorId: req.user.id },
-      orderBy: { clicks: 'desc' },
       take: 5,
       select: {
         id: true,
         destinationUrl: true,
         shortLink: true,
-        clicks: true,
         conversions: true,
         revenue: true,
         createdAt: true
       }
     });
+    
+    // Enrich with real click data from ShortLink table
+    const enrichedTopLinks = await Promise.all(topLinks.map(async (link) => {
+      const shortCode = link.shortLink.split('/').pop();
+      const shortLinkData = await prisma.shortLink.findUnique({
+        where: { shortCode },
+        select: { clicks: true }
+      });
+      
+      return {
+        ...link,
+        clicks: shortLinkData?.clicks || 0
+      };
+    }));
+    
+    // Sort by actual clicks
+    enrichedTopLinks.sort((a, b) => (b.clicks || 0) - (a.clicks || 0));
     
     // Get recent click activity from short links
     const recentActivity = await prisma.shortLink.findMany({
@@ -446,7 +476,7 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
       clicks: agg._sum.clicks || 0,
       conversions: agg._sum.conversions || 0,
       revenue: Number(agg._sum.revenue || 0),
-      topLinks: topLinks.map(link => ({
+      topLinks: enrichedTopLinks.map(link => ({
         id: link.id,
         url: link.destinationUrl,
         shortUrl: link.shortLink,
