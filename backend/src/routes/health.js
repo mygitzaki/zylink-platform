@@ -3,6 +3,7 @@ const express = require('express');
 const { healthMonitor } = require('../services/healthMonitor');
 const { ErrorBoundary } = require('../services/errorBoundary');
 const { safeRoute } = require('../middleware/safetyMiddleware');
+const { getPrisma } = require('../utils/prisma');
 
 const router = express.Router();
 
