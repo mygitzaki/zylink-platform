@@ -278,81 +278,73 @@ class ImpactWebService {
 
   // Process ReportExport data
   async processReportExportData(data) {
-    console.log('📊 Processing ReportExport data:', {
-      status: data.Status,
-      hasData: !!data.Data,
-      hasResults: !!data.Results,
-      dataLength: data.Data?.length || 0,
-      resultsLength: data.Results?.length || 0,
-      totalResults: data.TotalResults,
-      keys: Object.keys(data)
-    });
-    
-    // ReportExport endpoint returns different structure
-    if (data.Status === 'QUEUED') {
-      console.log('📋 ReportExport job queued, falling back to Actions endpoint for immediate data');
-      return await this.fetchClickDataFromActionsFallback();
-    }
-    
-    // If we get direct data (some endpoints return immediate results)
-    const reportData = data.Data || data.Results || [];
-    
-    console.log(`✅ Fetched ${reportData.length} records from Impact.com ReportExport`);
-    
-    // Process click data safely
-    const clickData = {
-      totalClicks: reportData.length,
-      totalResults: data.TotalResults || reportData.length,
-      actions: reportData.map(record => ({
-        id: record.Id || record.SubId1 || 'unknown',
-        type: 'CLICK', // ReportExport focuses on performance data
-        status: 'ACTIVE',
-        timestamp: record.Date || new Date().toISOString(),
-        mediaPartnerId: this.mediaPartnerId,
-        campaignId: record.Program || 'unknown',
-        subId1: record.SubId1, // Creator ID
-        amount: parseFloat(record.ActionEarnings || record.TotalEarnings || 0),
-        clicks: parseInt(record.Clicks || 0),
-        actions: parseInt(record.Actions || 0)
-      })),
-      summary: {
-        byCampaign: {},
-        byCreator: {},
-        byDate: {},
-        byActionType: { 'CLICK': reportData.length },
-        byStatus: { 'ACTIVE': reportData.length }
-      }
-    };
-
-    // Safe aggregation without modifying original data
-    reportData.forEach(record => {
-      const campaignId = record.Program || 'unknown';
-      const creatorId = record.SubId1 || 'unknown';
-      const date = record.Date ? record.Date.split('T')[0] : 'unknown';
+    try {
+      console.log('📊 Processing ReportExport data:', {
+        status: data.Status,
+        hasData: !!data.Data,
+        hasResults: !!data.Results,
+        dataLength: data.Data?.length || 0,
+        resultsLength: data.Results?.length || 0,
+        totalResults: data.TotalResults,
+        keys: Object.keys(data)
+      });
       
-      // Count by campaign
-      clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
-      
-      // Count by creator
-      clickData.summary.byCreator[creatorId] = (clickData.summary.byCreator[creatorId] || 0) + 1;
-      
-      // Count by date
-      clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
-    });
-
-    return clickData;
-
-    } catch (error) {
-      console.error('❌ Error fetching Impact.com click data from ReportExport:', error.message);
-      
-      // Fallback to Actions endpoint if ReportExport fails
-      console.log('🔄 Falling back to Actions endpoint...');
-      try {
+      // ReportExport endpoint returns different structure
+      if (data.Status === 'QUEUED') {
+        console.log('📋 ReportExport job queued, falling back to Actions endpoint for immediate data');
         return await this.fetchClickDataFromActionsFallback();
-      } catch (fallbackError) {
-        console.error('❌ Fallback to Actions endpoint also failed:', fallbackError.message);
-        throw error; // Throw original error
       }
+      
+      // If we get direct data (some endpoints return immediate results)
+      const reportData = data.Data || data.Results || [];
+      
+      console.log(`✅ Fetched ${reportData.length} records from Impact.com ReportExport`);
+      
+      // Process click data safely
+      const clickData = {
+        totalClicks: reportData.length,
+        totalResults: data.TotalResults || reportData.length,
+        actions: reportData.map(record => ({
+          id: record.Id || record.SubId1 || 'unknown',
+          type: 'CLICK', // ReportExport focuses on performance data
+          status: 'ACTIVE',
+          timestamp: record.Date || new Date().toISOString(),
+          mediaPartnerId: this.mediaPartnerId,
+          campaignId: record.Program || 'unknown',
+          subId1: record.SubId1, // Creator ID
+          amount: parseFloat(record.ActionEarnings || record.TotalEarnings || 0),
+          clicks: parseInt(record.Clicks || 0),
+          actions: parseInt(record.Actions || 0)
+        })),
+        summary: {
+          byCampaign: {},
+          byCreator: {},
+          byDate: {},
+          byActionType: { 'CLICK': reportData.length },
+          byStatus: { 'ACTIVE': reportData.length }
+        }
+      };
+
+      // Safe aggregation without modifying original data
+      reportData.forEach(record => {
+        const campaignId = record.Program || 'unknown';
+        const creatorId = record.SubId1 || 'unknown';
+        const date = record.Date ? record.Date.split('T')[0] : 'unknown';
+        
+        // Count by campaign
+        clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
+        
+        // Count by creator
+        clickData.summary.byCreator[creatorId] = (clickData.summary.byCreator[creatorId] || 0) + 1;
+        
+        // Count by date
+        clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
+      });
+
+      return clickData;
+    } catch (error) {
+      console.error('❌ Error processing ReportExport data:', error.message);
+      throw error;
     }
   }
 
