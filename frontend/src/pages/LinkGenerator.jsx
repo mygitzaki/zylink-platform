@@ -11,6 +11,7 @@ export default function LinkGenerator() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [copyClicked, setCopyClicked] = useState(false)
   const [productUrl, setProductUrl] = useState('')
   const [generatedLink, setGeneratedLink] = useState(null)
   const [urlValidation, setUrlValidation] = useState({ isValid: true, message: '' })
@@ -164,13 +165,19 @@ export default function LinkGenerator() {
   const copyToClipboard = (text, linkType) => {
     console.log('🔍 Copy function called:', { text, linkType })
     
+    // Set copy clicked state for immediate visual feedback
+    setCopyClicked(true)
+    
     // Try modern clipboard API first
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text)
         .then(() => {
           console.log('✅ Modern clipboard API success')
           setSuccess(`✅ ${linkType} copied successfully!`)
-          setTimeout(() => setSuccess(''), 4000)
+          setTimeout(() => {
+            setSuccess('')
+            setCopyClicked(false)
+          }, 4000)
         })
         .catch((err) => {
           console.log('⚠️ Modern clipboard API failed, using fallback:', err)
@@ -200,11 +207,17 @@ export default function LinkGenerator() {
       document.execCommand('copy')
       console.log('✅ Fallback copy success')
       setSuccess(`✅ ${linkType} copied successfully!`)
-      setTimeout(() => setSuccess(''), 4000)
+      setTimeout(() => {
+        setSuccess('')
+        setCopyClicked(false)
+      }, 4000)
     } catch (err) {
       console.log('❌ Fallback copy failed:', err)
       setError('❌ Failed to copy to clipboard')
-      setTimeout(() => setError(''), 4000)
+      setTimeout(() => {
+        setError('')
+        setCopyClicked(false)
+      }, 4000)
     }
     
     document.body.removeChild(textArea)
@@ -358,17 +371,29 @@ export default function LinkGenerator() {
 
         {/* Success/Error Messages */}
         {success && (
-          <Card variant="glass" className="border-green-500/50 bg-gradient-to-r from-green-500/30 to-emerald-500/30 mb-6 animate-fadeIn shadow-lg">
-            <div className="flex items-center justify-center space-x-3 text-green-300 py-4">
-              <div className="w-10 h-10 bg-green-500/30 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Card variant="glass" className="border-green-500/50 bg-gradient-to-r from-green-500/50 to-emerald-500/50 mb-6 animate-fadeIn shadow-xl border-2">
+            <div className="flex items-center justify-center space-x-3 text-green-100 py-6">
+              <div className="w-12 h-12 bg-green-500/50 rounded-full flex items-center justify-center">
+                <svg className="w-7 h-7 text-green-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-green-200">{success}</span>
+              <span className="text-2xl font-bold text-green-100">{success}</span>
             </div>
           </Card>
         )}
+        
+        {/* Debug: Test Success Message */}
+        <div className="mb-4 text-center">
+          <Button 
+            onClick={() => setSuccess('🧪 Test success message - this should be visible!')}
+            variant="ghost"
+            size="sm"
+            className="text-yellow-400 hover:text-yellow-300"
+          >
+            🧪 Test Success Message
+          </Button>
+        </div>
         
         {error && (
           <Card variant="glass" className="border-red-500/50 bg-gradient-to-r from-red-500/20 to-pink-500/20 mb-6 animate-fadeIn">
@@ -474,12 +499,16 @@ export default function LinkGenerator() {
                   onClick={() => copyToClipboard(generatedLink.shortLink, 'Short link')}
                   variant="secondary"
                   size="lg"
-                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  className={`w-full sm:w-auto font-semibold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 transform ${
+                    copyClicked 
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white scale-105 shadow-xl' 
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white hover:shadow-xl hover:scale-105'
+                  }`}
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
-                  Copy Link
+                  {copyClicked ? 'Copied!' : 'Copy Link'}
                 </Button>
               </div>
             </Card>
