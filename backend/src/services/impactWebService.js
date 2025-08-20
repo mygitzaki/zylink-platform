@@ -178,187 +178,17 @@ class ImpactWebService {
     try {
       console.log('🔍 Fetching real click data from Impact.com API...');
       
-      // Use ReportExport endpoint for comprehensive data (as per Impact.com documentation)
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/mp_io_history`;
-      
-      // Try multiple date formats that Impact.com might accept
-      const formatImpactDate = (date) => {
-        // Try different formats in order of likelihood
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const year = date.getFullYear();
-        
-        // Format 1: MM-DD-YYYY (with hyphens)
-        const format1 = `${month}-${day}-${year}`;
-        // Format 2: MM/DD/YYYY (with slashes)
-        const format2 = `${month}/${day}/${year}`;
-        // Format 3: YYYY-MM-DD (ISO format)
-        const format3 = `${year}-${month}-${day}`;
-        // Format 4: MM/DD/YY (short year)
-        const format4 = `${month}/${day}/${year.toString().slice(-2)}`;
-        
-        console.log('🔍 Trying date formats:', { format1, format2, format3, format4 });
-        
-        // Start with format 1 (MM-DD-YYYY) as it's commonly accepted
-        return format1;
-      };
-      
-      // Calculate date range (max 32 days as per Impact.com docs)
-      const endDate = new Date();
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Last 30 days
-      
-      // Try different date formats if the first one fails
-      const dateFormats = [
-        (date) => `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}-${date.getFullYear()}`, // MM-DD-YYYY
-        (date) => `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`, // MM/DD/YYYY
-        (date) => `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`, // YYYY-MM-DD
-        (date) => `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`, // MM/DD/YY
-      ];
-      
-      let lastError = null;
-      
-      // Try each date format until one works
-      for (let i = 0; i < dateFormats.length; i++) {
-        try {
-          const currentFormat = dateFormats[i];
-          const params = new URLSearchParams({
-            SUBAID: this.programId, // Required: Program ID
-            StartDate: currentFormat(startDate), // Try current format
-            EndDate: currentFormat(endDate), // Try current format
-            ResultFormat: 'JSON' // Get JSON response
-          });
-          
-          console.log(`🔍 Trying date format ${i + 1}:`, {
-            startDate: currentFormat(startDate),
-            endDate: currentFormat(endDate),
-            format: i === 0 ? 'MM-DD-YYYY' : i === 1 ? 'MM/DD/YYYY' : i === 2 ? 'YYYY-MM-DD' : 'MM/DD/YY'
-          });
-          
-          const response = await fetch(`${url}?${params}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64'),
-              'Accept': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            console.log(`✅ Date format ${i + 1} worked!`);
-            const data = await response.json();
-            return await this.processReportExportData(data);
-          } else {
-            const errorText = await response.text();
-            lastError = `Format ${i + 1} failed: ${errorText}`;
-            console.log(`❌ Date format ${i + 1} failed:`, errorText);
-            continue; // Try next format
-          }
-        } catch (error) {
-          lastError = `Format ${i + 1} error: ${error.message}`;
-          console.log(`❌ Date format ${i + 1} error:`, error.message);
-          continue; // Try next format
-        }
-      }
-      
-      // If all date formats failed, throw error and fall back to Actions endpoint
-      console.log('❌ All date formats failed, falling back to Actions endpoint');
-      throw new Error(`All date formats failed: ${lastError}`);
-    } catch (error) {
-      console.error('❌ Error fetching Impact.com click data from ReportExport:', error.message);
-      
-      // Fallback to Actions endpoint if ReportExport fails
-      console.log('🔄 Falling back to Actions endpoint...');
-      try {
-        return await this.fetchClickDataFromActionsFallback();
-      } catch (fallbackError) {
-        console.error('❌ Fallback to Actions endpoint also failed:', fallbackError.message);
-        throw error; // Throw original error
-      }
-    }
-  }
-
-  // Process ReportExport data
-  async processReportExportData(data) {
-    try {
-      console.log('📊 Processing ReportExport data:', {
-        status: data.Status,
-        hasData: !!data.Data,
-        hasResults: !!data.Results,
-        dataLength: data.Data?.length || 0,
-        resultsLength: data.Results?.length || 0,
-        totalResults: data.TotalResults,
-        keys: Object.keys(data)
-      });
-      
-      // ReportExport endpoint returns different structure
-      if (data.Status === 'QUEUED') {
-        console.log('📋 ReportExport job queued, falling back to Actions endpoint for immediate data');
-        return await this.fetchClickDataFromActionsFallback();
-      }
-      
-      // If we get direct data (some endpoints return immediate results)
-      const reportData = data.Data || data.Results || [];
-      
-      console.log(`✅ Fetched ${reportData.length} records from Impact.com ReportExport`);
-      
-      // Process click data safely
-      const clickData = {
-        totalClicks: reportData.length,
-        totalResults: data.TotalResults || reportData.length,
-        actions: reportData.map(record => ({
-          id: record.Id || record.SubId1 || 'unknown',
-          type: 'CLICK', // ReportExport focuses on performance data
-          status: 'ACTIVE',
-          timestamp: record.Date || new Date().toISOString(),
-          mediaPartnerId: this.mediaPartnerId,
-          campaignId: record.Program || 'unknown',
-          subId1: record.SubId1, // Creator ID
-          amount: parseFloat(record.ActionEarnings || record.TotalEarnings || 0),
-          clicks: parseInt(record.Clicks || 0),
-          actions: parseInt(record.Actions || 0)
-        })),
-        summary: {
-          byCampaign: {},
-          byCreator: {},
-          byDate: {},
-          byActionType: { 'CLICK': reportData.length },
-          byStatus: { 'ACTIVE': reportData.length }
-        }
-      };
-
-      // Safe aggregation without modifying original data
-      reportData.forEach(record => {
-        const campaignId = record.Program || 'unknown';
-        const creatorId = record.SubId1 || 'unknown';
-        const date = record.Date ? record.Date.split('T')[0] : 'unknown';
-        
-        // Count by campaign
-        clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
-        
-        // Count by creator
-        clickData.summary.byCreator[creatorId] = (clickData.summary.byCreator[creatorId] || 0) + 1;
-        
-        // Count by date
-        clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
-      });
-
-      return clickData;
-    } catch (error) {
-      console.error('❌ Error processing ReportExport data:', error.message);
-      throw error;
-    }
-  }
-
-  // Fallback method using Actions endpoint
-  async fetchClickDataFromActionsFallback() {
-    try {
-      console.log('🔍 Using Actions endpoint fallback...');
-      
+      // Use Actions endpoint directly - it works perfectly without date filters
+      // and gives us comprehensive data immediately
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
       
       const params = new URLSearchParams({
-        PageSize: '5000', // Get more data
-        // Remove ActionType filter to get ALL actions (clicks, sales, etc.)
-        // This will give us comprehensive data
+        PageSize: '5000' // Get comprehensive data
+      });
+
+      console.log('🔍 Using Actions endpoint (no date filters needed):', {
+        url: `${url}?${params}`,
+        params: Object.fromEntries(params)
       });
 
       const response = await fetch(`${url}?${params}`, {
@@ -370,40 +200,75 @@ class ImpactWebService {
       });
 
       if (!response.ok) {
-        throw new Error(`Actions API Error ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        console.error('❌ Actions API error response:', errorText);
+        throw new Error(`Actions API Error ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
       const actions = data.Actions || [];
       
-      console.log(`✅ Fallback: Fetched ${actions.length} click actions from Actions endpoint`);
+      console.log(`✅ Successfully fetched ${actions.length} actions from Impact.com Actions endpoint`);
       
-      return {
+      // Process the comprehensive data
+      const clickData = {
         totalClicks: actions.length,
-        totalResults: data.TotalResults || actions.length,
+        totalResults: data['@total'] || actions.length,
         actions: actions.map(action => ({
-          id: action.Id || action.ActionId,
-          type: action.ActionType,
-          status: action.ActionStatus,
-          timestamp: action.ActionDate || action.CreatedDate,
-          mediaPartnerId: action.MediaPartnerId,
+          id: action.Id,
+          type: action.ActionTrackerName || 'ACTION',
+          status: action.State,
+          timestamp: action.ReferringDate || action.EventDate,
+          mediaPartnerId: this.mediaPartnerId,
           campaignId: action.CampaignId,
+          campaignName: action.CampaignName,
           subId1: action.SubId1,
-          amount: action.Amount || 0
+          amount: parseFloat(action.Amount || 0),
+          payout: parseFloat(action.Payout || 0),
+          customerLocation: `${action.CustomerCity}, ${action.CustomerRegion}`,
+          referringDomain: action.ReferringDomain
         })),
         summary: {
           byCampaign: {},
           byCreator: {},
           byDate: {},
-          byActionType: { 'CLICK': actions.length },
-          byStatus: { 'ACTIVE': actions.length }
+          byActionType: {},
+          byStatus: {}
         }
       };
+
+      // Safe aggregation
+      actions.forEach(action => {
+        const campaignId = action.CampaignId || 'unknown';
+        const creatorId = action.SubId1 || 'unknown';
+        const date = action.ReferringDate ? action.ReferringDate.split('T')[0] : 'unknown';
+        const actionType = action.ActionTrackerName || 'unknown';
+        const status = action.State || 'unknown';
+        
+        // Count by campaign
+        clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
+        
+        // Count by creator
+        clickData.summary.byCreator[creatorId] = (clickData.summary.byCreator[creatorId] || 0) + 1;
+        
+        // Count by date
+        clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
+        
+        // Count by action type
+        clickData.summary.byActionType[actionType] = (clickData.summary.byActionType[actionType] || 0) + 1;
+        
+        // Count by status
+        clickData.summary.byStatus[status] = (clickData.summary.byStatus[status] || 0) + 1;
+      });
+
+      return clickData;
     } catch (error) {
-      console.error('❌ Fallback Actions endpoint failed:', error.message);
+      console.error('❌ Error fetching Impact.com click data:', error.message);
       throw error;
     }
   }
+
+  // These methods are no longer needed since we're using Actions endpoint directly
 }
 
 module.exports = { ImpactWebService };
