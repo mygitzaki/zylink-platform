@@ -235,18 +235,22 @@ class ImpactWebService {
 
       const data = await response.json();
       
+      console.log('📊 Impact.com API response data:', {
+        status: data.Status,
+        hasData: !!data.Data,
+        hasResults: !!data.Results,
+        dataLength: data.Data?.length || 0,
+        resultsLength: data.Results?.length || 0,
+        totalResults: data.TotalResults,
+        keys: Object.keys(data)
+      });
+      
       // ReportExport endpoint returns different structure
       if (data.Status === 'QUEUED') {
         console.log('📋 ReportExport job queued, waiting for completion...');
-        // For now, return queued status - in production we'd poll the job status
-        return {
-          totalClicks: 0,
-          totalResults: 0,
-          status: 'QUEUED',
-          message: 'Report generation queued. Please check back later.',
-          jobUri: data.QueuedUri,
-          resultUri: data.ResultUri
-        };
+        console.log('🔄 This endpoint requires polling - falling back to Actions endpoint for immediate data');
+        // Instead of returning queued status, fall back to Actions endpoint
+        return await this.fetchClickDataFromActionsFallback();
       }
       
       // If we get direct data (some endpoints return immediate results)
@@ -319,8 +323,9 @@ class ImpactWebService {
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
       
       const params = new URLSearchParams({
-        PageSize: '1000',
-        ActionType: 'CLICK'
+        PageSize: '5000', // Get more data
+        // Remove ActionType filter to get ALL actions (clicks, sales, etc.)
+        // This will give us comprehensive data
       });
 
       const response = await fetch(`${url}?${params}`, {
