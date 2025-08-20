@@ -147,7 +147,6 @@ export default function MyLinks() {
             <div className="metric-value">${Number(link.revenue || 0).toFixed(2)}</div>
             <div className="metric-label">Revenue</div>
           </div>
-          </div>
         </div>
       </div>
     )
