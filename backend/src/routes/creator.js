@@ -249,6 +249,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
           await prisma.shortLink.create({ 
             data: { 
               shortCode: code, 
+              shortLink: shortLink, // Save the full short URL
               originalUrl: destinationUrl, 
               creatorId: req.user.id 
             } 

@@ -110,6 +110,7 @@ model PaymentAccount {
 model ShortLink {
   id              String   @id @default(uuid())
   shortCode       String   @unique
+  shortLink       String   // The full short URL (e.g., https://s.zylike.com/ABC123)
   originalUrl     String
   creatorId       String
   clicks          Int      @default(0)
