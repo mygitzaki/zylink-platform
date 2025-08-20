@@ -438,8 +438,8 @@ export default function LinkGenerator() {
                 type="submit" 
                 disabled={loading || !productUrl.trim()}
                 loading={loading}
-                size="lg"
-                className="w-full lg:w-auto lg:min-w-[100px] lg:flex-shrink-0 self-end bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                size="md"
+                className="w-full lg:w-auto lg:min-w-[80px] lg:flex-shrink-0 self-end bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
               >
                 {!loading && (
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,8 +488,8 @@ export default function LinkGenerator() {
                 <Button
                   onClick={() => copyToClipboard(generatedLink.shortLink, 'Short link')}
                   variant="secondary"
-                  size="lg"
-                  className={`w-full sm:w-auto font-semibold py-2 px-4 rounded-lg shadow-lg transition-all duration-300 transform ${
+                  size="md"
+                  className={`w-full sm:w-auto font-semibold py-2 px-3 rounded-lg shadow-lg transition-all duration-300 transform ${
                     copyClicked 
                       ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white scale-105 shadow-xl' 
                       : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white hover:shadow-xl hover:scale-105'
