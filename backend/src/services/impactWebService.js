@@ -103,14 +103,21 @@ class ImpactWebService {
 
   // FALLBACK: Generate working link format (as backup)
   generateWorkingLinkFormat(campaignId, subId, destinationUrl) {
-    const baseUrl = `https://goto.walmart.com/c/${this.mediaPartnerId}/${this.accountSid}/${this.programId}`;
+    // Use direct Walmart affiliate format as fallback
     const params = new URLSearchParams({
-      sourceid: `imp_${Date.now()}`,
+      irgwc: '1',
       veh: 'aff',
-      u: destinationUrl,
+      wmlspartner_creator: `imp_${this.mediaPartnerId}`,
+      affiliates_ad_id_creator: this.mediaPartnerId,
+      campaign_id_creator: this.programId,
+      clickid: `imp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sourceid: `imp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       subId1: subId || 'default'
     });
-    return `${baseUrl}?${params.toString()}`;
+    
+    // Append the destination URL as a parameter
+    const finalUrl = `${destinationUrl}${destinationUrl.includes('?') ? '&' : '?'}${params.toString()}`;
+    return finalUrl;
   }
 
   // Validate URL format
