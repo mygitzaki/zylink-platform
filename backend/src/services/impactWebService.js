@@ -178,25 +178,23 @@ class ImpactWebService {
     try {
       console.log('🔍 Fetching real click data from Impact.com API...');
       
-      // Use Actions endpoint to get click data
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
+      // Use ReportExport endpoint for comprehensive data (as per Impact.com documentation)
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/mp_io_history`;
       
-      // Use the same date formatting that works in earningsSync
-      const formatImpactDate = (date) => {
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${month}/${day}/${year}`;
+      // Format dates in ISO 8601 format as required by Impact.com API
+      const formatImpactDateISO = (date) => {
+        return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
       };
       
+      // Calculate date range (max 32 days as per Impact.com docs)
+      const endDate = new Date();
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Last 30 days
+      
       const params = new URLSearchParams({
-        PageSize: '5000', // Get more comprehensive data
-        // Remove ActionType filter to get ALL action types (clicks might be under different types)
-        // Remove ActionStatus filter to get ALL statuses
-        // TEMPORARILY REMOVE DATE FILTERS to get API working first
-        // TODO: Add date filtering back once we determine the correct format
-        // StartDate: formatImpactDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)), // Last 90 days
-        // EndDate: formatImpactDate(new Date())
+        SUBAID: this.programId, // Required: Program ID
+        StartDate: formatImpactDateISO(startDate), // Required: ISO 8601 format
+        EndDate: formatImpactDateISO(endDate), // Required: ISO 8601 format
+        ResultFormat: 'JSON' // Get JSON response
       });
 
       console.log('🔍 Impact.com API call details:', {
@@ -226,40 +224,56 @@ class ImpactWebService {
       }
 
       const data = await response.json();
-      const actions = data.Actions || [];
       
-      console.log(`✅ Fetched ${actions.length} click actions from Impact.com`);
+      // ReportExport endpoint returns different structure
+      if (data.Status === 'QUEUED') {
+        console.log('📋 ReportExport job queued, waiting for completion...');
+        // For now, return queued status - in production we'd poll the job status
+        return {
+          totalClicks: 0,
+          totalResults: 0,
+          status: 'QUEUED',
+          message: 'Report generation queued. Please check back later.',
+          jobUri: data.QueuedUri,
+          resultUri: data.ResultUri
+        };
+      }
+      
+      // If we get direct data (some endpoints return immediate results)
+      const reportData = data.Data || data.Results || [];
+      
+      console.log(`✅ Fetched ${reportData.length} records from Impact.com ReportExport`);
       
       // Process click data safely
       const clickData = {
-        totalClicks: actions.length,
-        totalResults: data.TotalResults || 0,
-        actions: actions.map(action => ({
-          id: action.Id || action.ActionId,
-          type: action.ActionType,
-          status: action.ActionStatus,
-          timestamp: action.ActionDate || action.CreatedDate,
-          mediaPartnerId: action.MediaPartnerId,
-          campaignId: action.CampaignId,
-          subId1: action.SubId1, // Creator ID
-          amount: action.Amount || 0
+        totalClicks: reportData.length,
+        totalResults: data.TotalResults || reportData.length,
+        actions: reportData.map(record => ({
+          id: record.Id || record.SubId1 || 'unknown',
+          type: 'CLICK', // ReportExport focuses on performance data
+          status: 'ACTIVE',
+          timestamp: record.Date || new Date().toISOString(),
+          mediaPartnerId: this.mediaPartnerId,
+          campaignId: record.Program || 'unknown',
+          subId1: record.SubId1, // Creator ID
+          amount: parseFloat(record.ActionEarnings || record.TotalEarnings || 0),
+          clicks: parseInt(record.Clicks || 0),
+          actions: parseInt(record.Actions || 0)
         })),
         summary: {
           byCampaign: {},
           byCreator: {},
           byDate: {},
-          byActionType: {}, // NEW: Breakdown by action type
-          byStatus: {}      // NEW: Breakdown by status
+          byActionType: { 'CLICK': reportData.length },
+          byStatus: { 'ACTIVE': reportData.length }
         }
       };
 
       // Safe aggregation without modifying original data
-      actions.forEach(action => {
-        const campaignId = action.CampaignId || 'unknown';
-        const creatorId = action.SubId1 || 'unknown';
-        const date = action.ActionDate ? action.ActionDate.split('T')[0] : 'unknown';
-        const actionType = action.ActionType || 'unknown';
-        const actionStatus = action.ActionStatus || 'unknown';
+      reportData.forEach(record => {
+        const campaignId = record.Program || 'unknown';
+        const creatorId = record.SubId1 || 'unknown';
+        const date = record.Date ? record.Date.split('T')[0] : 'unknown';
         
         // Count by campaign
         clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
@@ -269,18 +283,76 @@ class ImpactWebService {
         
         // Count by date
         clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
-        
-        // NEW: Count by action type
-        clickData.summary.byActionType[actionType] = (clickData.summary.byActionType[actionType] || 0) + 1;
-        
-        // NEW: Count by status
-        clickData.summary.byStatus[actionStatus] = (clickData.summary.byStatus[actionStatus] || 0) + 1;
       });
 
       return clickData;
 
     } catch (error) {
-      console.error('❌ Error fetching Impact.com click data:', error.message);
+      console.error('❌ Error fetching Impact.com click data from ReportExport:', error.message);
+      
+      // Fallback to Actions endpoint if ReportExport fails
+      console.log('🔄 Falling back to Actions endpoint...');
+      try {
+        return await this.fetchClickDataFromActionsFallback();
+      } catch (fallbackError) {
+        console.error('❌ Fallback to Actions endpoint also failed:', fallbackError.message);
+        throw error; // Throw original error
+      }
+    }
+  }
+
+  // Fallback method using Actions endpoint
+  async fetchClickDataFromActionsFallback() {
+    try {
+      console.log('🔍 Using Actions endpoint fallback...');
+      
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
+      
+      const params = new URLSearchParams({
+        PageSize: '1000',
+        ActionType: 'CLICK'
+      });
+
+      const response = await fetch(`${url}?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64'),
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Actions API Error ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      const actions = data.Actions || [];
+      
+      console.log(`✅ Fallback: Fetched ${actions.length} click actions from Actions endpoint`);
+      
+      return {
+        totalClicks: actions.length,
+        totalResults: data.TotalResults || actions.length,
+        actions: actions.map(action => ({
+          id: action.Id || action.ActionId,
+          type: action.ActionType,
+          status: action.ActionStatus,
+          timestamp: action.ActionDate || action.CreatedDate,
+          mediaPartnerId: action.MediaPartnerId,
+          campaignId: action.CampaignId,
+          subId1: action.SubId1,
+          amount: action.Amount || 0
+        })),
+        summary: {
+          byCampaign: {},
+          byCreator: {},
+          byDate: {},
+          byActionType: { 'CLICK': actions.length },
+          byStatus: { 'ACTIVE': actions.length }
+        }
+      };
+    } catch (error) {
+      console.error('❌ Fallback Actions endpoint failed:', error.message);
       throw error;
     }
   }
