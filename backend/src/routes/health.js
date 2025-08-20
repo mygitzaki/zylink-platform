@@ -114,6 +114,74 @@ router.get('/memory', safeRoute(async (req, res) => {
   });
 }));
 
+// Payment health check endpoint
+router.get('/payment', async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ 
+        status: 'unhealthy', 
+        message: 'Database not configured',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Test PaymentAccount table access
+    const tableCheck = await prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'PaymentAccount'
+      ) as exists;
+    `;
+
+    // Test accountType column access
+    const columnCheck = await prisma.$queryRaw`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'PaymentAccount' AND column_name = 'accountType';
+    `;
+
+    // Test basic PaymentAccount query
+    const accountCount = await prisma.paymentAccount.count();
+    
+    // Test include query (like admin endpoint uses)
+    const sampleAccount = await prisma.paymentAccount.findFirst({
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      status: 'healthy',
+      checks: {
+        table_exists: tableCheck[0].exists,
+        column_exists: columnCheck.length > 0,
+        account_count: accountCount,
+        sample_query: sampleAccount ? 'success' : 'no_data',
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Payment health check failed:', error);
+    res.status(500).json({
+      status: 'unhealthy',
+      error: {
+        name: error.name,
+        message: error.message,
+        code: error.code
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
 
 
