@@ -181,9 +181,13 @@ class ImpactWebService {
       // Use ReportExport endpoint for comprehensive data (as per Impact.com documentation)
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/mp_io_history`;
       
-      // Format dates in ISO 8601 format as required by Impact.com API
-      const formatImpactDateISO = (date) => {
-        return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
+      // Try different date formats that Impact.com might accept
+      const formatImpactDate = (date) => {
+        // Try MM/DD/YYYY format first (most common for US-based APIs)
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
       };
       
       // Calculate date range (max 32 days as per Impact.com docs)
@@ -192,14 +196,20 @@ class ImpactWebService {
       
       const params = new URLSearchParams({
         SUBAID: this.programId, // Required: Program ID
-        StartDate: formatImpactDateISO(startDate), // Required: ISO 8601 format
-        EndDate: formatImpactDateISO(endDate), // Required: ISO 8601 format
+        StartDate: formatImpactDate(startDate), // Try MM/DD/YYYY format
+        EndDate: formatImpactDate(endDate), // Try MM/DD/YYYY format
         ResultFormat: 'JSON' // Get JSON response
       });
 
       console.log('🔍 Impact.com API call details:', {
         url: `${url}?${params}`,
         params: Object.fromEntries(params),
+        dateFormats: {
+          startDate: formatImpactDate(startDate),
+          endDate: formatImpactDate(endDate),
+          startDateRaw: startDate.toISOString(),
+          endDateRaw: endDate.toISOString()
+        },
         authHeader: 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64').substring(0, 20) + '...'
       });
 
