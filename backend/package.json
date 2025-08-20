@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "prisma migrate deploy && node server.js",
+    "start": "prisma generate && prisma migrate deploy && node server.js",
     "dev": "nodemon server.js",
     "build": "prisma generate",
     "postinstall": "prisma generate",
