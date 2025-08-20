@@ -82,11 +82,49 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
 
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  const [creatorCount, linkCount] = await Promise.all([
-    prisma.creator.count(),
-    prisma.link.count(),
-  ]);
-  res.json({ creatorCount, linkCount });
+  
+  try {
+    // Get basic counts
+    const [creatorCount, linkCount, shortLinkCount] = await Promise.all([
+      prisma.creator.count(),
+      prisma.link.count(),
+      prisma.shortLink.count(),
+    ]);
+    
+    // Get click data from ShortLink table (where clicks are actually tracked)
+    const shortLinkStats = await prisma.shortLink.aggregate({
+      _sum: { clicks: true },
+      _count: { id: true }
+    });
+    
+    // Get sample short links with click data
+    const sampleShortLinks = await prisma.shortLink.findMany({
+      take: 5,
+      orderBy: { clicks: 'desc' },
+      select: {
+        shortCode: true,
+        clicks: true,
+        createdAt: true,
+        creator: {
+          select: { name: true, email: true }
+        }
+      }
+    });
+    
+    res.json({ 
+      creatorCount, 
+      linkCount, 
+      shortLinkCount,
+      clickStats: {
+        totalClicks: shortLinkStats._sum.clicks || 0,
+        totalShortLinks: shortLinkStats._count.id || 0
+      },
+      sampleShortLinks
+    });
+  } catch (error) {
+    console.error('Admin stats error:', error);
+    res.status(500).json({ message: 'Failed to load stats', error: error.message });
+  }
 });
 
 router.get('/actions', requireAuth, requireAdmin, async (req, res) => { res.json({ actions: [] }); });
