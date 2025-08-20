@@ -180,21 +180,22 @@ class ImpactWebService {
       
       // Use Actions endpoint to get click data
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
+      
+      // Use the same date formatting that works in earningsSync
+      const formatImpactDate = (date) => {
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      };
+      
       const params = new URLSearchParams({
         PageSize: '5000', // Get more comprehensive data
         // Remove ActionType filter to get ALL action types (clicks might be under different types)
         // Remove ActionStatus filter to get ALL statuses
-        // Add date range to get more historical data (Impact.com expects MM/DD/YYYY format)
-        StartDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-          month: '2-digit',
-          day: '2-digit', 
-          year: 'numeric'
-        }), // Last 90 days
-        EndDate: new Date().toLocaleDateString('en-US', {
-          month: '2-digit',
-          day: '2-digit',
-          year: 'numeric'
-        })
+        // Add date range using proven working format
+        StartDate: formatImpactDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)), // Last 90 days
+        EndDate: formatImpactDate(new Date())
       });
 
       console.log('🔍 Impact.com API call details:', {
