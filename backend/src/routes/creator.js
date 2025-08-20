@@ -339,12 +339,21 @@ router.get('/earnings', requireAuth, requireApprovedCreator, async (req, res) =>
 // GET payment setup - retrieve existing payment details
 router.get('/payment-setup', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Payment setup endpoint called for user:', req.user.id);
+    
     const prisma = getPrisma();
-    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    if (!prisma) {
+      console.log('❌ No Prisma client available');
+      return res.status(503).json({ message: 'Database not configured' });
+    }
+    
+    console.log('✅ Prisma client available, querying payment account...');
     
     const paymentAccount = await prisma.paymentAccount.findUnique({
       where: { creatorId: req.user.id }
     });
+    
+    console.log('✅ Payment account query result:', paymentAccount ? 'Found' : 'Not found');
     
     if (!paymentAccount) {
       return res.json({ hasPaymentMethod: false });
@@ -358,6 +367,7 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
     };
     
     const type = frontendTypeMapping[paymentAccount.accountType];
+    console.log('✅ Mapped account type:', paymentAccount.accountType, '->', type);
     
     res.json({
       hasPaymentMethod: true,
@@ -368,7 +378,14 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
       createdAt: paymentAccount.createdAt
     });
   } catch (error) {
-    console.error('Payment retrieval error:', error);
+    console.error('❌ Payment retrieval error:', error);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
     res.status(500).json({ message: 'Failed to retrieve payment method', error: error.message });
   }
 });

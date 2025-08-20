@@ -397,8 +397,15 @@ router.get('/earnings-summary', requireAuth, requireAdmin, async (req, res) => {
 // GET all creator payment accounts for admin
 router.get('/payment-accounts', requireAuth, requireAdmin, async (req, res) => {
   try {
+    console.log('🔍 Admin payment accounts endpoint called');
+    
     const prisma = getPrisma();
-    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    if (!prisma) {
+      console.log('❌ No Prisma client available');
+      return res.status(503).json({ message: 'Database not configured' });
+    }
+    
+    console.log('✅ Prisma client available, querying payment accounts...');
     
     const paymentAccounts = await prisma.paymentAccount.findMany({
       include: {
@@ -415,6 +422,8 @@ router.get('/payment-accounts', requireAuth, requireAdmin, async (req, res) => {
         createdAt: 'desc'
       }
     });
+    
+    console.log('✅ Payment accounts query successful, found:', paymentAccounts.length);
     
     // Map schema enum values back to frontend values for display
     const formattedAccounts = paymentAccounts.map(account => {
@@ -436,9 +445,17 @@ router.get('/payment-accounts', requireAuth, requireAdmin, async (req, res) => {
       };
     });
     
+    console.log('✅ Formatted accounts successfully');
     res.json({ paymentAccounts: formattedAccounts });
   } catch (error) {
-    console.error('Failed to fetch payment accounts:', error);
+    console.error('❌ Failed to fetch payment accounts:', error);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack
+    });
     res.status(500).json({ message: 'Failed to fetch payment accounts', error: error.message });
   }
 });
