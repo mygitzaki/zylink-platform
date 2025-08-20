@@ -8,12 +8,37 @@ export default function AdminOverview(){
   const [stats,setStats] = useState({ creatorCount:0, linkCount:0, pendingApplications:0, totalRevenue:0 })
   const [error,setError] = useState('')
   const [systemHealth, setSystemHealth] = useState('healthy')
+  const [impactClicks, setImpactClicks] = useState(null)
+  const [loadingImpact, setLoadingImpact] = useState(false)
+  const [impactError, setImpactError] = useState('')
 
   useEffect(()=>{
     apiFetch('/api/admin/stats', { token })
       .then(setStats)
       .catch(e=>setError(e.message))
   },[token])
+
+  // NEW: Function to fetch real Impact.com click data
+  const fetchImpactClicks = async () => {
+    setLoadingImpact(true)
+    setImpactError('')
+    
+    try {
+      const data = await apiFetch('/api/admin/impact-clicks', { token })
+      if (data.success) {
+        setImpactClicks(data.data)
+        console.log('✅ Impact.com click data loaded:', data.data)
+      } else {
+        throw new Error(data.message || 'Failed to fetch Impact.com data')
+      }
+    } catch (error) {
+      console.error('❌ Error fetching Impact.com clicks:', error)
+      setImpactError(error.message)
+      setImpactClicks(null)
+    } finally {
+      setLoadingImpact(false)
+    }
+  }
 
   const StatCard = ({ icon, label, value, change, color = '#667eea' }) => (
     <div className="modern-stat-card">
@@ -113,6 +138,91 @@ export default function AdminOverview(){
           change="+23% this month"
           color="#8b5cf6"
         />
+      </div>
+
+      {/* NEW: Impact.com Real Click Data Section */}
+      <div className="section-header">
+        <h2 className="section-title">Impact.com Real Click Data</h2>
+        <p className="section-subtitle">Official click data from Impact.com API</p>
+      </div>
+
+      <div className="impact-clicks-section">
+        <div className="impact-clicks-card">
+          <div className="impact-clicks-header">
+            <div className="impact-clicks-icon">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinecap="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div className="impact-clicks-info">
+              <h3>Real-Time Impact.com Clicks</h3>
+              <p>Official click data directly from Impact.com API</p>
+            </div>
+            <button 
+              onClick={() => fetchImpactClicks()} 
+              className="refresh-impact-btn"
+              disabled={loadingImpact}
+            >
+              {loadingImpact ? 'Loading...' : '🔄 Refresh Data'}
+            </button>
+          </div>
+          
+          {impactClicks && (
+            <div className="impact-clicks-data">
+              <div className="impact-stats-grid">
+                <div className="impact-stat">
+                  <span className="impact-stat-label">Total Clicks</span>
+                  <span className="impact-stat-value">{impactClicks.totalClicks || 0}</span>
+                </div>
+                <div className="impact-stat">
+                  <span className="impact-stat-label">Total Results</span>
+                  <span className="impact-stat-value">{impactClicks.totalResults || 0}</span>
+                </div>
+                <div className="impact-stat">
+                  <span className="impact-stat-label">Last Updated</span>
+                  <span className="impact-stat-value">{new Date().toLocaleTimeString()}</span>
+                </div>
+              </div>
+              
+              {impactClicks.summary && (
+                <div className="impact-breakdown">
+                  <h4>Click Breakdown</h4>
+                  <div className="breakdown-grid">
+                    <div className="breakdown-section">
+                      <h5>By Campaign</h5>
+                      <div className="breakdown-list">
+                        {Object.entries(impactClicks.summary.byCampaign || {}).map(([campaign, clicks]) => (
+                          <div key={campaign} className="breakdown-item">
+                            <span>Campaign {campaign}</span>
+                            <span>{clicks} clicks</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="breakdown-section">
+                      <h5>By Creator</h5>
+                      <div className="breakdown-list">
+                        {Object.entries(impactClicks.summary.byCreator || {}).map(([creator, clicks]) => (
+                          <div key={creator} className="breakdown-item">
+                            <span>{creator}</span>
+                            <span>{clicks} clicks</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {impactError && (
+            <div className="impact-error">
+              <p>❌ {impactError}</p>
+              <small>Using local analytics data as fallback</small>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick Actions Section */}
