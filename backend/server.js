@@ -1,4 +1,4 @@
-console.log('🚀 SERVER STARTING - VERSION WITH WORKING IMPACT ACTIONS ENDPOINT SOLUTION - 2025-08-20T16:00:00.000Z');
+console.log('🚀 SERVER STARTING - VERSION WITH TEMPLATE URL DETECTION AND FALLBACK FIX - 2025-08-20T19:20:00.000Z');
 
 const express = require('express');
 const path = require('path');
