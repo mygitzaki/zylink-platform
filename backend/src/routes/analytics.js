@@ -111,11 +111,21 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
   
   try {
     // Get basic platform statistics
-    const [creatorCount, linkCount, linkAgg] = await Promise.all([
+    const [creatorCount, linkCount, linkAgg, shortLinkAgg] = await Promise.all([
       prisma.creator.count(),
       prisma.link.count(),
-      prisma.link.aggregate({ _sum: { clicks: true, conversions: true, revenue: true } }),
+      prisma.link.aggregate({ _sum: { conversions: true, revenue: true } }),
+      prisma.shortLink.aggregate({ _sum: { clicks: true } }),
     ]);
+    
+    // Combine click data from ShortLink table (where clicks are actually tracked)
+    const combinedAgg = {
+      _sum: {
+        clicks: shortLinkAgg._sum.clicks || 0,
+        conversions: linkAgg._sum.conversions || 0,
+        revenue: linkAgg._sum.revenue || 0
+      }
+    };
     
     // Get all earnings for platform revenue calculation
     const allEarnings = await prisma.earning.findMany({
@@ -174,8 +184,8 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
       overview: {
         creators: creatorCount,
         links: linkCount,
-        clicks: linkAgg._sum.clicks || 0,
-        conversions: linkAgg._sum.conversions || 0
+        clicks: combinedAgg._sum.clicks || 0,
+        conversions: combinedAgg._sum.conversions || 0
       },
       salesMetrics: {
         grossSales: Number(linkAgg._sum.revenue || 0), // All sales from Impact.com
