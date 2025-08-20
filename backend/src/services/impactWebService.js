@@ -172,6 +172,81 @@ class ImpactWebService {
       };
     }
   }
+
+  // NEW: Safe method to fetch real click data from Impact.com API
+  async fetchClickDataFromImpact() {
+    try {
+      console.log('🔍 Fetching real click data from Impact.com API...');
+      
+      // Use Actions endpoint to get click data
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
+      const params = new URLSearchParams({
+        PageSize: '1000', // Get more data
+        ActionType: 'CLICK', // Focus on click actions
+        ActionStatus: 'APPROVED' // Only approved actions
+      });
+
+      const response = await fetch(`${url}?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64'),
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Impact API Error ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      const actions = data.Actions || [];
+      
+      console.log(`✅ Fetched ${actions.length} click actions from Impact.com`);
+      
+      // Process click data safely
+      const clickData = {
+        totalClicks: actions.length,
+        totalResults: data.TotalResults || 0,
+        actions: actions.map(action => ({
+          id: action.Id || action.ActionId,
+          type: action.ActionType,
+          status: action.ActionStatus,
+          timestamp: action.ActionDate || action.CreatedDate,
+          mediaPartnerId: action.MediaPartnerId,
+          campaignId: action.CampaignId,
+          subId1: action.SubId1, // Creator ID
+          amount: action.Amount || 0
+        })),
+        summary: {
+          byCampaign: {},
+          byCreator: {},
+          byDate: {}
+        }
+      };
+
+      // Safe aggregation without modifying original data
+      actions.forEach(action => {
+        const campaignId = action.CampaignId || 'unknown';
+        const creatorId = action.SubId1 || 'unknown';
+        const date = action.ActionDate ? action.ActionDate.split('T')[0] : 'unknown';
+        
+        // Count by campaign
+        clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
+        
+        // Count by creator
+        clickData.summary.byCreator[creatorId] = (clickData.summary.byCreator[creatorId] || 0) + 1;
+        
+        // Count by date
+        clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
+      });
+
+      return clickData;
+
+    } catch (error) {
+      console.error('❌ Error fetching Impact.com click data:', error.message);
+      throw error;
+    }
+  }
 }
 
 module.exports = { ImpactWebService };

@@ -625,6 +625,41 @@ router.delete('/creators/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// NEW: Safe endpoint to fetch real Impact.com click data
+router.get('/impact-clicks', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('🔍 Admin requesting Impact.com click data...');
+    
+    // Import ImpactWebService safely (only when needed)
+    const { ImpactWebService } = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Fetch real click data from Impact.com API
+    const impactData = await impact.fetchClickDataFromImpact();
+    
+    console.log('✅ Impact.com click data fetched successfully');
+    
+    res.json({
+      success: true,
+      source: 'Impact.com API',
+      timestamp: new Date().toISOString(),
+      data: impactData
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching Impact.com click data:', error);
+    
+    // Safe fallback - return error without crashing
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch Impact.com click data',
+      error: error.message,
+      fallback: 'Use existing analytics data',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
 
 
