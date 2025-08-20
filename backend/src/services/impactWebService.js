@@ -181,9 +181,12 @@ class ImpactWebService {
       // Use Actions endpoint to get click data
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
       const params = new URLSearchParams({
-        PageSize: '1000', // Get more data
-        ActionType: 'CLICK', // Focus on click actions
-        ActionStatus: 'APPROVED' // Only approved actions
+        PageSize: '5000', // Get more comprehensive data
+        // Remove ActionType filter to get ALL action types (clicks might be under different types)
+        // Remove ActionStatus filter to get ALL statuses
+        // Add date range to get more historical data
+        StartDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US'), // Last 90 days
+        EndDate: new Date().toLocaleDateString('en-US')
       });
 
       const response = await fetch(`${url}?${params}`, {
@@ -220,7 +223,9 @@ class ImpactWebService {
         summary: {
           byCampaign: {},
           byCreator: {},
-          byDate: {}
+          byDate: {},
+          byActionType: {}, // NEW: Breakdown by action type
+          byStatus: {}      // NEW: Breakdown by status
         }
       };
 
@@ -229,6 +234,8 @@ class ImpactWebService {
         const campaignId = action.CampaignId || 'unknown';
         const creatorId = action.SubId1 || 'unknown';
         const date = action.ActionDate ? action.ActionDate.split('T')[0] : 'unknown';
+        const actionType = action.ActionType || 'unknown';
+        const actionStatus = action.ActionStatus || 'unknown';
         
         // Count by campaign
         clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
@@ -238,6 +245,12 @@ class ImpactWebService {
         
         // Count by date
         clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
+        
+        // NEW: Count by action type
+        clickData.summary.byActionType[actionType] = (clickData.summary.byActionType[actionType] || 0) + 1;
+        
+        // NEW: Count by status
+        clickData.summary.byStatus[actionStatus] = (clickData.summary.byStatus[actionStatus] || 0) + 1;
       });
 
       return clickData;

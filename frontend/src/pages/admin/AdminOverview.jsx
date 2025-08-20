@@ -187,30 +187,52 @@ export default function AdminOverview(){
               {impactClicks.summary && (
                 <div className="impact-breakdown">
                   <h4>Click Breakdown</h4>
-                  <div className="breakdown-grid">
-                    <div className="breakdown-section">
-                      <h5>By Campaign</h5>
-                      <div className="breakdown-list">
-                        {Object.entries(impactClicks.summary.byCampaign || {}).map(([campaign, clicks]) => (
-                          <div key={campaign} className="breakdown-item">
-                            <span>Campaign {campaign}</span>
-                            <span>{clicks} clicks</span>
-                          </div>
-                        ))}
+                                      <div className="breakdown-grid">
+                      <div className="breakdown-section">
+                        <h5>By Campaign</h5>
+                        <div className="breakdown-list">
+                          {Object.entries(impactClicks.summary.byCampaign || {}).map(([campaign, clicks]) => (
+                            <div key={campaign} className="breakdown-item">
+                              <span>Campaign {campaign}</span>
+                              <span>{clicks} clicks</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="breakdown-section">
+                        <h5>By Creator</h5>
+                        <div className="breakdown-list">
+                          {Object.entries(impactClicks.summary.byCreator || {}).map(([creator, clicks]) => (
+                            <div key={creator} className="breakdown-item">
+                              <span>{creator}</span>
+                              <span>{clicks} clicks</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="breakdown-section">
+                        <h5>By Action Type</h5>
+                        <div className="breakdown-list">
+                          {Object.entries(impactClicks.summary.byActionType || {}).map(([type, count]) => (
+                            <div key={type} className="breakdown-item">
+                              <span>{type}</span>
+                              <span>{count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="breakdown-section">
+                        <h5>By Status</h5>
+                        <div className="breakdown-list">
+                          {Object.entries(impactClicks.summary.byStatus || {}).map(([status, count]) => (
+                            <div key={status} className="breakdown-item">
+                              <span>{status}</span>
+                              <span>{count}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="breakdown-section">
-                      <h5>By Creator</h5>
-                      <div className="breakdown-list">
-                        {Object.entries(impactClicks.summary.byCreator || {}).map(([creator, clicks]) => (
-                          <div key={creator} className="breakdown-item">
-                            <span>{creator}</span>
-                            <span>{clicks} clicks</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
