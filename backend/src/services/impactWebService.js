@@ -184,9 +184,23 @@ class ImpactWebService {
         PageSize: '5000', // Get more comprehensive data
         // Remove ActionType filter to get ALL action types (clicks might be under different types)
         // Remove ActionStatus filter to get ALL statuses
-        // Add date range to get more historical data
-        StartDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US'), // Last 90 days
-        EndDate: new Date().toLocaleDateString('en-US')
+        // Add date range to get more historical data (Impact.com expects MM/DD/YYYY format)
+        StartDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+          month: '2-digit',
+          day: '2-digit', 
+          year: 'numeric'
+        }), // Last 90 days
+        EndDate: new Date().toLocaleDateString('en-US', {
+          month: '2-digit',
+          day: '2-digit',
+          year: 'numeric'
+        })
+      });
+
+      console.log('🔍 Impact.com API call details:', {
+        url: `${url}?${params}`,
+        params: Object.fromEntries(params),
+        authHeader: 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64').substring(0, 20) + '...'
       });
 
       const response = await fetch(`${url}?${params}`, {
@@ -197,8 +211,16 @@ class ImpactWebService {
         }
       });
 
+      console.log('📡 Impact.com API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
-        throw new Error(`Impact API Error ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        console.error('❌ Impact.com API error response:', errorText);
+        throw new Error(`Impact API Error ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
