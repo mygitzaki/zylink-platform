@@ -78,31 +78,49 @@ export default function MyLinks() {
         </div>
 
         <div className="link-info">
-          <div className="destination-url">
-            <label>Destination URL</label>
-            <a href={link.destinationUrl} target="_blank" rel="noopener noreferrer" className="link-url">
-              {link.destinationUrl}
-            </a>
-          </div>
           
           <div className="link-variations">
             <div className="link-variation">
               <label>Short Link</label>
               <div className="link-copy-group">
                 <span className="link-text">{link.shortLink}</span>
-                <button onClick={() => navigator.clipboard.writeText(link.shortLink)} className="copy-btn">
+                <button onClick={() => {
+                  navigator.clipboard.writeText(link.shortLink);
+                  // Quick visual feedback
+                  const btn = event.target.closest('button');
+                  btn.style.background = '#10B981';
+                  btn.innerHTML = '✓';
+                  setTimeout(() => {
+                    btn.style.background = '';
+                    btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>`;
+                  }, 1000);
+                }} className="copy-btn">
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                 </button>
               </div>
             </div>
             
             <div className="link-variation">
-              <label>Impact Link</label>
+              <label>Long Link</label>
               <div className="link-copy-group">
                 <span className="link-text">{link.impactLink}</span>
-                <button onClick={() => navigator.clipboard.writeText(link.impactLink)} className="copy-btn">
+                <button onClick={() => {
+                  navigator.clipboard.writeText(link.impactLink);
+                  // Quick visual feedback
+                  const btn = event.target.closest('button');
+                  btn.style.background = '#10B981';
+                  btn.innerHTML = '✓';
+                  setTimeout(() => {
+                    btn.style.background = '';
+                    btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>`;
+                  }, 1000);
+                }} className="copy-btn">
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
