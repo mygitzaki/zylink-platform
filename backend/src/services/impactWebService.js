@@ -193,9 +193,10 @@ class ImpactWebService {
         PageSize: '5000', // Get more comprehensive data
         // Remove ActionType filter to get ALL action types (clicks might be under different types)
         // Remove ActionStatus filter to get ALL statuses
-        // Add date range using proven working format
-        StartDate: formatImpactDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)), // Last 90 days
-        EndDate: formatImpactDate(new Date())
+        // TEMPORARILY REMOVE DATE FILTERS to get API working first
+        // TODO: Add date filtering back once we determine the correct format
+        // StartDate: formatImpactDate(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)), // Last 90 days
+        // EndDate: formatImpactDate(new Date())
       });
 
       console.log('🔍 Impact.com API call details:', {
