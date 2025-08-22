@@ -11,6 +11,8 @@ class ImpactWebService {
     this.apiBaseUrl = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
     // Feature flag: include MediaPartnerPropertyId in TrackingLinks request
     this.includeMediaPropertyId = String(process.env.IMPACT_SEND_MEDIA_PROPERTY_ID || process.env.IMPACT_INCLUDE_MEDIA_PROPERTY_ID || 'false').toLowerCase() === 'true';
+    // Feature flag: control deep link sanitization (default OFF per request)
+    this.sanitizeDeepLink = String(process.env.IMPACT_SANITIZE_DEEPLINK || 'false').toLowerCase() === 'true';
   }
 
   // Remove retailer tracking noise (ath*, utm_*, etc.) while preserving product-identifying params
@@ -50,9 +52,11 @@ class ImpactWebService {
     try {
       console.log('🌐 Creating Impact.com tracking link...');
       
-      const sanitized = this.sanitizeDestinationUrl(destinationUrl);
-      if (sanitized !== destinationUrl) {
-        console.log('🧹 Sanitized destination URL for Impact:', { before: destinationUrl, after: sanitized });
+      const deepLink = this.sanitizeDeepLink 
+        ? this.sanitizeDestinationUrl(destinationUrl)
+        : destinationUrl;
+      if (this.sanitizeDeepLink && deepLink !== destinationUrl) {
+        console.log('🧹 Sanitized destination URL for Impact:', { before: destinationUrl, after: deepLink });
       }
 
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${this.programId}/TrackingLinks`;
@@ -60,7 +64,7 @@ class ImpactWebService {
       // Use the working API format that was successful
       const requestBody = {
         Type: 'Regular',
-        DeepLink: sanitized,
+        DeepLink: deepLink,
         subId1: creatorId || 'default'
       };
       if (this.includeMediaPropertyId && this.mediaPartnerPropertyId) {
@@ -103,7 +107,7 @@ class ImpactWebService {
           return {
             success: true,
             trackingUrl: trackingUrl,
-            originalUrl: sanitized,
+            originalUrl: deepLink,
             method: 'impact_api_confirmed_working'
           };
         } else {
@@ -124,12 +128,15 @@ class ImpactWebService {
       
       // Use fallback method if API fails
       console.log('🔄 Using fallback link generation...');
-      const fallbackUrl = this.generateFallbackLink(this.sanitizeDestinationUrl(destinationUrl), creatorId);
+      const fallbackDeepLink = this.sanitizeDeepLink 
+        ? this.sanitizeDestinationUrl(destinationUrl)
+        : destinationUrl;
+      const fallbackUrl = this.generateFallbackLink(fallbackDeepLink, creatorId);
       
       return {
         success: true,
         trackingUrl: fallbackUrl,
-        originalUrl: this.sanitizeDestinationUrl(destinationUrl),
+        originalUrl: fallbackDeepLink,
         method: 'fallback_generation'
       };
     }
