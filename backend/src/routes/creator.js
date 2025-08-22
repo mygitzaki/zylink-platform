@@ -382,8 +382,27 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
 router.get('/links', requireAuth, async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.json({ links: [] });
-  const links = await prisma.link.findMany({ where: { creatorId: req.user.id } });
-  res.json({ links });
+  try {
+    const links = await prisma.link.findMany({ where: { creatorId: req.user.id } });
+    // Enrich each link with real click counts from ShortLink table
+    const enriched = await Promise.all((links || []).map(async (link) => {
+      try {
+        const shortCode = (link.shortLink || '').split('/').pop();
+        let clicks = 0;
+        if (shortCode) {
+          const sl = await prisma.shortLink.findUnique({ where: { shortCode }, select: { clicks: true } });
+          clicks = sl?.clicks || 0;
+        }
+        return { ...link, clicks };
+      } catch {
+        return { ...link, clicks: 0 };
+      }
+    }));
+    res.json({ links: enriched });
+  } catch (err) {
+    console.error('Error fetching links:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // Test endpoint to check if authentication and middleware are working
@@ -397,12 +416,70 @@ router.get('/test-auth', requireAuth, async (req, res) => {
 
 router.get('/earnings', requireAuth, requireApprovedCreator, async (req, res) => {
   const prisma = getPrisma();
-  if (!prisma) return res.json({ total: 0, byType: {}, byStatus: {} });
-  const earnings = await prisma.earning.findMany({ where: { creatorId: req.user.id } });
-  const total = earnings.reduce((s, e) => s + Number(e.amount), 0);
-  const byType = earnings.reduce((acc, e) => ({ ...acc, [e.type]: (acc[e.type] || 0) + Number(e.amount) }), {});
-  const byStatus = earnings.reduce((acc, e) => ({ ...acc, [e.status]: (acc[e.status] || 0) + Number(e.amount) }), {});
-  res.json({ total, byType, byStatus });
+  if (!prisma) return res.json({ earnings: [], total: 0, byType: {}, byStatus: {}, summary: { total: 0, breakdown: { commissions: { gross: 0, net: 0, count: 0 }, salesBonuses: { total: 0, count: 0 }, referralBonuses: { total: 0, count: 0 } }, eligibleForPayout: false, count: 0 }, creator: { commissionRate: 0, salesBonus: 0 } });
+
+  try {
+    const { calculateTotalEarnings } = require('../utils/commissionCalculator');
+
+    // Fetch creator for commission rate
+    const creator = await prisma.creator.findUnique({
+      where: { id: req.user.id },
+      select: { commissionRate: true, salesBonus: true }
+    });
+
+    const earnings = await prisma.earning.findMany({
+      where: { creatorId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        link: { select: { id: true, destinationUrl: true, shortLink: true } }
+      }
+    });
+
+    // Legacy aggregates for backward compatibility
+    const total = earnings.reduce((s, e) => s + Number(e.amount || 0), 0);
+    const byType = earnings.reduce((acc, e) => ({ ...acc, [e.type]: (acc[e.type] || 0) + Number(e.amount || 0) }), {});
+    const byStatus = earnings.reduce((acc, e) => ({ ...acc, [e.status]: (acc[e.status] || 0) + Number(e.amount || 0) }), {});
+
+    // Comprehensive summary
+    const earningsData = {
+      commissions: earnings.filter(e => e.type === 'COMMISSION'),
+      salesBonuses: earnings.filter(e => e.type === 'SALES_BONUS'),
+      referralBonuses: earnings.filter(e => e.type === 'REFERRAL_BONUS'),
+      creatorCommissionRate: creator?.commissionRate ?? 70
+    };
+    const totalEarnings = calculateTotalEarnings(earningsData);
+    const formattedEarnings = earnings.map(earning => ({
+      id: earning.id,
+      amount: parseFloat(earning.amount),
+      type: earning.type,
+      status: earning.status,
+      impactTransactionId: earning.impactTransactionId,
+      createdAt: earning.createdAt,
+      link: earning.link ? { id: earning.link.id, destinationUrl: earning.link.destinationUrl, shortLink: earning.link.shortLink } : null
+    }));
+
+    res.json({
+      // Legacy fields for existing UIs
+      total,
+      byType,
+      byStatus,
+      // New comprehensive payload
+      earnings: formattedEarnings,
+      summary: {
+        total: totalEarnings.totalEarnings,
+        breakdown: totalEarnings.breakdown,
+        eligibleForPayout: totalEarnings.eligibleForPayout,
+        count: earnings.length
+      },
+      creator: {
+        commissionRate: creator?.commissionRate ?? 70,
+        salesBonus: parseFloat(creator?.salesBonus || 0)
+      }
+    });
+  } catch (err) {
+    console.error('Creator earnings (compat) error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // GET payment setup - retrieve existing payment details

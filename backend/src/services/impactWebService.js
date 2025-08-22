@@ -209,7 +209,8 @@ class ImpactWebService {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Basic ${this.authToken}`,
+          // Use proper Basic auth: base64(accountSid:authToken)
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
           'Content-Type': 'application/json'
         }
       });
@@ -278,7 +279,7 @@ class ImpactWebService {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Basic ${this.authToken}`,
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
           'Content-Type': 'application/json'
         }
       });

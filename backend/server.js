@@ -199,6 +199,19 @@ async function handleShortRedirect(req, res) {
       where: { shortCode }, 
       data: { clicks: { increment: 1 } } 
     });
+    // Best-effort click log
+    try {
+      await prisma.clickLog.create({
+        data: {
+          shortLinkId: short.id,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'] || '',
+          referrer: req.headers.referer || ''
+        }
+      });
+    } catch (e) {
+      console.warn('⚠️ ClickLog create failed:', e?.message);
+    }
     
     return res.redirect(redirectUrl);
   } catch (err) {

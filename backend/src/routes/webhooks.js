@@ -5,13 +5,26 @@ const prisma = getPrisma();
 
 router.post('/impact-conversion', async (req, res) => {
   // TODO: verify signature if provided
-  const { linkId, amount, transactionId } = req.body || {};
-  if (!linkId || amount == null) return res.status(400).json({ message: 'Missing fields' });
+  const { linkId, amount, transactionId, shortCode, creatorId } = req.body || {};
+  if (amount == null) return res.status(400).json({ message: 'Missing amount' });
   if (!prisma) return res.status(202).json({ message: 'Accepted (no DB configured)' });
 
   try {
-    const link = await prisma.link.findUnique({ where: { id: linkId } });
-    if (!link) return res.status(404).json({ message: 'Link not found' });
+    let link = null;
+    let resolvedCreatorId = creatorId || null;
+
+    if (linkId) {
+      link = await prisma.link.findUnique({ where: { id: linkId } });
+      if (!link) return res.status(404).json({ message: 'Link not found' });
+      resolvedCreatorId = link.creatorId;
+    } else if (shortCode) {
+      const sl = await prisma.shortLink.findUnique({ where: { shortCode } });
+      if (!sl) return res.status(404).json({ message: 'Short link not found' });
+      resolvedCreatorId = sl.creatorId;
+      link = await prisma.link.findFirst({ where: { shortLink: { contains: shortCode } } });
+    } else if (!resolvedCreatorId) {
+      return res.status(400).json({ message: 'Missing linkId, shortCode, or creatorId' });
+    }
 
     // Idempotency: if an earning with this transaction already exists, accept silently
     if (transactionId) {
@@ -19,19 +32,21 @@ router.post('/impact-conversion', async (req, res) => {
       if (existing) return res.status(202).json({ message: 'Already processed' });
     }
 
-    const creator = await prisma.creator.findUnique({ where: { id: link.creatorId } });
+    const creator = await prisma.creator.findUnique({ where: { id: resolvedCreatorId } });
     const baseCommission = Number(amount);
     const creatorRate = (creator?.commissionRate ?? 70) / 100;
     const creatorAmount = +(baseCommission * creatorRate).toFixed(2);
 
     // Update link aggregates
-    await prisma.link.update({ where: { id: linkId }, data: { conversions: { increment: 1 }, revenue: { increment: baseCommission } } });
+    if (link?.id) {
+      await prisma.link.update({ where: { id: link.id }, data: { conversions: { increment: 1 }, revenue: { increment: baseCommission } } });
+    }
 
     // Record creator commission
     await prisma.earning.create({
       data: {
-        creatorId: link.creatorId,
-        linkId: link.id,
+        creatorId: resolvedCreatorId,
+        linkId: link?.id || null,
         amount: creatorAmount,
         type: 'COMMISSION',
         status: 'PENDING',
@@ -53,7 +68,7 @@ router.post('/impact-conversion', async (req, res) => {
       await prisma.earning.create({
         data: {
           creatorId: referral.referrerId,
-          linkId: link.id,
+          linkId: link?.id || null,
           amount: bonus,
           type: 'REFERRAL_BONUS',
           status: 'PENDING',

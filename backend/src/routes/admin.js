@@ -91,41 +91,7 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
 });
 
 // Get detailed creator profile for admin view
-router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) => {
-  if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  
-  try {
-    const creator = await prisma.creator.findUnique({
-      where: { id: req.params.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        bio: true,
-        socialMediaLinks: true,
-        groupLinks: true,
-        applicationStatus: true,
-        isActive: true,
-        commissionRate: true,
-        salesBonus: true,
-        referralCode: true,
-        applicationNotes: true,
-        rejectionReason: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    });
-    
-    if (!creator) {
-      return res.status(404).json({ message: 'Creator not found' });
-    }
-    
-    res.json({ creator });
-  } catch (error) {
-    console.error('Error fetching creator profile:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
+// Remove the minimal profile endpoint to avoid conflicts; use the comprehensive version below
 
 router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
@@ -629,34 +595,16 @@ router.delete('/creators/:id', requireAuth, requireAdmin, async (req, res) => {
 router.get('/impact-clicks', requireAuth, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 Admin requesting Impact.com click data...');
-    
-    // Import ImpactWebService safely (only when needed)
-    const { ImpactWebService } = require('../services/impactWebService');
+    const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
-    
-    // Fetch real click data from Impact.com API
-    const impactData = await impact.fetchClickDataFromImpact();
-    
-    console.log('✅ Impact.com click data fetched successfully');
-    
-    res.json({
-      success: true,
-      source: 'Impact.com API',
-      timestamp: new Date().toISOString(),
-      data: impactData
-    });
-    
+    const analytics = await impact.getPlatformAnalytics();
+    if (!analytics.success) {
+      return res.status(502).json({ success: false, message: 'Impact analytics unavailable', data: analytics });
+    }
+    res.json({ success: true, data: analytics });
   } catch (error) {
     console.error('❌ Error fetching Impact.com click data:', error);
-    
-    // Safe fallback - return error without crashing
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch Impact.com click data',
-      error: error.message,
-      fallback: 'Use existing analytics data',
-      timestamp: new Date().toISOString()
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch Impact.com click data', error: error.message });
   }
 });
 

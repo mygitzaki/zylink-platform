@@ -151,18 +151,12 @@ class EarningsSync {
   determineEarningType(earning) {
     const actionType = (earning.ActionType || '').toUpperCase();
     const eventType = (earning.EventType || '').toUpperCase();
-    
+    // Only return valid enum values for our schema
     if (actionType.includes('SALE') || eventType.includes('SALE')) {
       return 'COMMISSION';
     }
-    if (actionType.includes('LEAD') || eventType.includes('LEAD')) {
-      return 'LEAD';
-    }
-    if (actionType.includes('CLICK') || eventType.includes('CLICK')) {
-      return 'CLICK';
-    }
-    
-    return 'COMMISSION'; // Default to commission
+    // Map unsupported types into COMMISSION to avoid schema errors
+    return 'COMMISSION';
   }
 
   // Map Impact.com status to our payment status
