@@ -59,22 +59,18 @@ class ImpactWebService {
         console.log('🧹 Sanitized destination URL for Impact:', { before: destinationUrl, after: deepLink });
       }
 
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${this.programId}/TrackingLinks`;
-      
-      // Use the working API format that was successful
-      const requestBody = {
-        Type: 'Regular',
-        DeepLink: deepLink,
-        subId1: creatorId || 'default'
-      };
+      // Build query params to match the confirmed working Postman format
+      const qp = new URLSearchParams();
+      qp.set('Type', 'Regular');
+      qp.set('DeepLink', deepLink);
+      qp.set('subId1', String(creatorId || 'default'));
       if (this.includeMediaPropertyId && this.mediaPartnerPropertyId) {
-        requestBody.MediaPartnerPropertyId = this.mediaPartnerPropertyId;
+        qp.set('MediaPartnerPropertyId', String(this.mediaPartnerPropertyId));
       }
+
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${this.programId}/TrackingLinks?${qp.toString()}`;
       
-      console.log('📡 Impact.com API request:', {
-        url,
-        body: requestBody
-      });
+      console.log('📡 Impact.com API request:', { url });
       
       // Impact requires HTTP Basic auth as base64(accountSid:authToken)
       const basicAuth = Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64');
@@ -83,10 +79,8 @@ class ImpactWebService {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${basicAuth}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
+          'Accept': 'application/json'
+        }
       });
       
       console.log('📊 Impact.com API response status:', response.status);
