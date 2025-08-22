@@ -199,12 +199,17 @@ class ImpactWebService {
     }
   }
 
-  // Get platform analytics
-  async getPlatformAnalytics() {
+  // Get platform analytics (Actions). Optional ISO-Z date filters.
+  async getPlatformAnalytics(startDate, endDate) {
     try {
       console.log('📊 Fetching platform analytics from Impact.com...');
       
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
+      // Build query string
+      const qp = new URLSearchParams();
+      if (startDate) qp.set('StartDate', startDate);
+      if (endDate) qp.set('EndDate', endDate);
+      const qs = qp.toString();
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions${qs ? `?${qs}` : ''}`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -244,10 +249,13 @@ class ImpactWebService {
   }
 
   // Prefer Clicks endpoint for real-time click data; fallback to Actions
-  async getClickAnalytics() {
+  async getClickAnalytics(startDate, endDate) {
     try {
       console.log('📈 Fetching click analytics from Impact.com (Clicks endpoint)...');
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Clicks?PageSize=50&Page=1`;
+      const qp = new URLSearchParams({ PageSize: '50', Page: '1' });
+      if (startDate) qp.set('StartDate', startDate);
+      if (endDate) qp.set('EndDate', endDate);
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Clicks?${qp.toString()}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -265,7 +273,7 @@ class ImpactWebService {
       console.log('⚠️ Error calling Clicks endpoint:', e?.message);
     }
     // Fallback to Actions when Clicks not available
-    return this.getPlatformAnalytics();
+    return this.getPlatformAnalytics(startDate, endDate);
   }
 
   // Validate URL format - SAFE PRODUCTION METHOD

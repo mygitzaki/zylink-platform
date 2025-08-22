@@ -609,8 +609,10 @@ router.get('/impact-clicks', requireAuth, requireAdmin, async (req, res) => {
     console.log('🔍 Admin requesting Impact.com click data...');
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
+    // Optional ISO-Z date filters (e.g., 2025-08-01T00:00:00Z)
+    const { startDate, endDate } = req.query || {};
     // Try Clicks endpoint first; fallback to Actions
-    const analytics = await impact.getClickAnalytics();
+    const analytics = await impact.getClickAnalytics(startDate, endDate);
     if (!analytics.success) {
       return res.status(502).json({ success: false, message: 'Impact analytics unavailable', data: analytics });
     }
