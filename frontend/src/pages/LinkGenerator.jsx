@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { apiFetch } from '../lib/api'
+import { apiFetch, API_BASE } from '../lib/api'
 import { useNavigate } from 'react-router-dom'
 // Import new Zylike-inspired UI components
 import { Button, Card, Container, Input, Skeleton } from '../components/ui'
@@ -40,15 +40,15 @@ export default function LinkGenerator() {
       let analyticsRes, earningsRes, linksRes
       
       try {
-        console.log('🌐 Loading dashboard data via direct API calls...')
+        console.log('🌐 Loading dashboard data via API calls to:', API_BASE)
         const [analyticsPromise, earningsPromise, linksPromise] = [
-          fetch('https://zylink-platform-production.up.railway.app/api/creator/analytics', {
+          fetch(`${API_BASE}/api/creator/analytics`, {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch('https://zylink-platform-production.up.railway.app/api/creator/earnings', {
+          fetch(`${API_BASE}/api/creator/earnings`, {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch('https://zylink-platform-production.up.railway.app/api/creator/links', {
+          fetch(`${API_BASE}/api/creator/links`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
         ]
@@ -63,9 +63,9 @@ export default function LinkGenerator() {
         
         console.log('✅ Direct API calls successful')
       } catch (directError) {
-        console.log('⚠️ Direct API calls failed, trying Vercel rewrite...')
+        console.log('⚠️ Direct API calls failed, using fallback...')
         
-        // Fallback to Vercel rewrite
+        // Fallback to apiFetch
         [analyticsRes, earningsRes, linksRes] = await Promise.all([
           apiFetch('/api/creator/analytics', { token }),
           apiFetch('/api/creator/earnings', { token }),
@@ -100,37 +100,16 @@ export default function LinkGenerator() {
       console.log('🔗 Attempting to generate link for:', productUrl)
       console.log('🔑 Token available:', !!token)
       
-      // Try direct API call first (bypass Vercel rewrite rules)
-      let result
-      try {
-        console.log('🌐 Trying direct API call...')
-        result = await fetch('https://zylink-platform-production.up.railway.app/api/creator/links', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ destinationUrl: productUrl })
-        })
-        
-        if (!result.ok) {
-          throw new Error(`HTTP ${result.status}: ${result.statusText}`)
-        }
-        
-        result = await result.json()
-        console.log('✅ Direct API call successful:', result)
-      } catch (directError) {
-        console.log('⚠️ Direct API call failed, trying Vercel rewrite...')
-        
-        // Fallback to Vercel rewrite
-        result = await apiFetch('/api/creator/links', {
-          method: 'POST',
-          body: { destinationUrl: productUrl },
-          token
-        })
-        
-        console.log('✅ Vercel rewrite successful:', result)
-      }
+      // Use the configured API base URL
+      console.log('🌐 Making API call to:', `${API_BASE}/api/creator/links`)
+      
+      const result = await apiFetch('/api/creator/links', {
+        method: 'POST',
+        body: { destinationUrl: productUrl },
+        token
+      })
+      
+      console.log('✅ API call successful:', result)
       
       // Extract the link data from the response
       setGeneratedLink(result.link)

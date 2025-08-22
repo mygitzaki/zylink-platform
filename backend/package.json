@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "prisma generate && prisma migrate deploy && node railway-fix-payment-column.js && node add-shortlink-field.js && node server.js",
+    "start": "node server.js",
+    "start:production": "prisma generate && prisma migrate deploy && node railway-fix-payment-column.js && node server.js", 
     "dev": "nodemon server.js",
     "build": "prisma generate",
     "postinstall": "prisma generate",

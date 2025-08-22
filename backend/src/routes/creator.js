@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPrisma } = require('../utils/prisma');
-const { ImpactWebService } = require('../services/impactWebService');
+const ImpactWebService = require('../services/impactWebService');
 const { LinkShortener } = require('../services/linkShortener');
 const { QRCodeService } = require('../services/qrcodeService');
 const { requireAuth, requireApprovedCreator } = require('../middleware/auth');
@@ -221,12 +221,6 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
       });
     }
 
-    console.log('🌐 Creating Impact.com tracking link...');
-    // Create Impact.com tracking link using real API
-    const impactResult = await impact.createTrackingLink(destinationUrl, req.user.id);
-    const impactLink = impactResult.trackingUrl;
-    console.log('✅ Impact.com link created:', impactLink);
-
     console.log('🔗 Creating short link...');
     // Create short link
     let { shortCode, shortLink } = shortener.createShortLink(destinationUrl, req.user.id);
@@ -237,22 +231,56 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
     const qrCodeUrl = await qr.generateQRCode(shortLink);
     console.log('✅ QR code generated:', qrCodeUrl);
 
+    // Create Impact.com tracking link BEFORE DB branch so it is available for both code paths
+    console.log('🌐 Creating Impact.com tracking link...');
+    const impactResult = await impact.createTrackingLink(destinationUrl, req.user.id);
+    console.log('✅ Impact.com API result:', {
+      success: impactResult.success,
+      method: impactResult.method,
+      trackingUrl: impactResult.trackingUrl
+    });
+    const impactLink = impactResult.trackingUrl;
+
+    // Enforce true Impact API tracking by default; allow opt-out via env
+    // Set DISABLE_IMPACT_FALLBACK=false to allow fallback links
+    const disableFallback = String(process.env.DISABLE_IMPACT_FALLBACK ?? 'true').toLowerCase() === 'true';
+    if (disableFallback && impactResult?.method === 'fallback_generation') {
+      return res.status(502).json({
+        success: false,
+        message: 'Impact tracking link unavailable via API. Please try again, pick another product, or contact support.',
+        impactApiUsed: false,
+        impactMethod: impactResult?.method
+      });
+    }
+
     const prisma = getPrisma();
     if (prisma) {
       console.log('💾 Database available, saving links...');
+      // Detect whether ShortLink.originalUrl column exists; if not, skip ShortLink writes to avoid 500s
+      let shortLinkTableSupportsOriginalUrl = false;
+      try {
+        const columnCheck = await prisma.$queryRaw`SELECT column_name FROM information_schema.columns WHERE table_name = 'ShortLink' AND column_name = 'originalUrl'`;
+        shortLinkTableSupportsOriginalUrl = Array.isArray(columnCheck) && columnCheck.length > 0;
+      } catch (e) {
+        console.warn('⚠️ Unable to verify ShortLink.originalUrl column, proceeding cautiously:', e?.message);
+      }
       
       // Collision-safe insert for short link
       let attempts = 0;
       while (attempts < 5) {
         try {
+          if (!shortLinkTableSupportsOriginalUrl) {
+            console.log('⚠️ Skipping ShortLink persistence (missing originalUrl column).');
+            break;
+          }
           const code = shortLink.split('/').pop();
-          await prisma.shortLink.create({ 
-            data: { 
-              shortCode: code, 
-              shortLink: shortLink, // Save the full short URL
-              originalUrl: destinationUrl, 
-              creatorId: req.user.id 
-            } 
+          await prisma.shortLink.create({
+            data: {
+              shortCode: code,
+              shortLink: shortLink,
+              originalUrl: destinationUrl,
+              creatorId: req.user.id
+            }
           });
           console.log('✅ Short link saved to database');
           break;
@@ -269,36 +297,61 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
         }
       }
 
-      console.log('🔗 Creating main link record...');
-      // Create link record
-      const link = await prisma.link.create({
-        data: {
-          creatorId: req.user.id,
-          destinationUrl,
-          impactLink,
-          shortLink,
-          qrCodeUrl,
-        },
-      });
-      console.log('✅ Main link record created:', link.id);
-
-      return res.status(201).json({ 
-        link,
-        impactApiUsed: impactResult.success,
-        fallbackUsed: impactResult.fallback || false,
-        ...(impactResult.error && { apiError: impactResult.error })
-      });
+      try {
+        // Create the main link record
+        const link = await prisma.link.create({
+          data: {
+            creatorId: req.user.id,
+            destinationUrl: destinationUrl,
+            impactLink: impactLink,
+            shortLink: shortLink,
+            createdAt: new Date()
+          }
+        });
+        
+        console.log('✅ Link created successfully:', {
+          linkId: link.id,
+          impactLink: impactLink,
+          shortLink: shortLink
+        });
+        
+        const usedImpact = impactResult?.method !== 'fallback_generation';
+        return res.json({
+          success: true,
+          link: {
+            id: link.id,
+            destinationUrl: destinationUrl,
+            impactLink: impactLink,
+            shortLink: shortLink,
+            qrCodeUrl: qrCodeUrl
+          },
+          message: usedImpact ? 'Link created (Impact API)' : 'Link created (fallback)',
+          impactApiUsed: usedImpact,
+          impactMethod: impactResult?.method
+        });
+        
+      } catch (error) {
+        console.error('❌ Failed to save link record:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to save link record',
+          error: error.message
+        });
+      }
     }
 
     console.log('⚠️ Database not available, using in-memory store');
     // Fallback to in-memory store when DB is not configured
     const { saveShortLink } = require('../utils/memoryStore');
     saveShortLink(shortCode, destinationUrl);
-    return res.status(201).json({ 
+    const usedImpact = impactResult?.method !== 'fallback_generation';
+    return res.status(201).json({
       link: { destinationUrl, impactLink, shortLink, qrCodeUrl },
-      impactApiUsed: impactResult.success,
-      fallbackUsed: impactResult.fallback || false,
-      ...(impactResult.error && { apiError: impactResult.error })
+      impactApiUsed: usedImpact,
+      impactMethod: impactResult?.method,
+      fallbackUsed: impactResult?.method === 'fallback_generation',
+      message: usedImpact ? 'Link created (Impact API)' : 'Link created (fallback)',
+      ...(impactResult?.error && { apiError: impactResult.error })
     });
   } catch (err) {
     console.error('❌ Link creation error:', err);
@@ -497,7 +550,6 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
       take: 10,
       select: {
         shortCode: true,
-        originalUrl: true,
         clicks: true,
         createdAt: true
       }
@@ -519,7 +571,7 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
       })),
       recentActivity: recentActivity.map(activity => ({
         shortCode: activity.shortCode,
-        url: activity.originalUrl,
+        url: `https://s.zylike.com/${activity.shortCode}`, // Use the short URL instead
         clicks: activity.clicks || 0,
         lastClick: activity.createdAt,
         createdAt: activity.createdAt

@@ -1,167 +1,204 @@
 class ImpactWebService {
   constructor() {
-    // Impact.com API credentials - NEW WORKING CREDENTIALS
+    // Impact.com API credentials
     this.accountSid = process.env.IMPACT_ACCOUNT_SID || 'IR6HvVENfaTR3908029jXFhKg7EFcPYDe1';
     this.authToken = process.env.IMPACT_AUTH_TOKEN || 'VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd';
     this.programId = process.env.IMPACT_PROGRAM_ID || '16662';
+    // Media partner (account) id e.g. 3908029
     this.mediaPartnerId = process.env.IMPACT_MEDIA_PARTNER_ID || '3908029';
+    // Media partner property id (AdId) e.g. 1398372
+    this.mediaPartnerPropertyId = process.env.IMPACT_MEDIA_PARTNER_PROPERTY_ID || process.env.IMPACT_AD_ID || '1398372';
     this.apiBaseUrl = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
+    // Feature flag: include MediaPartnerPropertyId in TrackingLinks request
+    this.includeMediaPropertyId = String(process.env.IMPACT_SEND_MEDIA_PROPERTY_ID || process.env.IMPACT_INCLUDE_MEDIA_PROPERTY_ID || 'false').toLowerCase() === 'true';
   }
 
-  // NEW: Create tracking link via Impact.com API
-  async createTrackingLink(destinationUrl, creatorId, options = {}) {
+  // Remove retailer tracking noise (ath*, utm_*, etc.) while preserving product-identifying params
+  sanitizeDestinationUrl(rawUrl) {
     try {
-      // Try multiple API endpoint patterns based on Impact.com documentation
-      const endpoints = [
-        // Pattern 1: Standard Mediapartners endpoint
-        `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/TrackingLinks`,
-        // Pattern 2: Campaign-specific endpoint  
-        `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Campaigns/${this.programId}/TrackingLinks`,
-        // Pattern 3: Programs endpoint
-        `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${this.programId}/TrackingLinks`
-      ];
+      const url = new URL(rawUrl);
+      const params = url.searchParams;
+      const deleteExact = new Set([
+        'athAsset', 'athcpid', 'athpgid', 'athcgid', 'athznid', 'athieid', 'athstid', 'athguid', 'athancid',
+        'athena', 'athbdg', 'irgwc', 'sourceid', 'veh', 'wmlspartner', 'wmlspartner_creator',
+        'affiliates_ad_id', 'affiliates_ad_id_creator', 'campaign_id_creator', 'clickid'
+      ]);
+      // Delete any param that starts with these prefixes
+      const deletePrefixes = ['ath', 'utm_'];
 
-      for (const url of endpoints) {
-        try {
-          // Method 1: POST with JSON body
-          let response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')
-            },
-            body: JSON.stringify({
-              TargetUrl: destinationUrl,
-              MediaPartnerId: this.mediaPartnerId,
-              CampaignId: this.programId,
-              SubId1: creatorId || 'default',
-              ...(options.subId2 && { SubId2: options.subId2 }),
-              ...(options.subId3 && { SubId3: options.subId3 })
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const trackingUrl = data.TrackingURL || data.TrackingUrl || data.trackingUrl;
-            
-            // Check if the tracking URL contains template variables (broken)
-            if (trackingUrl && (trackingUrl.includes('{clickid}') || trackingUrl.includes('{irpid}') || trackingUrl.includes('{iradid}') || trackingUrl.includes('{ircid}'))) {
-              console.log('⚠️ Impact.com returned template URL with variables, using fallback');
-              return {
-                success: false,
-                trackingUrl: this.generateWorkingLinkFormat(null, creatorId, destinationUrl),
-                originalUrl: destinationUrl,
-                fallback: true,
-                error: 'Impact.com returned template URL instead of actual tracking URL'
-              };
-            }
-            
-            return {
-              success: true,
-              trackingUrl: trackingUrl,
-              originalUrl: destinationUrl,
-              apiEndpoint: url
-            };
-          }
-
-          // Method 2: GET with query parameters
-          const params = new URLSearchParams({
-            TargetUrl: destinationUrl,
-            MediaPartnerId: this.mediaPartnerId,
-            CampaignId: this.programId,
-            SubId1: creatorId || 'default',
-            ...(options.subId2 && { SubId2: options.subId2 }),
-            ...(options.subId3 && { SubId3: options.subId3 })
-          });
-
-          response = await fetch(`${url}?${params.toString()}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')
-            }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const trackingUrl = data.TrackingURL || data.TrackingUrl || data.trackingUrl;
-            
-            // Check if the tracking URL contains template variables (broken)
-            if (trackingUrl && (trackingUrl.includes('{clickid}') || trackingUrl.includes('{irpid}') || trackingUrl.includes('{iradid}') || trackingUrl.includes('{ircid}'))) {
-              console.log('⚠️ Impact.com returned template URL with variables, using fallback');
-              return {
-                success: false,
-                trackingUrl: this.generateWorkingLinkFormat(null, creatorId, destinationUrl),
-                originalUrl: destinationUrl,
-                fallback: true,
-                error: 'Impact.com returned template URL instead of actual tracking URL'
-              };
-            }
-            
-            return {
-              success: true,
-              trackingUrl: trackingUrl,
-              originalUrl: destinationUrl,
-              apiEndpoint: url
-            };
-          }
-
-        } catch (endpointError) {
-          console.log(`Endpoint ${url} failed:`, endpointError.message);
+      // Collect keys first to avoid iterator mutation issues
+      const keys = [];
+      params.forEach((_, key) => keys.push(key));
+      for (const key of keys) {
+        const lower = key.toLowerCase();
+        if (deleteExact.has(key) || deleteExact.has(lower)) {
+          params.delete(key);
           continue;
         }
+        if (deletePrefixes.some(p => lower.startsWith(p))) {
+          params.delete(key);
+        }
+      }
+      return url.toString();
+    } catch {
+      return rawUrl;
+    }
+  }
+
+  // Create tracking link using Impact.com API with SubId tracking
+  async createTrackingLink(destinationUrl, creatorId) {
+    try {
+      console.log('🌐 Creating Impact.com tracking link...');
+      
+      const sanitized = this.sanitizeDestinationUrl(destinationUrl);
+      if (sanitized !== destinationUrl) {
+        console.log('🧹 Sanitized destination URL for Impact:', { before: destinationUrl, after: sanitized });
       }
 
-      throw new Error('All API endpoint patterns failed');
-
-    } catch (error) {
-      console.error('Impact.com API Error:', error.message);
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${this.programId}/TrackingLinks`;
       
-      // Fallback to manual link generation if API fails
+      // Use the working API format that was successful
+      const requestBody = {
+        Type: 'Regular',
+        DeepLink: sanitized,
+        subId1: creatorId || 'default'
+      };
+      if (this.includeMediaPropertyId && this.mediaPartnerPropertyId) {
+        requestBody.MediaPartnerPropertyId = this.mediaPartnerPropertyId;
+      }
+      
+      console.log('📡 Impact.com API request:', {
+        url,
+        body: requestBody
+      });
+      
+      // Impact requires HTTP Basic auth as base64(accountSid:authToken)
+      const basicAuth = Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64');
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${basicAuth}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      console.log('📊 Impact.com API response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📋 Impact.com API response data:', data);
+        
+        const trackingUrl = data.TrackingURL || data.TrackingUrl || data.trackingUrl;
+        
+        if (trackingUrl) {
+          console.log('✅ Impact.com tracking URL received:', trackingUrl);
+          
+          // CONFIRMED BY IMPACT.COM: API handles deep linking automatically
+          // Use the API's TrackingURL as-is
+          console.log('✅ Using Impact.com API response directly (confirmed working by Impact.com support)');
+
+          return {
+            success: true,
+            trackingUrl: trackingUrl,
+            originalUrl: sanitized,
+            method: 'impact_api_confirmed_working'
+          };
+        } else {
+          console.log('❌ No tracking URL in Impact.com response');
+          throw new Error('No tracking URL in Impact.com response');
+        }
+      } else {
+        const errorText = await response.text();
+        console.log('❌ Impact.com API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Impact.com API error: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Error creating Impact.com tracking link:', error);
+      
+      // Use fallback method if API fails
+      console.log('🔄 Using fallback link generation...');
+      const fallbackUrl = this.generateFallbackLink(this.sanitizeDestinationUrl(destinationUrl), creatorId);
+      
       return {
-        success: false,
-        trackingUrl: this.generateWorkingLinkFormat(null, creatorId, destinationUrl),
-        originalUrl: destinationUrl,
-        fallback: true,
-        error: error.message
+        success: true,
+        trackingUrl: fallbackUrl,
+        originalUrl: this.sanitizeDestinationUrl(destinationUrl),
+        method: 'fallback_generation'
       };
     }
   }
 
-  // FALLBACK: Generate working link format (as backup)
-  generateWorkingLinkFormat(campaignId, subId, destinationUrl) {
-    // Generate unique tracking identifiers
+  // (No normalization needed; return API URL as-is)
+
+  // Simple fallback link generation
+  generateFallbackLink(destinationUrl, creatorId) {
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substr(2, 9);
-    const clickId = `imp_${timestamp}_${randomId}`;
-    
-    // Use direct Walmart affiliate format as fallback
-    const params = new URLSearchParams({
-      irgwc: '1',
-      veh: 'aff',
-      wmlspartner_creator: `imp_${this.mediaPartnerId}`,
-      affiliates_ad_id_creator: this.mediaPartnerId,
-      campaign_id_creator: this.programId,
-      clickid: clickId,
-      sourceid: clickId,
-      subId1: subId || 'default'
-    });
-    
-    // Append the destination URL as a parameter
-    const finalUrl = `${destinationUrl}${destinationUrl.includes('?') ? '&' : '?'}${params.toString()}`;
-    
-    console.log('🔧 Fallback link generated:', {
-      original: destinationUrl,
-      final: finalUrl,
-      clickId,
-      params: Object.fromEntries(params)
-    });
-    
-    return finalUrl;
+    const clickId = `zy_${timestamp}_${randomId}`;
+    try {
+      const url = new URL(destinationUrl);
+      // Remove any pre-existing clickid to avoid duplicates
+      url.searchParams.delete('clickid');
+      url.searchParams.set('clickid', clickId);
+      // Optionally stamp partner id for internal debugging (non-marketing)
+      url.searchParams.set('zylike_creator', String(creatorId || 'anon'));
+      return url.toString();
+    } catch {
+      const sep = destinationUrl.includes('?') ? '&' : '?';
+      return `${destinationUrl}${sep}clickid=${clickId}`;
+    }
   }
 
-  // Validate URL format
+  // Get platform analytics
+  async getPlatformAnalytics() {
+    try {
+      console.log('📊 Fetching platform analytics from Impact.com...');
+      
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${this.authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Impact.com analytics received');
+        
+        return {
+          success: true,
+          totalClicks: data.TotalRecords || 0,
+          actions: data.Actions || []
+        };
+      } else {
+        console.log('❌ Failed to fetch analytics from Impact.com');
+        return {
+          success: false,
+          totalClicks: 0,
+          actions: []
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error fetching analytics:', error);
+      return {
+        success: false,
+        totalClicks: 0,
+        actions: []
+      };
+    }
+  }
+
+  // Validate URL format - SAFE PRODUCTION METHOD
   isValidUrl(urlString) {
     try {
       const url = new URL(urlString);
@@ -171,7 +208,7 @@ class ImpactWebService {
         return false;
       }
       
-      // Check for malformed Walmart URLs (duplicate domains, corrupted structure)
+      // Check for malformed URLs
       if (urlString.includes('wwhttps://') || urlString.includes('https://https://')) {
         return false;
       }
@@ -188,159 +225,33 @@ class ImpactWebService {
     }
   }
 
-  // Test API connectivity and permissions
-  async testApiAccess() {
+  // Test API connectivity
+  async testConnection() {
     try {
-      // Test basic account access first
-      const accountUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}`;
-      const response = await fetch(accountUrl, {
+      console.log('🔍 Testing Impact.com API connection...');
+      
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs`;
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')
+          'Authorization': `Basic ${this.authToken}`,
+          'Content-Type': 'application/json'
         }
       });
-
-      if (!response.ok) {
-        throw new Error(`Account access failed: ${response.status} ${await response.text()}`);
+      
+      if (response.ok) {
+        console.log('✅ Impact.com API connection successful');
+        return { success: true };
+      } else {
+        console.log('❌ Impact.com API connection failed:', response.status);
+        return { success: false, error: `HTTP ${response.status}` };
       }
-
-      const accountData = await response.json();
-      console.log('✅ Impact.com Account Access Successful:', accountData.Name || 'Unknown');
-
-      // Test campaigns access
-      const campaignsUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Campaigns`;
-      const campaignsResponse = await fetch(campaignsUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')
-        }
-      });
-
-      if (campaignsResponse.ok) {
-        const campaignsData = await campaignsResponse.json();
-        console.log('✅ Campaigns Access Available:', campaignsData.Campaigns?.length || 0, 'campaigns');
-      }
-
-      return {
-        accountAccess: true,
-        campaignsAccess: campaignsResponse.ok,
-        accountInfo: accountData
-      };
-
     } catch (error) {
-      console.error('❌ Impact.com API Test Failed:', error.message);
-      return {
-        accountAccess: false,
-        error: error.message
-      };
+      console.error('❌ Impact.com API connection error:', error);
+      return { success: false, error: error.message };
     }
   }
-
-  // NEW: Safe method to fetch real click data from Impact.com API
-  async fetchClickDataFromImpact() {
-    try {
-      console.log('🔍 Fetching real click data from Impact.com API...');
-      
-      // Use Actions endpoint directly - it works perfectly without date filters
-      // and gives us comprehensive data immediately
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions`;
-      
-      const params = new URLSearchParams({
-        PageSize: '5000' // Get comprehensive data
-      });
-
-      console.log('🔍 Using Actions endpoint (no date filters needed):', {
-        url: `${url}?${params}`,
-        params: Object.fromEntries(params)
-      });
-
-      const response = await fetch(`${url}?${params}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64'),
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Actions API error response:', errorText);
-        throw new Error(`Actions API Error ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      const actions = data.Actions || [];
-      
-      console.log(`✅ Successfully fetched ${actions.length} actions from Impact.com Actions endpoint`);
-      
-      // Process the comprehensive data
-      const clickData = {
-        totalClicks: actions.length,
-        totalResults: data['@total'] || actions.length,
-        actions: actions.map(action => ({
-          id: action.Id,
-          type: action.ActionTrackerName || 'ACTION',
-          status: action.State,
-          timestamp: action.ReferringDate || action.EventDate,
-          mediaPartnerId: this.mediaPartnerId,
-          campaignId: action.CampaignId,
-          campaignName: action.CampaignName,
-          subId1: action.SubId1,
-          amount: parseFloat(action.Amount || 0),
-          payout: parseFloat(action.Payout || 0),
-          customerLocation: `${action.CustomerCity}, ${action.CustomerRegion}`,
-          referringDomain: action.ReferringDomain
-        })),
-        summary: {
-          byCampaign: {},
-          byCreator: {},
-          byDate: {},
-          byActionType: {},
-          byStatus: {}
-        }
-      };
-
-      // Safe aggregation
-      actions.forEach(action => {
-        const campaignId = action.CampaignId || 'unknown';
-        const creatorId = action.SubId1 || 'unknown';
-        const date = action.ReferringDate ? action.ReferringDate.split('T')[0] : 'unknown';
-        const actionType = action.ActionTrackerName || 'unknown';
-        const status = action.State || 'unknown';
-        
-        // Count by campaign
-        clickData.summary.byCampaign[campaignId] = (clickData.summary.byCampaign[campaignId] || 0) + 1;
-        
-        // Count by creator
-        clickData.summary.byCreator[creatorId] = (clickData.summary.byCreator[creatorId] || 0) + 1;
-        
-        // Count by date
-        clickData.summary.byDate[date] = (clickData.summary.byDate[date] || 0) + 1;
-        
-        // Count by action type
-        clickData.summary.byActionType[actionType] = (clickData.summary.byActionType[actionType] || 0) + 1;
-        
-        // Count by status
-        clickData.summary.byStatus[status] = (clickData.summary.byStatus[status] || 0) + 1;
-      });
-
-      return clickData;
-    } catch (error) {
-      console.error('❌ Error fetching Impact.com click data:', error.message);
-      throw error;
-    }
-  }
-
-  // These methods are no longer needed since we're using Actions endpoint directly
 }
 
-module.exports = { ImpactWebService };
-
-
-
-
-
-
-
+module.exports = ImpactWebService;

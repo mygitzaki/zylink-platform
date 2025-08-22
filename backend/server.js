@@ -1,4 +1,4 @@
-console.log('🚀 SERVER STARTING - VERSION WITH URL VALIDATION AND CORRUPTED URL PREVENTION - 2025-08-20T19:30:00.000Z');
+console.log('🚀 SERVER STARTING - IMPACT.COM CONFIRMED API VERSION - USING THEIR EXACT WORKING METHOD - 2025-08-21T02:15:00.000Z');
 
 const express = require('express');
 const path = require('path');
@@ -132,25 +132,38 @@ app.get('/', (req, res) => {
   res.redirect('/docs/ZYLINK_DOCUMENTATION_SIMPLE.html');
 });
 
-// Public shortlink redirect per guide (support GET and HEAD)
+// Health check (must be BEFORE catch-all shortlink route)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Handle short link redirects with Impact.com deep linking
 async function handleShortRedirect(req, res) {
   try {
-    // Lazy load getPrisma only when needed
+    // Prevent the generic "/:shortCode" route from hijacking reserved paths
+    // e.g., "/health", "/api/*", "/docs/*". Allow "/s/:shortCode" explicitly.
+    if (!req.path.startsWith('/s/')) {
+      const reserved = new Set(['health', 'api', 'docs', 'favicon.ico', 'robots.txt']);
+      if (reserved.has(req.params.shortCode)) return res.redirect(req.originalUrl);
+    }
+    
     const { getPrisma } = require('./src/utils/prisma');
     const prisma = getPrisma();
     
     if (!prisma) {
-      const { getShortLink } = require('./src/utils/memoryStore');
-      const url = getShortLink(req.params.shortCode);
-      if (!url) return res.status(404).send('Not found');
-      return res.redirect(url);
+      console.log('⚠️ Prisma not available, using fallback redirect');
+      return res.redirect('https://www.zylike.com');
     }
+    
     const { shortCode } = req.params;
     const short = await prisma.shortLink.findUnique({ where: { shortCode } });
-    if (!short || !short.originalUrl) return res.status(404).send('Not found');
+    
+    if (!short || !short.originalUrl) {
+      console.log('❌ Short link not found:', shortCode);
+      return res.status(404).send('Not found');
+    }
     
     // Get the Impact.com tracking link from the main link record
-    // Use a more flexible search to find the link record
     const link = await prisma.link.findFirst({ 
       where: { 
         OR: [
@@ -169,57 +182,39 @@ async function handleShortRedirect(req, res) {
       searchPattern: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}`
     });
     
-    // Debug: Check all links for this creator to see what's stored
-    if (short?.creatorId) {
-      const allLinks = await prisma.link.findMany({
-        where: { creatorId: short.creatorId },
-        select: { shortLink: true, impactLink: true, destinationUrl: true }
-      });
-      console.log('🔍 All links for creator:', allLinks);
-    }
-    
-    // Check if Impact.com link contains template variables (broken)
-    let redirectUrl = short.originalUrl; // Default fallback
+    // Simple redirection logic - reverted to working version
+    let redirectUrl = short.originalUrl; // Default to original URL
     
     if (link?.impactLink) {
-      const impactLink = link.impactLink;
-      
-      // Check for template variables in the stored Impact.com link
-      if (impactLink.includes('{clickid}') || impactLink.includes('%7Bclickid%7D') || 
-          impactLink.includes('{irpid}') || impactLink.includes('%7Birpid%7D') ||
-          impactLink.includes('{iradid}') || impactLink.includes('%7Biradid%7D') ||
-          impactLink.includes('{ircid}') || impactLink.includes('%7Bircid%7D')) {
-        
-        console.log('⚠️ Stored Impact.com link contains template variables, generating fresh fallback');
-        
-        // Generate a fresh working link using the fallback method
-        const { ImpactWebService } = require('./src/services/impactWebService');
-        const impact = new ImpactWebService();
-        redirectUrl = impact.generateWorkingLinkFormat(null, short.creatorId, short.originalUrl);
-        
-      } else {
-        // Impact.com link is good, use it
-        redirectUrl = impactLink;
-      }
+      redirectUrl = link.impactLink;
+      console.log('✅ Using Impact.com tracking link');
+    } else {
+      console.log('⚠️ No Impact.com link found, using original URL');
     }
     
     console.log('🔄 Redirecting to:', redirectUrl);
     
-    await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
+    // Update click count
+    await prisma.shortLink.update({ 
+      where: { shortCode }, 
+      data: { clicks: { increment: 1 } } 
+    });
+    
     return res.redirect(redirectUrl);
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error in handleShortRedirect:', err);
     return res.status(500).send('Internal Server Error');
   }
 }
 
 app.get('/s/:shortCode', handleShortRedirect);
-app.get('/:shortCode', handleShortRedirect); // Handle short links at root path for s.zylike.com
 app.head('/s/:shortCode', handleShortRedirect);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+// Handle short links at root path only for shortlink host (e.g., s.zylike.com)
+app.get('/:shortCode', (req, res, next) => {
+  const host = (req.headers.host || '').toLowerCase();
+  if (host.startsWith('s.')) return handleShortRedirect(req, res);
+  return next();
 });
 
 app.use((err, req, res, next) => {
