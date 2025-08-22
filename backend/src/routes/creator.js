@@ -741,78 +741,7 @@ router.get('/referrals', requireAuth, async (req, res) => {
 });
 
 // Get creator earnings - as specified in docs: GET /api/creator/earnings
-router.get('/earnings', requireAuth, requireApprovedCreator, async (req, res) => {
-  const prisma = getPrisma();
-  if (!prisma) return res.json({ earnings: [], total: 0 });
-  
-  try {
-    const { calculateTotalEarnings } = require('../utils/commissionCalculator');
-    
-    // Get creator data for commission rate
-    const creator = await prisma.creator.findUnique({
-      where: { id: req.user.id },
-      select: { commissionRate: true, salesBonus: true }
-    });
-    
-    if (!creator) {
-      return res.status(404).json({ message: 'Creator not found' });
-    }
-    
-    // Get all earnings for this creator
-    const earnings = await prisma.earning.findMany({
-      where: { creatorId: req.user.id },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        link: {
-          select: { id: true, destinationUrl: true, shortLink: true }
-        }
-      }
-    });
-    
-    // Calculate total earnings using commission calculator
-    const earningsData = {
-      commissions: earnings.filter(e => e.type === 'COMMISSION'),
-      salesBonuses: earnings.filter(e => e.type === 'SALES_BONUS'),
-      referralBonuses: earnings.filter(e => e.type === 'REFERRAL_BONUS'),
-      creatorCommissionRate: creator.commissionRate
-    };
-    
-    const totalEarnings = calculateTotalEarnings(earningsData);
-    
-    // Format earnings for response
-    const formattedEarnings = earnings.map(earning => ({
-      id: earning.id,
-      amount: parseFloat(earning.amount),
-      type: earning.type,
-      status: earning.status,
-      impactTransactionId: earning.impactTransactionId,
-      createdAt: earning.createdAt,
-      link: earning.link ? {
-        id: earning.link.id,
-        destinationUrl: earning.link.destinationUrl,
-        shortLink: earning.link.shortLink
-      } : null
-    }));
-    
-    res.json({
-      earnings: formattedEarnings,
-      summary: {
-        total: totalEarnings.totalEarnings,
-        breakdown: totalEarnings.breakdown,
-        eligibleForPayout: totalEarnings.eligibleForPayout,
-        count: earnings.length
-      },
-      creator: {
-        commissionRate: creator.commissionRate,
-        salesBonus: parseFloat(creator.salesBonus || 0)
-      }
-    });
-    
-  } catch (error) {
-    console.error('Creator earnings error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
+// (removed duplicate earnings route to avoid ambiguity)
 
 module.exports = router;
 

@@ -69,6 +69,10 @@ function applyCorsPreflight(app) {
 
 function applySimpleCors(app) {
   app.use((req, res, next) => {
+    // Allow opting into strict CORS elsewhere without overriding here
+    if (String(process.env.STRICT_CORS || 'false').toLowerCase() === 'true') {
+      return next();
+    }
     const origin = req.headers.origin;
     const configuredOrigin = process.env.CORS_ORIGIN || null;
     const allowOrigin = configuredOrigin || origin || '*';

@@ -8,8 +8,10 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
   
   try {
-    // Get all creators with basic info
-    const creators = await prisma.creator.findMany({ 
+    // Optional pagination (defaults preserve current behavior)
+    const page = Number(req.query.page || 0);
+    const limit = Number(req.query.limit || 0);
+    const findArgs = {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -20,7 +22,13 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
         applicationStatus: true,
         createdAt: true
       }
-    });
+    };
+    if (page > 0 && limit > 0) {
+      findArgs.skip = (page - 1) * limit;
+      findArgs.take = limit;
+    }
+    // Get creators with basic info
+    const creators = await prisma.creator.findMany(findArgs);
     
     // Enrich creators with performance data
     const enrichedCreators = await Promise.all(creators.map(async (creator) => {
@@ -50,7 +58,11 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
       };
     }));
     
-    res.json({ creators: enrichedCreators });
+    // Include pagination metadata only when used
+    const meta = (page > 0 && limit > 0)
+      ? { page, limit }
+      : undefined;
+    res.json({ creators: enrichedCreators, ...(meta && { meta }) });
   } catch (error) {
     console.error('Error fetching creators with performance:', error);
     res.status(500).json({ message: 'Internal server error' });
