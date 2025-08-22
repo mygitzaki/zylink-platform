@@ -609,7 +609,8 @@ router.get('/impact-clicks', requireAuth, requireAdmin, async (req, res) => {
     console.log('🔍 Admin requesting Impact.com click data...');
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
-    const analytics = await impact.getPlatformAnalytics();
+    // Try Clicks endpoint first; fallback to Actions
+    const analytics = await impact.getClickAnalytics();
     if (!analytics.success) {
       return res.status(502).json({ success: false, message: 'Impact analytics unavailable', data: analytics });
     }

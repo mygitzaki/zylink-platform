@@ -211,6 +211,7 @@ class ImpactWebService {
         headers: {
           // Use proper Basic auth: base64(accountSid:authToken)
           'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       });
@@ -225,7 +226,7 @@ class ImpactWebService {
           actions: data.Actions || []
         };
       } else {
-        console.log('❌ Failed to fetch analytics from Impact.com');
+        console.log('❌ Failed to fetch analytics from Impact.com (Actions endpoint)', response.status);
         return {
           success: false,
           totalClicks: 0,
@@ -240,6 +241,31 @@ class ImpactWebService {
         actions: []
       };
     }
+  }
+
+  // Prefer Clicks endpoint for real-time click data; fallback to Actions
+  async getClickAnalytics() {
+    try {
+      console.log('📈 Fetching click analytics from Impact.com (Clicks endpoint)...');
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Clicks?PageSize=50&Page=1`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return { success: true, totalClicks: data.TotalResults || 0, clicks: data.Clicks || data.Results || [] };
+      }
+      console.log('⚠️ Clicks endpoint not available, status:', response.status);
+    } catch (e) {
+      console.log('⚠️ Error calling Clicks endpoint:', e?.message);
+    }
+    // Fallback to Actions when Clicks not available
+    return this.getPlatformAnalytics();
   }
 
   // Validate URL format - SAFE PRODUCTION METHOD
