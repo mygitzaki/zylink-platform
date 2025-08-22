@@ -26,8 +26,39 @@ export default function AdminOverview(){
     try {
       const data = await apiFetch('/api/admin/impact-clicks', { token })
       if (data.success) {
-        setImpactClicks(data.data)
-        console.log('✅ Impact.com click data loaded:', data.data)
+        const payload = data.data || {}
+        const clicks = Array.isArray(payload.clicks) ? payload.clicks : []
+        const actions = Array.isArray(payload.actions) ? payload.actions : []
+
+        // Derive totals safely (Clicks preferred if present)
+        const totalClicks = clicks.length || 0
+        const totalResults = totalClicks > 0 ? totalClicks : (actions.length || 0)
+
+        // Optional lightweight breakdowns (actions-based)
+        const summary = {}
+        if (actions.length > 0) {
+          const byStatus = {}
+          const byCampaign = {}
+          const byCreator = {}
+          const byActionType = {}
+          actions.forEach(a => {
+            const st = a.State || a.status || 'UNKNOWN'
+            const camp = a.CampaignId || a.campaignId || 'N/A'
+            const sub1 = a.SubId1 || a.subId1 || 'UNKNOWN'
+            const type = a.ActionType || a.actionType || (a.ActionTrackerName || 'SALE')
+            byStatus[st] = (byStatus[st] || 0) + 1
+            byCampaign[camp] = (byCampaign[camp] || 0) + 1
+            byCreator[sub1] = (byCreator[sub1] || 0) + 1
+            byActionType[type] = (byActionType[type] || 0) + 1
+          })
+          summary.byStatus = byStatus
+          summary.byCampaign = byCampaign
+          summary.byCreator = byCreator
+          summary.byActionType = byActionType
+        }
+
+        setImpactClicks({ ...payload, totalClicks, totalResults, ...(Object.keys(summary).length ? { summary } : {}) })
+        console.log('✅ Impact.com data (derived):', { totalClicks, totalResults, hasClicks: clicks.length > 0, actions: actions.length })
       } else {
         throw new Error(data.message || 'Failed to fetch Impact.com data')
       }
