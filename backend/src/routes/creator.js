@@ -189,7 +189,7 @@ router.put('/profile', requireAuth, async (req, res) => {
 router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
   try {
     console.log('🔗 Link creation started for user:', req.user.id);
-    const { destinationUrl } = req.body;
+    const { destinationUrl, sharedId } = req.body;
     
     if (!destinationUrl) {
       console.log('❌ No destination URL provided');
@@ -233,7 +233,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
 
     // Create Impact.com tracking link BEFORE DB branch so it is available for both code paths
     console.log('🌐 Creating Impact.com tracking link...');
-    const impactResult = await impact.createTrackingLink(destinationUrl, req.user.id);
+    const impactResult = await impact.createTrackingLink(destinationUrl, req.user.id, { sharedId });
     console.log('✅ Impact.com API result:', {
       success: impactResult.success,
       method: impactResult.method,

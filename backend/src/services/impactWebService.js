@@ -13,6 +13,8 @@ class ImpactWebService {
     this.includeMediaPropertyId = String(process.env.IMPACT_SEND_MEDIA_PROPERTY_ID || process.env.IMPACT_INCLUDE_MEDIA_PROPERTY_ID || 'false').toLowerCase() === 'true';
     // Feature flag: control deep link sanitization (default OFF per request)
     this.sanitizeDeepLink = String(process.env.IMPACT_SANITIZE_DEEPLINK || 'false').toLowerCase() === 'true';
+    // Optional default sharedid (can be overridden per-request)
+    this.defaultSharedId = process.env.IMPACT_DEFAULT_SHAREDID || '';
   }
 
   // Remove retailer tracking noise (ath*, utm_*, etc.) while preserving product-identifying params
@@ -48,7 +50,7 @@ class ImpactWebService {
   }
 
   // Create tracking link using Impact.com API with SubId tracking
-  async createTrackingLink(destinationUrl, creatorId) {
+  async createTrackingLink(destinationUrl, creatorId, options = {}) {
     try {
       console.log('🌐 Creating Impact.com tracking link...');
       
@@ -64,6 +66,10 @@ class ImpactWebService {
       qp.set('Type', 'Regular');
       qp.set('DeepLink', deepLink);
       qp.set('subId1', String(creatorId || 'default'));
+      const sharedIdToUse = options.sharedId || this.defaultSharedId;
+      if (sharedIdToUse) {
+        qp.set('sharedid', String(sharedIdToUse));
+      }
       if (this.includeMediaPropertyId && this.mediaPartnerPropertyId) {
         qp.set('MediaPartnerPropertyId', String(this.mediaPartnerPropertyId));
       }
