@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 class ImpactWebService {
   constructor() {
     // Impact.com API credentials
@@ -15,6 +17,36 @@ class ImpactWebService {
     this.sanitizeDeepLink = String(process.env.IMPACT_SANITIZE_DEEPLINK || 'false').toLowerCase() === 'true';
     // Optional default sharedid (can be overridden per-request)
     this.defaultSharedId = process.env.IMPACT_DEFAULT_SHAREDID || '';
+    // Feature flag: obfuscate subId1 with HMAC to avoid exposing raw IDs
+    this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
+    this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
+  }
+
+  computeObfuscatedSubId(creatorId) {
+    try {
+      const input = String(creatorId || 'default');
+      if (!this.useObfuscatedSubId1 || !this.subId1Salt) return input;
+      const h = crypto.createHmac('sha256', this.subId1Salt).update(input).digest('hex');
+      return h.slice(0, 16).toUpperCase();
+    } catch {
+      return String(creatorId || 'default');
+    }
+  }
+
+  composeSharedId(options = {}) {
+    try {
+      const mode = String(process.env.IMPACT_SHAREDID_MODE || '').toLowerCase();
+      const explicit = options.sharedId || this.defaultSharedId;
+      if (mode !== 'schema') return explicit;
+      const parts = [];
+      if (options.campaign) parts.push(`c:${String(options.campaign).slice(0, 40)}`);
+      if (options.platform) parts.push(`p:${String(options.platform).slice(0, 20)}`);
+      if (options.contentId) parts.push(`cnt:${String(options.contentId).slice(0, 40)}`);
+      const composed = parts.join('|');
+      return composed || explicit || '';
+    } catch {
+      return options.sharedId || this.defaultSharedId || '';
+    }
   }
 
   // Remove retailer tracking noise (ath*, utm_*, etc.) while preserving product-identifying params
@@ -65,11 +97,15 @@ class ImpactWebService {
       const qp = new URLSearchParams();
       qp.set('Type', 'Regular');
       qp.set('DeepLink', deepLink);
-      qp.set('subId1', String(creatorId || 'default'));
-      const sharedIdToUse = options.sharedId || this.defaultSharedId;
+      const subId1Value = this.computeObfuscatedSubId(creatorId);
+      qp.set('subId1', subId1Value);
+      const sharedIdToUse = this.composeSharedId(options);
       if (sharedIdToUse) {
         qp.set('sharedid', String(sharedIdToUse));
       }
+      if (options.subId2) qp.set('subId2', String(options.subId2));
+      if (options.subId3) qp.set('subId3', String(options.subId3));
+      if (options.subId4) qp.set('subId4', String(options.subId4));
       if (this.includeMediaPropertyId && this.mediaPartnerPropertyId) {
         qp.set('MediaPartnerPropertyId', String(this.mediaPartnerPropertyId));
       }
