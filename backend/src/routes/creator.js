@@ -249,7 +249,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
     if (disableFallback && impactResult?.method === 'fallback_generation') {
       return res.status(502).json({
         success: false,
-        message: 'Impact tracking link unavailable via API. Please try again, pick another product, or contact support.',
+        message: 'Tracking link unavailable via API. Please try again, pick another product, or contact support.',
         impactApiUsed: false,
         impactMethod: impactResult?.method
       });
