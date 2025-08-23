@@ -105,6 +105,9 @@ export default function CreatorManagement(){
               <span className={`payment-badge ${paymentDetails ? 'submitted' : 'missing'}`}>
                 {paymentDetails ? `💳 ${paymentDetails.type}` : '❌ No Payment Info'}
               </span>
+              <span className="subid-badge" title="Impact SubId1 used for tracking">
+                SubId1: {creator.id}
+              </span>
             </div>
             
             {/* Performance Metrics */}
@@ -365,6 +368,10 @@ export default function CreatorManagement(){
                   <div className="info-item">
                     <span className="label">Commission Rate:</span>
                     <span className="value">{creatorProfileData.creator.commissionRate}%</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="label">Impact SubId1:</span>
+                    <span className="value" style={{wordBreak:'break-all'}}>{creatorProfileData.creator.id}</span>
                   </div>
                   <div className="info-item">
                     <span className="label">Referral Code:</span>
