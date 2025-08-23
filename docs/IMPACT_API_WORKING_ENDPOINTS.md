@@ -1,4 +1,5 @@
 # Impact.com API - Working Endpoints Reference
+<!-- Deployment note: no-op content touch to trigger redeploy -->
 
 **Status:** ✅ PRODUCTION READY  
 **Last Updated:** January 15, 2025  
@@ -81,6 +82,28 @@ curl -u 'IR6HvVENfaTR3908029jXFhKg7EFcPYDe1:VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd' \
   ]
 }
 ```
+
+#### Date filter format (IMPORTANT)
+
+Impact’s Actions endpoint rejects plain MM/DD/YYYY and ISO dates without time. The reliably accepted format is ISO 8601 with time and a Z suffix.
+
+- StartDate: `YYYY-MM-DDTHH:mm:ssZ`
+- EndDate: `YYYY-MM-DDTHH:mm:ssZ`
+
+Examples that return 200 OK:
+
+```bash
+curl -u 'SID:TOKEN' -H 'Accept: application/json' \
+  "https://api.impact.com/Mediapartners/SID/Actions?PageSize=10&Page=1&ActionStatus=APPROVED&ActionType=SALE&StartDate=2025-08-01T00:00:00Z&EndDate=2025-08-21T23:59:59Z"
+```
+
+Examples that returned 400 Bad Request in testing (do NOT use):
+
+- `StartDate=08/01/2025` (MM/DD/YYYY)
+- `StartDate=2025-08-01` (ISO without time/Z)
+- `StartDate=08/01/2025 00:00:00` (US with time)
+
+Tip (Postman): Put dates in the Params tab; keep URL clean. Ensure Authorization is Basic and add `Accept: application/json`.
 
 ### 3. Available Campaigns
 ```bash
