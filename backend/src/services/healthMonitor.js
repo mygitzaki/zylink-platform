@@ -96,14 +96,17 @@ class HealthMonitor {
       return currentMemoryMB < maxMemoryMB;
     }, 60000); // Check every minute
 
-    // Impact.com API connectivity check
+    // Impact.com API connectivity check (uses env credentials)
     this.registerCheck('impact-api', async () => {
       try {
-        const response = await fetch('https://api.impact.com/Mediapartners/IR6HvVENfaTR3908029jXFhKg7EFcPYDe1', {
+        const accountSid = process.env.IMPACT_ACCOUNT_SID;
+        const authToken = process.env.IMPACT_AUTH_TOKEN;
+        const apiBase = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
+        if (!accountSid || !authToken) return false;
+        const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+        const response = await fetch(`${apiBase}/Mediapartners/${accountSid}`, {
           method: 'GET',
-          headers: {
-            'Authorization': 'Basic ' + Buffer.from('IR6HvVENfaTR3908029jXFhKg7EFcPYDe1:VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd').toString('base64')
-          }
+          headers: { 'Authorization': `Basic ${auth}` }
         });
         return response.ok;
       } catch (error) {
