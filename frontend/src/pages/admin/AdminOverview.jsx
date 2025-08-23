@@ -55,6 +55,24 @@ export default function AdminOverview(){
           summary.byCampaign = byCampaign
           summary.byCreator = byCreator
           summary.byActionType = byActionType
+
+          // Try to resolve SubId1 to creator name/email (best-effort)
+          try {
+            const creatorsResp = await apiFetch('/api/admin/creators', { token })
+            const creators = creatorsResp?.creators || []
+            const idToCreator = {}
+            creators.forEach(c => { idToCreator[c.id] = c })
+            const resolved = Object.entries(byCreator)
+              .map(([subId, count]) => {
+                const c = idToCreator[subId]
+                const label = c ? `${c.name || 'Creator'} (${c.email})` : (subId || 'UNKNOWN')
+                return { subId, label, count }
+              })
+              .sort((a, b) => b.count - a.count)
+            summary.byCreatorResolved = resolved
+          } catch (e) {
+            // Non-fatal; keep raw SubId1 mapping
+          }
         }
 
         setImpactClicks({ ...payload, totalClicks, totalResults, ...(Object.keys(summary).length ? { summary } : {}) })
@@ -231,12 +249,18 @@ export default function AdminOverview(){
                         </div>
                       </div>
                       <div className="breakdown-section">
-                        <h5>By Creator</h5>
+                        <h5>By Creator (SubId1)</h5>
                         <div className="breakdown-list">
-                          {Object.entries(impactClicks.summary.byCreator || {}).map(([creator, clicks]) => (
-                            <div key={creator} className="breakdown-item">
-                              <span>{creator}</span>
-                              <span>{clicks} clicks</span>
+                          {(impactClicks.summary.byCreatorResolved || []).map(row => (
+                            <div key={row.subId} className="breakdown-item">
+                              <span>{row.label}</span>
+                              <span>{row.count} {row.count === 1 ? 'action' : 'actions'}</span>
+                            </div>
+                          ))}
+                          {!impactClicks.summary.byCreatorResolved && Object.entries(impactClicks.summary.byCreator || {}).map(([subId, count]) => (
+                            <div key={subId} className="breakdown-item">
+                              <span>{subId}</span>
+                              <span>{count} {count === 1 ? 'action' : 'actions'}</span>
                             </div>
                           ))}
                         </div>
