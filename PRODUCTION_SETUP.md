@@ -307,6 +307,15 @@ Ensure compliance with:
 ### **Email Service**
 - SendGrid: Free (100 emails/day)
 - Mailgun: Free (5,000 emails/month)
+  - Create domain in Mailgun and add DNS (TXT, MX, CNAME). Verify domain.
+  - In Railway backend service, add env vars:
+    - `MAILGUN_SMTP_LOGIN` and `MAILGUN_SMTP_PASSWORD` (from Mailgun domain settings)
+    - `MAILGUN_FROM` (e.g., noreply@yourdomain.com)
+    - Optional: `SMTP_HOST=smtp.mailgun.org`, `SMTP_PORT=587`, `SMTP_SECURE=false`
+  - Our backend will auto-detect these and send via SMTP. Test with:
+    - POST `/api/admin/test-email` (Authorization: Admin) body:
+      `{ "to": "you@yourdomain.com", "subject": "Test", "text": "Hello" }`
+  - Note: Sandbox domains only send to authorized recipients.
 
 ### **Total Estimated**: $6-25/month
 

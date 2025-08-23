@@ -183,6 +183,30 @@ router.put('/payouts/:id/reject', requireAuth, requireAdmin, async (req, res) =>
   res.json(pr)
 });
 
+// Admin test email endpoint (safe)
+router.post('/test-email', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { to, subject, text, html } = req.body || {};
+    if (!to) return res.status(400).json({ message: 'Missing "to" address' });
+
+    const { EmailService } = require('../services/emailService');
+    const svc = new EmailService();
+    await svc.initialize();
+
+    const result = await svc.sendEmail(
+      to,
+      subject || 'Zylike Test Email',
+      html || `<p>${text || 'Hello from Zylike via Mailgun SMTP (test).'}</p>`,
+      text
+    );
+
+    return res.json({ success: true, result });
+  } catch (error) {
+    console.error('Admin test-email error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to send test email', error: error.message });
+  }
+});
+
 // Admin endpoint to sync earnings from Impact.com
 router.post('/sync-earnings', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });

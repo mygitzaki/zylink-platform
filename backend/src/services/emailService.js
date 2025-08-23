@@ -3,19 +3,31 @@ const nodemailer = require('nodemailer');
 class EmailService {
   constructor() {
     this.transporter = null;
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@zylike.com';
+    this.fromEmail = process.env.MAILGUN_FROM || process.env.FROM_EMAIL || 'noreply@zylike.com';
     this.fromName = process.env.FROM_NAME || 'Zylike Platform';
   }
 
   async initialize() {
     try {
-      this.transporter = nodemailer.createTransporter({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT || 587,
-        secure: process.env.SMTP_SECURE === 'true',
+      const smtpHost = process.env.SMTP_HOST || (process.env.MAILGUN_SMTP_LOGIN ? 'smtp.mailgun.org' : undefined);
+      const smtpPort = Number(process.env.SMTP_PORT || 587);
+      const smtpSecure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || smtpPort === 465;
+      const smtpUser = process.env.SMTP_USER || process.env.MAILGUN_SMTP_LOGIN;
+      const smtpPass = process.env.SMTP_PASS || process.env.MAILGUN_SMTP_PASSWORD || process.env.MAILGUN_SMTP_PASS;
+
+      if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('⚠️ SMTP not fully configured. Email service will run in simulation mode.');
+        this.transporter = null;
+        return;
+      }
+
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
         auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
+          user: smtpUser,
+          pass: smtpPass
         }
       });
 
