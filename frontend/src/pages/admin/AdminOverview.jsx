@@ -12,8 +12,14 @@ export default function AdminOverview(){
   const [loadingImpact, setLoadingImpact] = useState(false)
   const [impactError, setImpactError] = useState('')
   const [impactActions, setImpactActions] = useState(null)
+  const [actionsList, setActionsList] = useState([])
   const [loadingActions, setLoadingActions] = useState(false)
   const [actionsError, setActionsError] = useState('')
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const [selectedAction, setSelectedAction] = useState(null)
+  const [actionDetail, setActionDetail] = useState(null)
 
   useEffect(()=>{
     apiFetch('/api/admin/stats', { token })
@@ -137,12 +143,48 @@ export default function AdminOverview(){
         actionsCount: actions.length,
         summary: { byStatus, byCampaign, byCreator, byCreatorResolved, byActionType }
       })
+      setActionsList(actions)
     } catch (error) {
       setActionsError(error.message)
       setImpactActions(null)
+      setActionsList([])
     } finally {
       setLoadingActions(false)
     }
+  }
+
+  // Open detail modal for a specific action
+  const openActionDetail = async (row) => {
+    setSelectedAction(row)
+    setDetailOpen(true)
+    setDetailLoading(true)
+    setDetailError('')
+    setActionDetail(null)
+    try {
+      const id = row.Id || row.id
+      if (!id) throw new Error('Missing Action Id')
+      const data = await apiFetch(`/api/admin/impact-actions/${encodeURIComponent(id)}`, { token })
+      if (!data.success) throw new Error(data.message || 'Failed to load action detail')
+      setActionDetail(data.data?.action || data.data)
+    } catch (e) {
+      setDetailError(e.message)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  // Extract item-level rows from flexible structures
+  const extractItems = (detail) => {
+    if (!detail) return []
+    const candidates = [
+      detail.Items,
+      detail.OrderItems,
+      detail.LineItems,
+      detail.items,
+      detail.orderItems,
+      detail.lineItems
+    ].find(arr => Array.isArray(arr) && arr.length > 0)
+    return Array.isArray(candidates) ? candidates : []
   }
 
   const StatCard = ({ icon, label, value, change, color = '#667eea' }) => (
@@ -443,8 +485,111 @@ export default function AdminOverview(){
               <small>Try again or adjust date filters later.</small>
             </div>
           )}
+          {/* Recent Actions table */}
+          {actionsList.length > 0 && (
+            <div className="history-table" style={{ marginTop: '1rem' }}>
+              <div className="table-container">
+                <table className="earnings-table">
+                  <thead>
+                    <tr>
+                      <th>Action Id</th>
+                      <th>Status</th>
+                      <th>Amount</th>
+                      <th>Payout</th>
+                      <th>SubId1</th>
+                      <th>Event Date</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {actionsList.slice(0, 20).map((a) => (
+                      <tr key={(a.Id||a.id)}>
+                        <td>{a.Id || a.id}</td>
+                        <td>{a.State || a.status}</td>
+                        <td>{a.Amount || a.SaleAmount || a.IntendedAmount || '—'}</td>
+                        <td>{a.Payout || a.Commission || '—'}</td>
+                        <td>{a.SubId1 || a.subId1 || '—'}</td>
+                        <td>{a.EventDate || a.CreationDate || '—'}</td>
+                        <td>
+                          <button className="modern-action-button" onClick={() => openActionDetail(a)}>View</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Action Detail Modal */}
+      {detailOpen && (
+        <div className="modal-overlay" onClick={() => setDetailOpen(false)}>
+          <div className="modal-card" onClick={(e)=>e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Action Detail {selectedAction ? (selectedAction.Id || selectedAction.id) : ''}</h3>
+              <button className="modal-close" onClick={() => setDetailOpen(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {detailLoading && <p>Loading…</p>}
+              {detailError && <p className="impact-error">❌ {detailError}</p>}
+              {!detailLoading && actionDetail && (
+                <div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+                    <div>
+                      <strong>Status:</strong> {actionDetail.State || actionDetail.status || '—'}
+                    </div>
+                    <div>
+                      <strong>Sale Amount:</strong> {actionDetail.Amount || actionDetail.SaleAmount || actionDetail.IntendedAmount || '—'}
+                    </div>
+                    <div>
+                      <strong>Payout:</strong> {actionDetail.Payout || actionDetail.Commission || '—'}
+                    </div>
+                    <div>
+                      <strong>SubId1:</strong> {actionDetail.SubId1 || '—'}
+                    </div>
+                  </div>
+                  {/* Items table if provided */}
+                  {extractItems(actionDetail).length > 0 ? (
+                    <div style={{ marginTop:'1rem' }}>
+                      <h4>Items</h4>
+                      <div className="table-container">
+                        <table className="earnings-table">
+                          <thead>
+                            <tr>
+                              <th>SKU</th>
+                              <th>Name</th>
+                              <th>Qty</th>
+                              <th>Sale Amount</th>
+                              <th>Payout</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {extractItems(actionDetail).map((it, idx) => (
+                              <tr key={idx}>
+                                <td>{it.SKU || it.Sku || it.sku || '—'}</td>
+                                <td>{it.Name || it.name || '—'}</td>
+                                <td>{it.Quantity || it.Qty || it.quantity || 1}</td>
+                                <td>{it.SaleAmount || it.Amount || it.saleAmount || '—'}</td>
+                                <td>{it.Payout || it.Commission || it.payout || '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop:'1rem' }}>
+                      <small>No item-level data provided by the network for this action.</small>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions Section */}
       <div className="section-header">
