@@ -328,7 +328,7 @@ class ImpactWebService {
 
       const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions?${qp.toString()}`;
 
-      const response = await fetch(url, {
+      const doFetch = async (targetUrl) => fetch(targetUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
@@ -337,8 +337,23 @@ class ImpactWebService {
         }
       });
 
+      let response = await doFetch(url);
       if (!response.ok) {
-        return { success: false, status: response.status, error: await response.text(), actions: [], totalResults: 0 };
+        const errorText = await response.text();
+        // Retry once without date filters as a safe fallback (some programs reject ranges)
+        const qpNoDates = new URLSearchParams();
+        qpNoDates.set('Page', String(page));
+        qpNoDates.set('PageSize', String(pageSize));
+        if (status) qpNoDates.set('ActionStatus', status);
+        if (actionType) qpNoDates.set('ActionType', actionType);
+        if (subId1) qpNoDates.set('SubId1', subId1);
+        if (campaignId) qpNoDates.set('CampaignId', String(campaignId));
+        const fallbackUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions?${qpNoDates.toString()}`;
+        const retry = await doFetch(fallbackUrl);
+        if (!retry.ok) {
+          return { success: false, status: response.status, error: errorText, actions: [], totalResults: 0 };
+        }
+        response = retry;
       }
       const data = await response.json();
       return {
