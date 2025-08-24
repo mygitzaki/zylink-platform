@@ -515,8 +515,12 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       return collected;
     };
 
-    // Pending card should reflect only PENDING (exclude LOCKED)
-    const actions = await fetchAll('PENDING');
+    // Pending card should reflect funds not yet paid: include PENDING + LOCKED
+    const [pendingActions, lockedActions] = await Promise.all([
+      fetchAll('PENDING'),
+      fetchAll('LOCKED')
+    ]);
+    const actions = [...pendingActions, ...lockedActions];
 
     // Robustly extract any commission-like numeric field from Action payloads
     const COMMISSION_KEYS = [
