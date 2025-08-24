@@ -497,12 +497,31 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const impact = new ImpactWebService();
     const now = new Date();
     const start = new Date(now); start.setDate(start.getDate() - 60);
-    const result = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status: 'PENDING', subId1: req.user.id, pageSize: 100 });
-    const actions = Array.isArray(result.actions) ? result.actions : [];
+    // Fetch PENDING and LOCKED in pages (cap to avoid heavy calls)
+    const fetchAll = async (status) => {
+      const collected = [];
+      let page = 1;
+      let total = Infinity;
+      const pageSize = 100;
+      while ((page - 1) * pageSize < total && page <= 10) { // hard cap 1000 records
+        const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, subId1: req.user.id, page, pageSize });
+        const arr = Array.isArray(r.actions) ? r.actions : [];
+        collected.push(...arr);
+        total = r.totalResults || total;
+        if (arr.length < pageSize) break; // last page
+        page += 1;
+      }
+      return collected;
+    };
 
-    // Sum gross Amount/Payout/Commission then apply creator rate
+    const pending = await fetchAll('PENDING');
+    const locked = await fetchAll('LOCKED');
+    const actions = [...pending, ...locked];
+
+    // Sum only payout/commission fields (never sale Amount/IntendedAmount)
     const gross = actions.reduce((sum, a) => {
-      const amt = parseFloat(a.Amount || a.Payout || a.Commission || a.IntendedAmount || 0);
+      const val = a.Payout ?? a.Commission;
+      const amt = parseFloat(val || 0);
       return sum + (isNaN(amt) ? 0 : amt);
     }, 0);
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
