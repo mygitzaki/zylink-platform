@@ -17,6 +17,10 @@ export default function Earnings() {
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
   const [pendingNet, setPendingNet] = useState(0)
+  const [approvedNet, setApprovedNet] = useState(0)
+  const [lifetimeNet, setLifetimeNet] = useState(0)
+  const [paidOut, setPaidOut] = useState(0)
+  const [available, setAvailable] = useState(0)
 
   useEffect(() => {
     loadEarnings()
@@ -27,17 +31,54 @@ export default function Earnings() {
     try {
       setLoading(true)
       const earningsRes = await apiFetch('/api/creator/earnings', { token })
-      
+
+      const items = Array.isArray(earningsRes.earnings) ? earningsRes.earnings : []
+      const toNum = (v) => Number(v || 0)
+      const sum = (arr) => arr.reduce((s, x) => s + toNum(x), 0)
+
+      // Compute approved (COMPLETED) net
+      const approved = sum(items.filter(i => i.status === 'COMPLETED').map(i => i.amount))
+      setApprovedNet(approved)
+
+      // Lifetime net (prefer summary.total, fallback to legacy total, fallback to approved)
+      const lifetime = Number(earningsRes?.summary?.total ?? earningsRes?.total ?? approved)
+      setLifetimeNet(lifetime)
+
+      // Time buckets (based on completed items)
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const dayOfWeek = startOfDay.getDay() || 0 // 0=Sun
+      const startOfWeek = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - dayOfWeek)
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+      const getDate = (d) => new Date(d)
+      const completed = items.filter(i => i.status === 'COMPLETED')
+      const todayAmt = sum(completed.filter(i => getDate(i.createdAt) >= startOfDay).map(i => i.amount))
+      const weekAmt = sum(completed.filter(i => getDate(i.createdAt) >= startOfWeek).map(i => i.amount))
+      const monthAmt = sum(completed.filter(i => getDate(i.createdAt) >= startOfMonth).map(i => i.amount))
+
+      // History mapping for table
+      const history = items.map(i => ({
+        date: new Date(i.createdAt).toLocaleDateString(),
+        type: i.type,
+        description: i.link?.destinationUrl || i.impactTransactionId || 'Commission',
+        amount: Number(i.amount || 0),
+        status: i.status
+      }))
+
       setEarnings({
-        total: earningsRes.total || 0,
-        today: earningsRes.today || 0,
-        thisWeek: earningsRes.thisWeek || 0,
-        thisMonth: earningsRes.thisMonth || 0,
-        pending: earningsRes.pending || 0,
-        available: earningsRes.available || 0,
-        history: earningsRes.history || [],
-        topEarningDays: earningsRes.topEarningDays || []
+        total: lifetime,
+        today: todayAmt,
+        thisWeek: weekAmt,
+        thisMonth: monthAmt,
+        pending: 0, // filled by loadPending
+        available: 0, // filled after payouts load
+        history,
+        topEarningDays: []
       })
+
+      // After we know approved, compute payouts/available
+      await loadPayouts(approved)
     } catch (err) {
       console.error('Failed to load earnings:', err)
     } finally {
@@ -49,6 +90,20 @@ export default function Earnings() {
     try {
       const res = await apiFetch('/api/creator/pending-earnings', { token })
       setPendingNet(Number(res.pendingNet || 0))
+    } catch {}
+  }
+
+  // Load payouts and compute available = approved - paidOut
+  const loadPayouts = async (approved) => {
+    try {
+      const res = await apiFetch('/api/creator/payouts', { token })
+      const rows = Array.isArray(res.payouts) ? res.payouts : []
+      const paid = rows.filter(r => r.status === 'COMPLETED').reduce((s, r) => s + Number(r.amount || 0), 0)
+      setPaidOut(paid)
+      const avail = Math.max(0, Number(approved || approvedNet) - paid)
+      setAvailable(avail)
+      // also mirror in the earnings object used by UI cards
+      setEarnings(prev => ({ ...prev, pending: pendingNet, available: avail }))
     } catch {}
   }
 
