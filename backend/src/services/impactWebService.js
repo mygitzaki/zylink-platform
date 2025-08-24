@@ -287,7 +287,8 @@ class ImpactWebService {
         page = 1,
         pageSize = 100,
         subId1,
-        campaignId
+        campaignId,
+        noRetry = false
       } = options;
 
       // Normalize dates to Impact-friendly format (MM/DD/YYYY)
@@ -341,6 +342,9 @@ class ImpactWebService {
       if (!response.ok) {
         const errorText = await response.text();
         // Retry once without date filters as a safe fallback (some programs reject ranges)
+        if (noRetry) {
+          return { success: false, status: response.status, error: errorText, actions: [], totalResults: 0 };
+        }
         const qpNoDates = new URLSearchParams();
         qpNoDates.set('Page', String(page));
         qpNoDates.set('PageSize', String(pageSize));

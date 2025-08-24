@@ -504,7 +504,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       let total = Infinity;
       const pageSize = 100;
       while ((page - 1) * pageSize < total && page <= 10) { // hard cap 1000 records
-        const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, subId1: req.user.id, page, pageSize });
+        const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, subId1: req.user.id, page, pageSize, noRetry: true });
         const arr = Array.isArray(r.actions) ? r.actions : [];
         collected.push(...arr);
         total = r.totalResults || total;
@@ -514,9 +514,8 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       return collected;
     };
 
-    const pending = await fetchAll('PENDING');
-    const locked = await fetchAll('LOCKED');
-    const actions = [...pending, ...locked];
+    // Pending card should reflect only PENDING (exclude LOCKED)
+    const actions = await fetchAll('PENDING');
 
     // Sum only payout/commission fields (never sale Amount/IntendedAmount)
     const gross = actions.reduce((sum, a) => {
