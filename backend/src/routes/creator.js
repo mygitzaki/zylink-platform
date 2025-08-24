@@ -482,6 +482,37 @@ router.get('/earnings', requireAuth, requireApprovedCreator, async (req, res) =>
   }
 });
 
+// NEW: Pending earnings (net) derived from network PENDING/LOCKED actions
+router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ pendingNet: 0 });
+
+    // Get creator commission rate
+    const creator = await prisma.creator.findUnique({ where: { id: req.user.id }, select: { commissionRate: true } });
+    const rate = creator?.commissionRate ?? 70;
+
+    // Pull recent actions from network filtered to this creator's SubId1 if applicable
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    const now = new Date();
+    const start = new Date(now); start.setDate(start.getDate() - 60);
+    const result = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status: 'PENDING', subId1: req.user.id, pageSize: 100 });
+    const actions = Array.isArray(result.actions) ? result.actions : [];
+
+    // Sum gross Amount/Payout/Commission then apply creator rate
+    const gross = actions.reduce((sum, a) => {
+      const amt = parseFloat(a.Amount || a.Payout || a.Commission || a.IntendedAmount || 0);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
+    const net = parseFloat(((gross * rate) / 100).toFixed(2));
+    res.json({ pendingNet: net, count: actions.length });
+  } catch (error) {
+    console.error('Pending earnings error:', error.message);
+    res.json({ pendingNet: 0, count: 0 });
+  }
+});
+
 // GET payment setup - retrieve existing payment details
 router.get('/payment-setup', requireAuth, async (req, res) => {
   try {
