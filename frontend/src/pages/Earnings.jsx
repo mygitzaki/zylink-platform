@@ -16,9 +16,11 @@ export default function Earnings() {
   })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
+  const [pendingNet, setPendingNet] = useState(0)
 
   useEffect(() => {
     loadEarnings()
+    loadPending()
   }, [timeRange])
 
   const loadEarnings = async () => {
@@ -41,6 +43,13 @@ export default function Earnings() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadPending = async () => {
+    try {
+      const res = await apiFetch('/api/creator/pending-earnings', { token })
+      setPendingNet(Number(res.pendingNet || 0))
+    } catch {}
   }
 
   if (loading) {
@@ -152,8 +161,8 @@ export default function Earnings() {
             </div>
             <div className="stat-content">
               <div className="stat-label">Pending</div>
-              <div className="stat-value">${earnings.pending.toFixed(2)}</div>
-              <div className="stat-change neutral">Processing</div>
+              <div className="stat-value">${pendingNet.toFixed(2)}</div>
+              <div className="stat-change neutral">Awaiting approval</div>
             </div>
           </div>
 
