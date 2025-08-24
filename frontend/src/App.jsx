@@ -21,6 +21,8 @@ import CreatorManagement from './pages/admin/CreatorManagement'
 import PerformanceAnalytics from './pages/admin/PerformanceAnalytics'
 import SystemSettings from './pages/admin/SystemSettings'
 import PayoutQueue from './pages/admin/PayoutQueue'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 
 function Placeholder({ title }) {
   return (
@@ -277,7 +279,12 @@ function Layout({ children }) {
   const { token } = useAuth()
   
   if (!token) {
-    return children // No layout for login/signup pages
+    return (
+      <div>
+        {children}
+        <SiteFooter />
+      </div>
+    ) // Public layout includes footer
   }
   
   return (
@@ -289,7 +296,22 @@ function Layout({ children }) {
       <main style={{ maxWidth: '80rem', margin: '0 auto' }}>
         {children}
       </main>
+      <SiteFooter />
     </div>
+  )
+}
+
+function SiteFooter() {
+  return (
+    <footer style={{ borderTop: '1px solid rgba(0,0,0,0.08)', padding: '1rem 0', marginTop: '2rem' }}>
+      <div style={{ maxWidth: '80rem', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#6b7280' }}>
+        <span>© {new Date().getFullYear()} Zylike</span>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
+        </div>
+      </div>
+    </footer>
   )
 }
 
@@ -313,6 +335,10 @@ export default function App() {
             <Route path="/payouts" element={<RequireAuth><Payouts /></RequireAuth>} />
             <Route path="/referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+
+            {/* Public legal pages */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
 
             <Route path="/admin" element={<RequireAdmin><AdminOverview /></RequireAdmin>} />
             <Route path="/admin/pending-applications" element={<RequireAdmin><PendingApplications /></RequireAdmin>} />
