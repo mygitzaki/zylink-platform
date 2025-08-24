@@ -17,10 +17,11 @@ export default function Terms() {
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>1. What Zylike Does</h2>
       <p style={{ color: '#4b5563' }}>
         Zylike enables creators to generate affiliate short links, track clicks and attributed
-        actions, and receive payouts on approved earnings. Zylike integrates with third parties
-        such as Impact.com and participating retailers (e.g., Walmart) to facilitate tracking and
-        attribution. Zylike is not a party to transactions between retailers and customers and
-        does not guarantee commissions, conversions, or availability of third‑party programs.
+        actions, and receive payouts on approved earnings. Zylike integrates with third‑party
+        affiliate networks, email providers, payment processors, and participating retailers to
+        facilitate tracking and attribution. Zylike is not a party to transactions between
+        retailers and customers and does not guarantee commissions, conversions, or availability
+        of third‑party programs.
       </p>
 
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>2. Eligibility and Accounts</h2>
@@ -47,8 +48,8 @@ export default function Terms() {
       <p style={{ color: '#4b5563' }}>
         Zylike generates trackable links and may attach sub‑identifiers (e.g., SubId1) to
         attribute clicks and actions to your account. Attribution and earnings are ultimately
-        determined by the applicable third‑party program (e.g., Impact.com) and retailer. Zylike
-        may display estimated analytics for convenience; final approved earnings may differ.
+        determined by the applicable affiliate/network program and retailer. Zylike may display
+        estimated analytics for convenience; final approved earnings may differ.
       </p>
 
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>5. Earnings and Payouts</h2>
@@ -82,10 +83,10 @@ export default function Terms() {
 
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>9. Third‑Party Services</h2>
       <p style={{ color: '#4b5563' }}>
-        The Services interoperate with third parties such as Impact.com, Mailgun, payment
-        providers, and retailers. Their terms and privacy policies apply to your use of those
-        services. Zylike is not responsible for third‑party outages, data accuracy, or policy
-        changes that affect your use or earnings.
+        The Services interoperate with third parties such as affiliate networks, email service
+        providers, payment providers, and retailers. Their terms and privacy policies apply to
+        your use of those services. Zylike is not responsible for third‑party outages, data
+        accuracy, or policy changes that affect your use or earnings.
       </p>
 
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>10. Disclaimers</h2>

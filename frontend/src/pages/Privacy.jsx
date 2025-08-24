@@ -36,9 +36,9 @@ export default function Privacy() {
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>3. Sharing of Information</h2>
       <p style={{ color: '#4b5563' }}>
         We share data with service providers and integration partners solely to operate the
-        Services (e.g., Impact.com for attribution, Mailgun for email, payment partners for
-        payouts). We may disclose information to comply with law or protect rights and safety. We
-        do not sell personal data.
+        Services (for example, affiliate networks for attribution, email service providers for
+        sending messages, and payment partners for payouts). We may disclose information to comply
+        with law or protect rights and safety. We do not sell personal data.
       </p>
 
       <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: '1.75rem' }}>4. Data Retention</h2>
