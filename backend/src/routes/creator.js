@@ -497,14 +497,15 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const impact = new ImpactWebService();
     const now = new Date();
     const start = new Date(now); start.setDate(start.getDate() - 60);
-    // Fetch PENDING and LOCKED in pages (cap to avoid heavy calls)
+    // Fetch PENDING (and optionally LOCKED) in pages (cap to avoid heavy calls)
     const fetchAll = async (status) => {
       const collected = [];
       let page = 1;
       let total = Infinity;
       const pageSize = 100;
       while ((page - 1) * pageSize < total && page <= 10) { // hard cap 1000 records
-        const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, subId1: req.user.id, page, pageSize, noRetry: true });
+        // Allow internal fallback (noRetry: false) so if date filters are rejected we still get data
+        const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, actionType: 'SALE', subId1: req.user.id, page, pageSize, noRetry: false });
         const arr = Array.isArray(r.actions) ? r.actions : [];
         collected.push(...arr);
         total = r.totalResults || total;
@@ -517,13 +518,30 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     // Pending card should reflect only PENDING (exclude LOCKED)
     const actions = await fetchAll('PENDING');
 
-    // Sum only payout/commission fields (never sale Amount/IntendedAmount)
-    const gross = actions.reduce((sum, a) => {
-      const val = a.Payout ?? a.Commission;
-      const amt = parseFloat(val || 0);
-      return sum + (isNaN(amt) ? 0 : amt);
-    }, 0);
+    // Robustly extract any commission-like numeric field from Action payloads
+    const COMMISSION_KEYS = [
+      'Payout', 'Commission', 'MediaPartnerAmount', 'PartnerCommission', 'PartnerAmount',
+      'PublisherAmount', 'PublisherCommission', 'PendingPayout', 'PendingCommission',
+      'IntendedPayout', 'IntendedCommission'
+    ];
+    const readNumber = (v) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const getCommissionValue = (a) => {
+      for (const key of COMMISSION_KEYS) {
+        if (a && a[key] !== undefined && a[key] !== null) {
+          const n = readNumber(a[key]);
+          if (n) return n;
+        }
+      }
+      return 0;
+    };
+
+    // Sum only commission-like fields (avoid gross sale Amount)
+    const gross = actions.reduce((sum, a) => sum + getCommissionValue(a), 0);
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
+    res.set('Cache-Control', 'no-store');
     res.json({ pendingNet: net, count: actions.length });
   } catch (error) {
     console.error('Pending earnings error:', error.message);
