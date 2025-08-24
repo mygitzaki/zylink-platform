@@ -345,6 +345,28 @@ class ImpactWebService {
         return { success: false, status: response.status, error: await response.text() };
       }
       const data = await response.json();
+
+      // Attempt a second call for item-level data (if available for this account)
+      try {
+        const itemsUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions/${encodeURIComponent(actionId)}/Items`;
+        const itemsResp = await fetch(itemsUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        if (itemsResp.ok) {
+          const itemsData = await itemsResp.json();
+          // Common shapes: { Items: [...] } or an array
+          const items = Array.isArray(itemsData) ? itemsData : (itemsData.Items || itemsData.results || []);
+          if (Array.isArray(items) && items.length > 0) {
+            data.Items = items;
+          }
+        }
+      } catch { /* non-fatal */ }
+
       return { success: true, action: data };
     } catch (error) {
       return { success: false, error: error.message };
