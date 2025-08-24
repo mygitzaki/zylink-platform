@@ -715,7 +715,7 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
 router.get('/payouts', requireAuth, async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.json({ payouts: [] });
-  const payouts = await prisma.payoutRequest.findMany({ where: { creatorId: req.user.id }, orderBy: { createdAt: 'desc' } });
+  const payouts = await prisma.payoutRequest.findMany({ where: { creatorId: req.user.id }, orderBy: { requestedAt: 'desc' } });
   res.json({ payouts });
 });
 
