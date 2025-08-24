@@ -11,6 +11,9 @@ export default function AdminOverview(){
   const [impactClicks, setImpactClicks] = useState(null)
   const [loadingImpact, setLoadingImpact] = useState(false)
   const [impactError, setImpactError] = useState('')
+  const [impactActions, setImpactActions] = useState(null)
+  const [loadingActions, setLoadingActions] = useState(false)
+  const [actionsError, setActionsError] = useState('')
 
   useEffect(()=>{
     apiFetch('/api/admin/stats', { token })
@@ -86,6 +89,59 @@ export default function AdminOverview(){
       setImpactClicks(null)
     } finally {
       setLoadingImpact(false)
+    }
+  }
+
+  // NEW: Function to fetch Impact.com Actions (detailed conversions)
+  const fetchImpactActions = async () => {
+    setLoadingActions(true)
+    setActionsError('')
+    try {
+      const data = await apiFetch('/api/admin/impact-actions?Page=1&PageSize=100', { token })
+      if (!data.success) throw new Error(data.message || 'Failed to fetch actions')
+      const payload = data.data || {}
+      const actions = Array.isArray(payload.actions) ? payload.actions : []
+
+      // Build lightweight breakdowns
+      const byStatus = {}
+      const byCampaign = {}
+      const byCreator = {}
+      const byActionType = {}
+      actions.forEach(a => {
+        const st = a.State || a.status || 'UNKNOWN'
+        const camp = a.CampaignId || a.campaignId || 'N/A'
+        const sub1 = a.SubId1 || a.subId1 || 'UNKNOWN'
+        const type = a.ActionType || a.actionType || (a.ActionTrackerName || 'SALE')
+        byStatus[st] = (byStatus[st] || 0) + 1
+        byCampaign[camp] = (byCampaign[camp] || 0) + 1
+        byCreator[sub1] = (byCreator[sub1] || 0) + 1
+        byActionType[type] = (byActionType[type] || 0) + 1
+      })
+
+      // Resolve SubId1 → creator label (best effort)
+      let byCreatorResolved = null
+      try {
+        const creatorsResp = await apiFetch('/api/admin/creators', { token })
+        const creators = creatorsResp?.creators || []
+        const idToCreator = {}
+        creators.forEach(c => { idToCreator[c.id] = c })
+        byCreatorResolved = Object.entries(byCreator).map(([subId, count]) => ({
+          subId,
+          label: idToCreator[subId] ? `${idToCreator[subId].name || 'Creator'} (${idToCreator[subId].email})` : (subId || 'UNKNOWN'),
+          count
+        })).sort((a,b)=>b.count-a.count)
+      } catch {}
+
+      setImpactActions({
+        totalResults: payload.totalResults || actions.length,
+        actionsCount: actions.length,
+        summary: { byStatus, byCampaign, byCreator, byCreatorResolved, byActionType }
+      })
+    } catch (error) {
+      setActionsError(error.message)
+      setImpactActions(null)
+    } finally {
+      setLoadingActions(false)
     }
   }
 
@@ -297,6 +353,94 @@ export default function AdminOverview(){
             <div className="impact-error">
               <p>❌ {impactError}</p>
               <small>Using local analytics data as fallback</small>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* NEW: Impact.com Actions (Conversions) Section */}
+      <div className="section-header">
+        <h2 className="section-title">Impact.com Actions</h2>
+        <p className="section-subtitle">Conversions with status and SubId1 attribution</p>
+      </div>
+      <div className="impact-clicks-section">
+        <div className="impact-clicks-card">
+          <div className="impact-clicks-header">
+            <div className="impact-clicks-icon">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h4l3 10 4-18 3 8h4" />
+              </svg>
+            </div>
+            <div className="impact-clicks-info">
+              <h3>Network Actions</h3>
+              <p>Approved/Pending/Reversed by campaign and SubId1</p>
+            </div>
+            <button
+              onClick={() => fetchImpactActions()}
+              className="refresh-impact-btn"
+              disabled={loadingActions}
+            >
+              {loadingActions ? 'Loading...' : '🔄 Refresh Actions'}
+            </button>
+          </div>
+
+          {impactActions && (
+            <div className="impact-clicks-data">
+              <div className="impact-stats-grid">
+                <div className="impact-stat">
+                  <span className="impact-stat-label">Total Results</span>
+                  <span className="impact-stat-value">{impactActions.totalResults || 0}</span>
+                </div>
+                <div className="impact-stat">
+                  <span className="impact-stat-label">Fetched</span>
+                  <span className="impact-stat-value">{impactActions.actionsCount || 0}</span>
+                </div>
+              </div>
+
+              <div className="impact-breakdown">
+                <h4>Action Breakdown</h4>
+                <div className="breakdown-grid">
+                  <div className="breakdown-section">
+                    <h5>By Status</h5>
+                    <div className="breakdown-list">
+                      {Object.entries(impactActions.summary.byStatus || {}).map(([status, count]) => (
+                        <div key={status} className="breakdown-item"><span>{status}</span><span>{count}</span></div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="breakdown-section">
+                    <h5>By Campaign</h5>
+                    <div className="breakdown-list">
+                      {Object.entries(impactActions.summary.byCampaign || {}).map(([campaign, count]) => (
+                        <div key={campaign} className="breakdown-item"><span>Campaign {campaign}</span><span>{count}</span></div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="breakdown-section">
+                    <h5>By Creator (SubId1)</h5>
+                    <div className="breakdown-list">
+                      {(impactActions.summary.byCreatorResolved || []).map(row => (
+                        <div key={row.subId} className="breakdown-item"><span>{row.label}</span><span>{row.count}</span></div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="breakdown-section">
+                    <h5>By Action Type</h5>
+                    <div className="breakdown-list">
+                      {Object.entries(impactActions.summary.byActionType || {}).map(([type, count]) => (
+                        <div key={type} className="breakdown-item"><span>{type}</span><span>{count}</span></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {actionsError && (
+            <div className="impact-error">
+              <p>❌ {actionsError}</p>
+              <small>Try again or adjust date filters later.</small>
             </div>
           )}
         </div>
