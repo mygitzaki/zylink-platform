@@ -664,6 +664,22 @@ router.get('/impact-actions', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// NEW: Admin endpoint to fetch a single action detail (item-level if provided)
+router.get('/impact-actions/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    const result = await impact.getActionDetail(req.params.id);
+    if (!result.success) {
+      return res.status(502).json({ success: false, message: 'Impact Action detail unavailable', data: result });
+    }
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Error fetching Impact.com action detail:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch Impact.com action detail', error: error.message });
+  }
+});
+
 module.exports = router;
 
 

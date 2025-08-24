@@ -328,6 +328,29 @@ class ImpactWebService {
     }
   }
 
+  // Fetch a single Action detail (attempt to include item-level data if available)
+  async getActionDetail(actionId) {
+    try {
+      if (!actionId) return { success: false, error: 'actionId required' };
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions/${encodeURIComponent(actionId)}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        return { success: false, status: response.status, error: await response.text() };
+      }
+      const data = await response.json();
+      return { success: true, action: data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
   // Validate URL format - SAFE PRODUCTION METHOD
   isValidUrl(urlString) {
     try {
