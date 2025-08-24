@@ -290,11 +290,37 @@ class ImpactWebService {
         campaignId
       } = options;
 
+      // Normalize dates to Impact-friendly format (MM/DD/YYYY)
+      const toImpactDate = (val) => {
+        if (!val) return undefined;
+        try {
+          // If already MM/DD/YYYY, keep as-is
+          if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
+          // If ISO-like, convert to UTC date components
+          const iso = typeof val === 'string' ? val : String(val);
+          const datePart = iso.includes('T') ? iso.split('T')[0] : iso;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+            const [y, m, d] = datePart.split('-');
+            return `${m}/${d}/${y}`;
+          }
+          const d = new Date(iso);
+          if (!isNaN(d)) {
+            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            const yy = d.getUTCFullYear();
+            return `${mm}/${dd}/${yy}`;
+          }
+        } catch {}
+        return undefined;
+      };
+
       const qp = new URLSearchParams();
       qp.set('Page', String(page));
       qp.set('PageSize', String(pageSize));
-      if (startDate) qp.set('StartDate', startDate);
-      if (endDate) qp.set('EndDate', endDate);
+      const sd = toImpactDate(startDate);
+      const ed = toImpactDate(endDate);
+      if (sd) qp.set('StartDate', sd);
+      if (ed) qp.set('EndDate', ed);
       if (status) qp.set('ActionStatus', status);
       if (actionType) qp.set('ActionType', actionType);
       if (subId1) qp.set('SubId1', subId1);
