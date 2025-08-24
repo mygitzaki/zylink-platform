@@ -15,6 +15,9 @@ export default function AdminOverview(){
   const [actionsList, setActionsList] = useState([])
   const [loadingActions, setLoadingActions] = useState(false)
   const [actionsError, setActionsError] = useState('')
+  const [actionsPage, setActionsPage] = useState(1)
+  const [actionsPageSize] = useState(100)
+  const [actionsTotal, setActionsTotal] = useState(0)
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
@@ -112,13 +115,14 @@ export default function AdminOverview(){
     } catch { return undefined }
   }
 
-  const fetchImpactActions = async () => {
+  const fetchImpactActions = async (opts = { reset: false }) => {
     setLoadingActions(true)
     setActionsError('')
     try {
       const startIso = toIsoZ(actionsStartDate, false)
       const endIso = toIsoZ(actionsEndDate, true)
-      const qs = new URLSearchParams({ Page: '1', PageSize: '100' })
+      const page = opts.reset ? 1 : actionsPage
+      const qs = new URLSearchParams({ Page: String(page), PageSize: String(actionsPageSize) })
       if (startIso) qs.set('startDate', startIso)
       if (endIso) qs.set('endDate', endIso)
       const data = await apiFetch(`/api/admin/impact-actions?${qs.toString()}`, { token })
@@ -161,7 +165,13 @@ export default function AdminOverview(){
         actionsCount: actions.length,
         summary: { byStatus, byCampaign, byCreator, byCreatorResolved, byActionType }
       })
-      setActionsList(actions)
+      setActionsTotal(payload.totalResults || actions.length)
+      if (opts.reset) {
+        setActionsList(actions)
+        setActionsPage(1)
+      } else {
+        setActionsList(prev => [...prev, ...actions])
+      }
     } catch (error) {
       setActionsError(error.message)
       setImpactActions(null)
@@ -445,7 +455,7 @@ export default function AdminOverview(){
                 <input type="date" value={actionsEndDate} onChange={e=>setActionsEndDate(e.target.value)} />
               </div>
               <button
-                onClick={() => fetchImpactActions()}
+                onClick={() => fetchImpactActions({ reset: true })}
                 className="refresh-impact-btn"
                 disabled={loadingActions}
               >
@@ -530,7 +540,7 @@ export default function AdminOverview(){
                     </tr>
                   </thead>
                   <tbody>
-                    {actionsList.slice(0, 20).map((a) => (
+                    {actionsList.map((a) => (
                       <tr key={(a.Id||a.id)}>
                         <td>{a.Id || a.id}</td>
                         <td>{a.State || a.status}</td>
@@ -545,6 +555,18 @@ export default function AdminOverview(){
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'0.5rem' }}>
+                <small>Showing {actionsList.length} of {actionsTotal} results</small>
+                {(actionsList.length < actionsTotal) && (
+                  <button
+                    className="refresh-impact-btn"
+                    disabled={loadingActions}
+                    onClick={() => { setActionsPage(p => p + 1); fetchImpactActions({ reset: false }) }}
+                  >
+                    {loadingActions ? 'Loading...' : 'Load more'}
+                  </button>
+                )}
               </div>
             </div>
           )}
