@@ -199,18 +199,30 @@ async function handleShortRedirect(req, res) {
       where: { shortCode }, 
       data: { clicks: { increment: 1 } } 
     });
-    // Best-effort click log
+    // Best-effort click log (skip if table is missing to avoid noisy Prisma errors)
     try {
-      await prisma.clickLog.create({
-        data: {
-          shortLinkId: short.id,
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'] || '',
-          referrer: req.headers.referer || ''
-        }
-      });
+      let hasClickLogTable = false;
+      try {
+        const res = await prisma.$queryRaw`SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ClickLog' LIMIT 1`;
+        hasClickLogTable = Array.isArray(res) && res.length > 0;
+      } catch {
+        hasClickLogTable = false;
+      }
+
+      if (hasClickLogTable) {
+        await prisma.clickLog.create({
+          data: {
+            shortLinkId: short.id,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'] || '',
+            referrer: req.headers.referer || ''
+          }
+        });
+      } else {
+        console.log('⚠️ ClickLog table not found; skipping click logging');
+      }
     } catch (e) {
-      console.warn('⚠️ ClickLog create failed:', e?.message);
+      console.warn('⚠️ ClickLog logging skipped due to error:', e?.message);
     }
     
     return res.redirect(redirectUrl);
