@@ -647,6 +647,23 @@ router.get('/impact-clicks', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// NEW: Admin endpoint to fetch detailed Actions with filters
+router.get('/impact-actions', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    const { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId } = req.query || {};
+    const result = await impact.getActionsDetailed({ startDate, endDate, status, actionType, page: page ? parseInt(page) : undefined, pageSize: pageSize ? parseInt(pageSize) : undefined, subId1, campaignId });
+    if (!result.success) {
+      return res.status(502).json({ success: false, message: 'Impact Actions unavailable', data: result });
+    }
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Error fetching Impact.com actions:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch Impact.com actions', error: error.message });
+  }
+});
+
 module.exports = router;
 
 

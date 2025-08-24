@@ -276,6 +276,58 @@ class ImpactWebService {
     return this.getPlatformAnalytics(startDate, endDate);
   }
 
+  // Fetch Actions with rich filtering and paging
+  async getActionsDetailed(options = {}) {
+    try {
+      const {
+        startDate,
+        endDate,
+        status, // APPROVED | PENDING | REVERSED | LOCKED | CONFIRMED
+        actionType, // SALE | LEAD | other
+        page = 1,
+        pageSize = 100,
+        subId1,
+        campaignId
+      } = options;
+
+      const qp = new URLSearchParams();
+      qp.set('Page', String(page));
+      qp.set('PageSize', String(pageSize));
+      if (startDate) qp.set('StartDate', startDate);
+      if (endDate) qp.set('EndDate', endDate);
+      if (status) qp.set('ActionStatus', status);
+      if (actionType) qp.set('ActionType', actionType);
+      if (subId1) qp.set('SubId1', subId1);
+      if (campaignId) qp.set('CampaignId', String(campaignId));
+
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions?${qp.toString()}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        return { success: false, status: response.status, error: await response.text(), actions: [], totalResults: 0 };
+      }
+      const data = await response.json();
+      return {
+        success: true,
+        totalResults: data.TotalResults || data.TotalRecords || 0,
+        page,
+        pageSize,
+        actions: data.Actions || data.Results || [],
+        raw: data
+      };
+    } catch (error) {
+      return { success: false, error: error.message, actions: [], totalResults: 0 };
+    }
+  }
+
   // Validate URL format - SAFE PRODUCTION METHOD
   isValidUrl(urlString) {
     try {
