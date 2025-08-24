@@ -20,6 +20,11 @@ export default function AdminOverview(){
   const [detailError, setDetailError] = useState('')
   const [selectedAction, setSelectedAction] = useState(null)
   const [actionDetail, setActionDetail] = useState(null)
+  // Date filters for actions
+  const [actionsStartDate, setActionsStartDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0,10)
+  })
+  const [actionsEndDate, setActionsEndDate] = useState(() => new Date().toISOString().slice(0,10))
 
   useEffect(()=>{
     apiFetch('/api/admin/stats', { token })
@@ -99,11 +104,24 @@ export default function AdminOverview(){
   }
 
   // NEW: Function to fetch Impact.com Actions (detailed conversions)
+  const toIsoZ = (dateStr, endOfDay = false) => {
+    try {
+      if (!dateStr) return undefined
+      const d = new Date(dateStr + (endOfDay ? 'T23:59:59' : 'T00:00:00'))
+      return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    } catch { return undefined }
+  }
+
   const fetchImpactActions = async () => {
     setLoadingActions(true)
     setActionsError('')
     try {
-      const data = await apiFetch('/api/admin/impact-actions?Page=1&PageSize=100', { token })
+      const startIso = toIsoZ(actionsStartDate, false)
+      const endIso = toIsoZ(actionsEndDate, true)
+      const qs = new URLSearchParams({ Page: '1', PageSize: '100' })
+      if (startIso) qs.set('startDate', startIso)
+      if (endIso) qs.set('endDate', endIso)
+      const data = await apiFetch(`/api/admin/impact-actions?${qs.toString()}`, { token })
       if (!data.success) throw new Error(data.message || 'Failed to fetch actions')
       const payload = data.data || {}
       const actions = Array.isArray(payload.actions) ? payload.actions : []
@@ -417,13 +435,23 @@ export default function AdminOverview(){
               <h3>Network Actions</h3>
               <p>Approved/Pending/Reversed by campaign and SubId1</p>
             </div>
-            <button
-              onClick={() => fetchImpactActions()}
-              className="refresh-impact-btn"
-              disabled={loadingActions}
-            >
-              {loadingActions ? 'Loading...' : '🔄 Refresh Actions'}
-            </button>
+            <div style={{ display:'flex', gap:'0.5rem', alignItems:'center', flexWrap:'wrap' }}>
+              <div>
+                <label style={{ fontSize:12, color:'#6b7280' }}>Start</label><br/>
+                <input type="date" value={actionsStartDate} onChange={e=>setActionsStartDate(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, color:'#6b7280' }}>End</label><br/>
+                <input type="date" value={actionsEndDate} onChange={e=>setActionsEndDate(e.target.value)} />
+              </div>
+              <button
+                onClick={() => fetchImpactActions()}
+                className="refresh-impact-btn"
+                disabled={loadingActions}
+              >
+                {loadingActions ? 'Loading...' : '🔄 Apply'}
+              </button>
+            </div>
           </div>
 
           {impactActions && (
