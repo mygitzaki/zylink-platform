@@ -497,7 +497,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const impact = new ImpactWebService();
     const now = new Date();
     const start = new Date(now); start.setDate(start.getDate() - 60);
-    // Fetch PENDING (and optionally LOCKED) in pages (cap to avoid heavy calls)
+    // Fetch actions page by page with safe fallback (cap to avoid heavy calls)
     const fetchAll = async (status) => {
       const collected = [];
       let page = 1;
@@ -515,29 +515,12 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       return collected;
     };
 
-    // Pending card should reflect funds not yet paid: include PENDING + LOCKED
-    const [pendingActions, lockedActions] = await Promise.all([
-      fetchAll('PENDING'),
-      fetchAll('LOCKED')
-    ]);
-    const actions = [...pendingActions, ...lockedActions];
+    // Pending card should reflect only PENDING (awaiting advertiser approval)
+    const actions = await fetchAll('PENDING');
 
     // Robustly extract any commission-like numeric field from Action payloads
     // Prefer canonical fields first to avoid accidentally summing sale Amount
-    const COMMISSION_KEYS = [
-      'Payout',
-      'Commission',
-      'PendingPayout',
-      'IntendedPayout',
-      // Fallbacks used by some programs/accounts
-      'PendingCommission',
-      'IntendedCommission',
-      'MediaPartnerAmount',
-      'PartnerCommission',
-      'PartnerAmount',
-      'PublisherAmount',
-      'PublisherCommission'
-    ];
+    const PREFERRED_KEYS = ['Payout', 'Commission'];
     const readNumber = (v) => {
       if (v === null || v === undefined) return 0;
       // Some APIs return currency strings like "US$59.95" → strip non-numeric (keep . and -)
@@ -546,7 +529,8 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       return Number.isFinite(n) ? n : 0;
     };
     const getCommissionValue = (a) => {
-      for (const key of COMMISSION_KEYS) {
+      // Prefer Payout → Commission only
+      for (const key of PREFERRED_KEYS) {
         if (a && a[key] !== undefined && a[key] !== null) {
           const n = readNumber(a[key]);
           if (n) return n;
@@ -555,8 +539,18 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       return 0;
     };
 
-    // Sum only commission-like fields (avoid gross sale Amount)
-    const gross = actions.reduce((sum, a) => sum + getCommissionValue(a), 0);
+    // Dedupe by unique action id
+    const seen = new Set();
+    const unique = [];
+    for (const a of actions) {
+      const id = a.Id || a.ActionId || a.TransactionId || `${a.CampaignId || ''}:${a.EventDate || ''}:${a.Payout || a.Commission || ''}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      unique.push(a);
+    }
+
+    // Sum only payout/commission fields (avoid sale Amount)
+    const gross = unique.reduce((sum, a) => sum + getCommissionValue(a), 0);
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
     res.set('Cache-Control', 'no-store');
     res.json({ pendingNet: net, count: actions.length });
