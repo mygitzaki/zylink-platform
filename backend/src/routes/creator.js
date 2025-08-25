@@ -496,18 +496,21 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
     const now = new Date();
-    const windowDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
-    const start = new Date(now); start.setDate(start.getDate() - windowDays);
-    // Reports expect YYYY-MM-DD (per MetaData)
     const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const qsStart = isYmd(req.query.startDate) ? req.query.startDate : null;
+    const qsEnd = isYmd(req.query.endDate) ? req.query.endDate : null;
+    const windowDays = qsStart && qsEnd ? null : Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    const startDateYmd = qsStart || fmt(new Date(now.getTime() - ((windowDays || 30) * 24 * 60 * 60 * 1000)));
+    const endDateYmd = qsEnd || fmt(now);
 
     let source = 'reports';
     let gross = 0;
     try {
       const report = await impact.getPendingFromActionListingReport({
         subId1: req.user.id,
-        startDate: fmt(start),
-        endDate: fmt(now)
+        startDate: startDateYmd,
+        endDate: endDateYmd
       });
       if (report.success) gross = report.gross || 0;
     } catch {}
@@ -522,7 +525,10 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
         let total = Infinity;
         const pageSize = 100;
         while ((page - 1) * pageSize < total && page <= 10) {
-          const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, actionType: 'SALE', subId1: req.user.id, page, pageSize, noRetry: false });
+          // Build ISO-Z range from start/end YMD
+          const startIso = `${startDateYmd}T00:00:00Z`;
+          const endIso = `${endDateYmd}T23:59:59Z`;
+          const r = await impact.getActionsDetailed({ startDate: startIso, endDate: endIso, status, actionType: 'SALE', subId1: req.user.id, page, pageSize, noRetry: false });
           const arr = Array.isArray(r.actions) ? r.actions : [];
           collected.push(...arr);
           total = r.totalResults || total;
@@ -534,9 +540,11 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
 
       let actions = await fetchAll('PENDING');
       const getActionDate = (a) => new Date(a.EventDate || a.CreatedDate || a.CreationDate || a.LockingDate || a.EventTime || now);
+      const startBound = new Date(`${startDateYmd}T00:00:00Z`);
+      const endBound = new Date(`${endDateYmd}T23:59:59Z`);
       actions = actions.filter(a => {
         const d = getActionDate(a);
-        return d >= start && d <= now;
+        return d >= startBound && d <= endBound;
       });
       const readNumber = (v) => {
         if (v === null || v === undefined) return 0;
@@ -563,7 +571,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
 
     // Debug header for admins
-    res.set('X-Pending-Debug', JSON.stringify({ source, days: windowDays, gross }));
+    res.set('X-Pending-Debug', JSON.stringify({ source, days: windowDays, startDate: startDateYmd, endDate: endDateYmd, gross }));
     res.set('Cache-Control', 'no-store');
     res.json({ pendingNet: net, count: undefined });
   } catch (error) {
