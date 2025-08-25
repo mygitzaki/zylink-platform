@@ -500,19 +500,71 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const start = new Date(now); start.setDate(start.getDate() - windowDays);
     const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
 
-    const report = await impact.getPendingFromActionListingReport({
-      subId1: req.user.id,
-      startDate: fmt(start),
-      endDate: fmt(now)
-    });
+    let source = 'reports';
+    let gross = 0;
+    try {
+      const report = await impact.getPendingFromActionListingReport({
+        subId1: req.user.id,
+        startDate: fmt(start),
+        endDate: fmt(now)
+      });
+      if (report.success) gross = report.gross || 0;
+    } catch {}
 
-    const gross = report.success ? report.gross : 0;
+    // Fallback to Actions API if Reports returned 0 (some accounts restrict reports)
+    if (!gross) {
+      source = 'actions_fallback';
+      // Fetch actions page by page with safe fallback (cap to avoid heavy calls)
+      const fetchAll = async (status) => {
+        const collected = [];
+        let page = 1;
+        let total = Infinity;
+        const pageSize = 100;
+        while ((page - 1) * pageSize < total && page <= 10) {
+          const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, actionType: 'SALE', subId1: req.user.id, page, pageSize, noRetry: false });
+          const arr = Array.isArray(r.actions) ? r.actions : [];
+          collected.push(...arr);
+          total = r.totalResults || total;
+          if (arr.length < pageSize) break;
+          page += 1;
+        }
+        return collected;
+      };
+
+      let actions = await fetchAll('PENDING');
+      const getActionDate = (a) => new Date(a.EventDate || a.CreatedDate || a.CreationDate || a.LockingDate || a.EventTime || now);
+      actions = actions.filter(a => {
+        const d = getActionDate(a);
+        return d >= start && d <= now;
+      });
+      const readNumber = (v) => {
+        if (v === null || v === undefined) return 0;
+        const s = String(v).replace(/[^0-9.-]/g, '');
+        const n = parseFloat(s);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const getCommissionValue = (a) => {
+        const payout = readNumber(a.Payout);
+        if (payout) return payout;
+        return readNumber(a.Commission);
+      };
+      const seen = new Set();
+      const unique = [];
+      for (const a of actions) {
+        const id = a.Id || a.ActionId || a.TransactionId || `${a.CampaignId || ''}:${a.EventDate || ''}:${a.Payout || a.Commission || ''}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        unique.push(a);
+      }
+      gross = unique.reduce((sum, a) => sum + getCommissionValue(a), 0);
+    }
+
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
 
     // Debug header for admins
-    res.set('X-Pending-Debug', JSON.stringify({ source: 'reports', days: windowDays, gross }));
+    res.set('X-Pending-Debug', JSON.stringify({ source, days: windowDays, gross }));
     res.set('Cache-Control', 'no-store');
-    res.json({ pendingNet: net, count: report.success ? report.count : 0 });
+    res.json({ pendingNet: net, count: undefined });
   } catch (error) {
     console.error('Pending earnings error:', error.message);
     res.json({ pendingNet: 0, count: 0 });
