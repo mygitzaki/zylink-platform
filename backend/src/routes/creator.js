@@ -492,77 +492,27 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const creator = await prisma.creator.findUnique({ where: { id: req.user.id }, select: { commissionRate: true } });
     const rate = creator?.commissionRate ?? 70;
 
-    // Pull recent actions from network filtered to this creator's SubId1 if applicable
+    // Use Impact Reports API (Action Listing) for authoritative pending payout sum
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
     const now = new Date();
     const windowDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     const start = new Date(now); start.setDate(start.getDate() - windowDays);
-    // Fetch actions page by page with safe fallback (cap to avoid heavy calls)
-    const fetchAll = async (status) => {
-      const collected = [];
-      let page = 1;
-      let total = Infinity;
-      const pageSize = 100;
-      while ((page - 1) * pageSize < total && page <= 10) { // hard cap 1000 records
-        // Allow internal fallback (noRetry: false) so if date filters are rejected we still get data
-        const r = await impact.getActionsDetailed({ startDate: start.toISOString(), endDate: now.toISOString(), status, actionType: 'SALE', subId1: req.user.id, page, pageSize, noRetry: false });
-        const arr = Array.isArray(r.actions) ? r.actions : [];
-        collected.push(...arr);
-        total = r.totalResults || total;
-        if (arr.length < pageSize) break; // last page
-        page += 1;
-      }
-      return collected;
-    };
+    const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
 
-    // Pending card should reflect only PENDING (awaiting advertiser approval)
-    let actions = await fetchAll('PENDING');
-    // Post-filter by date in case the upstream ignored our date filters
-    const getActionDate = (a) => new Date(a.EventDate || a.CreatedDate || a.CreationDate || a.LockingDate || a.EventTime || now);
-    actions = actions.filter(a => {
-      const d = getActionDate(a);
-      return d >= start && d <= now;
+    const report = await impact.getPendingFromActionListingReport({
+      subId1: req.user.id,
+      startDate: fmt(start),
+      endDate: fmt(now)
     });
 
-    // Robustly extract any commission-like numeric field from Action payloads
-    // Prefer canonical fields first to avoid accidentally summing sale Amount
-    const PREFERRED_KEYS = ['Payout', 'Commission'];
-    const readNumber = (v) => {
-      if (v === null || v === undefined) return 0;
-      // Some APIs return currency strings like "US$59.95" → strip non-numeric (keep . and -)
-      const s = String(v).replace(/[^0-9.-]/g, '');
-      const n = parseFloat(s);
-      return Number.isFinite(n) ? n : 0;
-    };
-    const getCommissionValue = (a) => {
-      // Prefer Payout → Commission only
-      for (const key of PREFERRED_KEYS) {
-        if (a && a[key] !== undefined && a[key] !== null) {
-          const n = readNumber(a[key]);
-          if (n) return n;
-        }
-      }
-      return 0;
-    };
-
-    // Dedupe by unique action id
-    const seen = new Set();
-    const unique = [];
-    for (const a of actions) {
-      const id = a.Id || a.ActionId || a.TransactionId || `${a.CampaignId || ''}:${a.EventDate || ''}:${a.Payout || a.Commission || ''}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      unique.push(a);
-    }
-
-    // Sum only payout/commission fields (avoid sale Amount)
-    const gross = unique.reduce((sum, a) => sum + getCommissionValue(a), 0);
+    const gross = report.success ? report.gross : 0;
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
-    // Expose debug context for admins via headers (harmless for creators)
-    res.set('X-Pending-Debug', JSON.stringify({ count: unique.length, days: windowDays }));
+
+    // Debug header for admins
+    res.set('X-Pending-Debug', JSON.stringify({ source: 'reports', days: windowDays, gross }));
     res.set('Cache-Control', 'no-store');
-    res.json({ pendingNet: net, count: actions.length });
+    res.json({ pendingNet: net, count: report.success ? report.count : 0 });
   } catch (error) {
     console.error('Pending earnings error:', error.message);
     res.json({ pendingNet: 0, count: 0 });

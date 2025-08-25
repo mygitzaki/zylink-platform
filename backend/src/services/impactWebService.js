@@ -373,6 +373,122 @@ class ImpactWebService {
     }
   }
 
+  // --- Reports API helpers (Action Listing) ---
+  async listReports() {
+    try {
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          'Accept': 'application/json'
+        }
+      });
+      if (!res.ok) return { success: false, status: res.status, error: await res.text() };
+      const data = await res.json();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async resolveActionListingReportId() {
+    // Try to find a report whose Name includes "Action Listing" first; fallback to known handles
+    try {
+      const list = await this.listReports();
+      if (list.success && Array.isArray(list.data?.Reports)) {
+        const match = list.data.Reports.find(r => (r.Name || '').toLowerCase().includes('action listing') && r.ApiAccessible);
+        if (match) return match.Id || (match.ApiRunUri || '').split('/').pop();
+      }
+    } catch {}
+    // Fallback handles often present on publisher accounts
+    return 'mp_action_listing_sku_fast';
+  }
+
+  async exportReportAndDownloadJson(idOrHandle, query) {
+    // Schedule export
+    const qp = new URLSearchParams(query || {});
+    // Strongly request JSON
+    qp.set('ResultFormat', 'JSON');
+    const scheduleUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/${encodeURIComponent(idOrHandle)}?${qp.toString()}`;
+    const headers = {
+      'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+      'Accept': 'application/json'
+    };
+
+    const resp = await fetch(scheduleUrl, { method: 'GET', headers });
+    if (!resp.ok) {
+      return { success: false, status: resp.status, error: await resp.text() };
+    }
+    const job = await resp.json();
+    const jobStatusUrl = `${this.apiBaseUrl}${job.QueuedUri}`;
+    const resultUrl = `${this.apiBaseUrl}${job.ResultUri}`;
+
+    // Poll job status
+    const started = Date.now();
+    const timeoutMs = 30000; // 30s safety
+    // Basic exponential backoff
+    let delay = 500;
+    while (Date.now() - started < timeoutMs) {
+      try {
+        const s = await fetch(jobStatusUrl, { method: 'GET', headers });
+        if (s.ok) {
+          const st = await s.json();
+          const status = (st.Status || '').toUpperCase();
+          if (status === 'COMPLETED' || status === 'FINISHED' || status === 'DONE') break;
+          if (status === 'FAILED') return { success: false, error: 'Report job failed' };
+        }
+      } catch {}
+      await new Promise(r => setTimeout(r, delay));
+      delay = Math.min(2000, delay * 1.5);
+    }
+
+    // Download JSON
+    const dl = await fetch(resultUrl, { method: 'GET', headers });
+    if (!dl.ok) return { success: false, status: dl.status, error: await dl.text() };
+    // Some accounts return application/json, others return text JSON; parse robustly
+    const text = await dl.text();
+    try {
+      const json = JSON.parse(text);
+      return { success: true, json };
+    } catch {
+      // Attempt to wrap CSV-to-JSON quickly (not expected since ResultFormat=JSON)
+      return { success: false, error: 'Non-JSON result from ReportExport' };
+    }
+  }
+
+  async getPendingFromActionListingReport(options = {}) {
+    try {
+      const { subId1, startDate, endDate } = options;
+      const id = await this.resolveActionListingReportId();
+      const query = {
+        StartDate: typeof startDate === 'string' ? startDate : undefined,
+        EndDate: typeof endDate === 'string' ? endDate : undefined,
+        ActionStatus: 'PENDING',
+        SubId1: subId1
+      };
+      const result = await this.exportReportAndDownloadJson(id, query);
+      if (!result.success) return { success: false, error: result.error };
+
+      // Records may be under Records or nested in an array; normalize
+      const records = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
+      const seen = new Set();
+      let gross = 0;
+      for (const r of records) {
+        // Dedup by Action_Id when present
+        const key = r.Action_Id || r.ActionId || r.Id || JSON.stringify([r.Campaign, r.Action_Date, r.Payout]);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const payoutStr = r.Payout !== undefined ? String(r.Payout) : String(r.Commission || '0');
+        const val = parseFloat(String(payoutStr).replace(/[^0-9.-]/g, '')) || 0;
+        gross += val;
+      }
+      return { success: true, gross, count: seen.size };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
   // Fetch a single Action detail (attempt to include item-level data if available)
   async getActionDetail(actionId) {
     try {
