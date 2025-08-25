@@ -21,11 +21,16 @@ export default function Earnings() {
   const [lifetimeNet, setLifetimeNet] = useState(0)
   const [paidOut, setPaidOut] = useState(0)
   const [available, setAvailable] = useState(0)
+  const [customStart, setCustomStart] = useState('') // YYYY-MM-DD
+  const [customEnd, setCustomEnd] = useState('')     // YYYY-MM-DD
 
   useEffect(() => {
     loadEarnings()
-    loadPending()
   }, [timeRange])
+
+  useEffect(() => {
+    loadPending()
+  }, [timeRange, customStart, customEnd])
 
   const loadEarnings = async () => {
     try {
@@ -88,8 +93,14 @@ export default function Earnings() {
 
   const loadPending = async () => {
     try {
-      const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
-      const res = await apiFetch(`/api/creator/pending-earnings?days=${days}`, { token })
+      let path = '/api/creator/pending-earnings'
+      if (timeRange === 'custom' && customStart && customEnd) {
+        path += `?startDate=${customStart}&endDate=${customEnd}`
+      } else {
+        const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
+        path += `?days=${days}`
+      }
+      const res = await apiFetch(path, { token })
       setPendingNet(Number(res.pendingNet || 0))
     } catch {}
   }
@@ -151,7 +162,42 @@ export default function Earnings() {
             >
               90 Days
             </button>
+            <button
+              className={`time-btn ${timeRange === 'custom' ? 'active' : ''}`}
+              onClick={() => setTimeRange('custom')}
+            >
+              Custom
+            </button>
           </div>
+          {timeRange === 'custom' && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 12, color: '#6b7280' }}>
+                Start
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  style={{ marginLeft: '0.5rem' }}
+                />
+              </label>
+              <label style={{ fontSize: 12, color: '#6b7280' }}>
+                End
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  style={{ marginLeft: '0.5rem' }}
+                />
+              </label>
+              <button
+                onClick={() => customStart && customEnd && loadPending()}
+                className="time-btn"
+                style={{ padding: '0.35rem 0.75rem' }}
+              >
+                Apply
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
