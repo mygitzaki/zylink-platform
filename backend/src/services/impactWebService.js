@@ -465,23 +465,45 @@ class ImpactWebService {
         StartDate: typeof startDate === 'string' ? startDate : undefined,
         EndDate: typeof endDate === 'string' ? endDate : undefined,
         ActionStatus: 'PENDING',
-        SubId1: subId1
+        SubId1: subId1,
+        SUBAID: this.programId // program filter when required
       };
       const result = await this.exportReportAndDownloadJson(id, query);
       if (!result.success) return { success: false, error: result.error };
 
       // Records may be under Records or nested in an array; normalize
-      const records = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
+      const raw = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
+
+      // Identify the SubId field name present in records
+      const subIdKeys = ['SubId1','SubID1','Sub_Id1','TrackingValue','Tracking_Value','SubId'];
+      const payoutKeys = ['Payout','Commission'];
+      const norm = (v) => String(v || '').trim();
+
+      const findSubIdKey = (row) => subIdKeys.find(k => Object.prototype.hasOwnProperty.call(row, k));
+      const getSubIdVal = (row) => {
+        const k = findSubIdKey(row);
+        return k ? norm(row[k]) : '';
+      };
+      const getMoney = (row) => {
+        for (const k of payoutKeys) {
+          if (row[k] !== undefined && row[k] !== null) {
+            const val = parseFloat(String(row[k]).replace(/[^0-9.-]/g, ''));
+            if (Number.isFinite(val)) return val;
+          }
+        }
+        return 0;
+      };
+
+      // Filter to the requested SubId1 even if the report filter didn't apply
+      const filtered = raw.filter(r => !subId1 || norm(getSubIdVal(r)) === norm(subId1));
+
       const seen = new Set();
       let gross = 0;
-      for (const r of records) {
-        // Dedup by Action_Id when present
-        const key = r.Action_Id || r.ActionId || r.Id || JSON.stringify([r.Campaign, r.Action_Date, r.Payout]);
+      for (const r of filtered) {
+        const key = r.Action_Id || r.ActionId || r.Id || `${r.Campaign || ''}:${r.Action_Date || ''}:${r.Payout || r.Commission || ''}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        const payoutStr = r.Payout !== undefined ? String(r.Payout) : String(r.Commission || '0');
-        const val = parseFloat(String(payoutStr).replace(/[^0-9.-]/g, '')) || 0;
-        gross += val;
+        gross += getMoney(r);
       }
       return { success: true, gross, count: seen.size };
     } catch (error) {
