@@ -49,6 +49,8 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    // Expose debug headers for troubleshooting without affecting security
+    res.header('Access-Control-Expose-Headers', 'X-Pending-Debug');
     res.header('Vary', 'Origin');
     
     // Handle preflight requests
