@@ -468,8 +468,30 @@ class ImpactWebService {
         SubId1: subId1,
         SUBAID: this.programId // program filter when required
       };
-      const result = await this.exportReportAndDownloadJson(id, query);
-      if (!result.success) return { success: false, error: result.error };
+      let result = await this.exportReportAndDownloadJson(id, query);
+      if (!result.success) {
+        // Fallback: try synchronous Reports endpoint (deprecated but still available)
+        try {
+          const qp = new URLSearchParams(query);
+          // Also include alternative subid param variants to maximize server-side filtering
+          if (subId1) {
+            qp.set('SubId', subId1);
+          }
+          const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports/${encodeURIComponent(id)}?${qp.toString()}`;
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+              'Accept': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            result = { success: true, json };
+          }
+        } catch {}
+        if (!result?.success) return { success: false, error: result?.error || 'ReportExport failed and fallback returned no data' };
+      }
 
       // Records may be under Records or nested in an array; normalize
       const raw = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
