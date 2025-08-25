@@ -674,7 +674,56 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
   if (!prisma) return res.json({ clicks: 0, conversions: 0, revenue: 0, topLinks: [], recentActivity: [] });
   
   try {
-    // Get aggregate stats from Link table (conversions, revenue)
+    // Get time range from query params
+    const days = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    const now = new Date();
+    const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+    const startDateYmd = `${startDate.getUTCFullYear()}-${String(startDate.getUTCMonth()+1).padStart(2,'0')}-${String(startDate.getUTCDate()).padStart(2,'0')}`;
+    const endDateYmd = `${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,'0')}-${String(now.getUTCDate()).padStart(2,'0')}`;
+
+    let impactData = { clicks: 0, conversions: 0, revenue: 0 };
+    
+    // Try to get real data from Impact.com first
+    try {
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
+      
+      // Get click analytics from Impact.com
+      const clickAnalytics = await impact.getClickAnalytics(startDateYmd, endDateYmd);
+      if (clickAnalytics.success) {
+        impactData.clicks = clickAnalytics.totalClicks || 0;
+      }
+      
+      // Get pending earnings (which includes conversions and revenue)
+      const pendingReport = await impact.getPendingFromActionListingReport({
+        subId1: req.user.id,
+        startDate: startDateYmd,
+        endDate: endDateYmd
+      });
+      
+      if (pendingReport.success) {
+        impactData.revenue = pendingReport.gross || 0;
+        impactData.conversions = pendingReport.count || 0;
+      }
+      
+      // Get approved earnings for total revenue
+      const approvedReport = await impact.getApprovedFromActionListingReport({
+        subId1: req.user.id,
+        startDate: startDateYmd,
+        endDate: endDateYmd
+      });
+      
+      if (approvedReport.success) {
+        impactData.revenue += (approvedReport.gross || 0);
+        impactData.conversions += (approvedReport.count || 0);
+      }
+      
+      console.log(`[Analytics] Impact.com data for ${days} days:`, impactData);
+    } catch (error) {
+      console.log('[Analytics] Impact.com fallback - using database data:', error.message);
+    }
+
+    // Get aggregate stats from Link table (conversions, revenue) as fallback
     const linkAgg = await prisma.link.aggregate({
       where: { creatorId: req.user.id },
       _sum: { conversions: true, revenue: true },
@@ -686,13 +735,11 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
       _sum: { clicks: true },
     });
     
-    // Combine the data safely
-    const agg = {
-      _sum: {
-        clicks: shortLinkAgg._sum.clicks || 0,
-        conversions: linkAgg._sum.conversions || 0,
-        revenue: linkAgg._sum.revenue || 0
-      }
+    // Combine Impact.com data with database data
+    const finalData = {
+      clicks: shortLinkAgg._sum.clicks || 0,
+      conversions: impactData.conversions || linkAgg._sum.conversions || 0,
+      revenue: impactData.revenue || Number(linkAgg._sum.revenue || 0)
     };
     
     // Get top performing links with real click data from ShortLink table
@@ -739,9 +786,9 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
     });
     
     res.json({
-      clicks: agg._sum.clicks || 0,
-      conversions: agg._sum.conversions || 0,
-      revenue: Number(agg._sum.revenue || 0),
+      clicks: finalData.clicks,
+      conversions: finalData.conversions,
+      revenue: finalData.revenue,
       topLinks: enrichedTopLinks.map(link => ({
         id: link.id,
         url: link.destinationUrl,

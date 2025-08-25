@@ -537,6 +537,86 @@ class ImpactWebService {
     }
   }
 
+  async getApprovedFromActionListingReport(options = {}) {
+    try {
+      const { subId1, startDate, endDate } = options;
+      const id = await this.resolveActionListingReportId();
+      // Use exact filter keys per MetaData for mp_action_listing_fast
+      const query = {
+        START_DATE: startDate, // YYYY-MM-DD
+        END_DATE: endDate,     // YYYY-MM-DD
+        'Action Status': 'Approved',
+        Program: this.programId
+      };
+      let result = await this.exportReportAndDownloadJson(id, query);
+      if (!result.success) {
+        // Fallback: try synchronous Reports endpoint (deprecated but still available)
+        try {
+          const qp = new URLSearchParams(query);
+          const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports/${encodeURIComponent(id)}?${qp.toString()}`;
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+              'Accept': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            result = { success: true, json };
+          }
+        } catch {}
+        if (!result?.success) return { success: false, error: result?.error || 'ReportExport failed and fallback returned no data' };
+      }
+
+      // Records may be under Records or nested in an array; normalize
+      const raw = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
+
+      // Identify the SubId field name present in records (per Attributes, Subid1)
+      const subIdKeys = ['Subid1','SubId1','SubID1','Sub_Id1','TrackingValue','Tracking_Value','SubId'];
+      const payoutKeys = ['Payout','Commission'];
+      const norm = (v) => String(v || '').trim();
+
+      const findSubIdKey = (row) => subIdKeys.find(k => Object.prototype.hasOwnProperty.call(row, k));
+      const getSubIdVal = (row) => {
+        const k = findSubIdKey(row);
+        return k ? norm(row[k]) : '';
+      };
+      const getMoney = (row) => {
+        for (const k of payoutKeys) {
+          if (row[k] !== undefined && row[k] !== null) {
+            const val = parseFloat(String(row[k]).replace(/[^0-9.-]/g, ''));
+            if (Number.isFinite(val)) return val;
+          }
+        }
+        return 0;
+      };
+
+      // Filter to the requested SubId1 even if the report filter didn't apply
+      const filtered = raw.filter(r => !subId1 || norm(getSubIdVal(r)) === norm(subId1));
+
+      // Enhanced de-duplication using multiple possible action ID fields
+      const seen = new Set();
+      let gross = 0;
+      for (const r of filtered) {
+        // Try multiple possible action ID field names
+        const actionId = r.action_id || r.Action_Id || r.ActionId || r.Id || r.TransactionId || 
+                        `${r.Campaign || ''}:${r.action_date || r.Action_Date || r.EventDate || ''}:${r.Payout || r.Commission || ''}`;
+        
+        if (seen.has(actionId)) continue;
+        seen.add(actionId);
+        gross += getMoney(r);
+      }
+      
+      console.log(`[Impact Reports Approved] SubId1: ${subId1}, Raw records: ${raw.length}, Filtered: ${filtered.length}, Unique actions: ${seen.size}, Gross: ${gross}`);
+      
+      return { success: true, gross, count: seen.size };
+    } catch (error) {
+      console.error('[Impact Reports Approved] Error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Fetch a single Action detail (attempt to include item-level data if available)
   async getActionDetail(actionId) {
     try {
