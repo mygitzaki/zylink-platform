@@ -523,13 +523,26 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const actions = [...pendingActions, ...lockedActions];
 
     // Robustly extract any commission-like numeric field from Action payloads
+    // Prefer canonical fields first to avoid accidentally summing sale Amount
     const COMMISSION_KEYS = [
-      'Payout', 'Commission', 'MediaPartnerAmount', 'PartnerCommission', 'PartnerAmount',
-      'PublisherAmount', 'PublisherCommission', 'PendingPayout', 'PendingCommission',
-      'IntendedPayout', 'IntendedCommission'
+      'Payout',
+      'Commission',
+      'PendingPayout',
+      'IntendedPayout',
+      // Fallbacks used by some programs/accounts
+      'PendingCommission',
+      'IntendedCommission',
+      'MediaPartnerAmount',
+      'PartnerCommission',
+      'PartnerAmount',
+      'PublisherAmount',
+      'PublisherCommission'
     ];
     const readNumber = (v) => {
-      const n = parseFloat(v);
+      if (v === null || v === undefined) return 0;
+      // Some APIs return currency strings like "US$59.95" → strip non-numeric (keep . and -)
+      const s = String(v).replace(/[^0-9.-]/g, '');
+      const n = parseFloat(s);
       return Number.isFinite(n) ? n : 0;
     };
     const getCommissionValue = (a) => {
