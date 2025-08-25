@@ -515,16 +515,24 @@ class ImpactWebService {
       // Filter to the requested SubId1 even if the report filter didn't apply
       const filtered = raw.filter(r => !subId1 || norm(getSubIdVal(r)) === norm(subId1));
 
+      // Enhanced de-duplication using multiple possible action ID fields
       const seen = new Set();
       let gross = 0;
       for (const r of filtered) {
-        const key = r.Action_Id || r.ActionId || r.Id || `${r.Campaign || ''}:${r.Action_Date || ''}:${r.Payout || r.Commission || ''}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+        // Try multiple possible action ID field names
+        const actionId = r.action_id || r.Action_Id || r.ActionId || r.Id || r.TransactionId || 
+                        `${r.Campaign || ''}:${r.action_date || r.Action_Date || r.EventDate || ''}:${r.Payout || r.Commission || ''}`;
+        
+        if (seen.has(actionId)) continue;
+        seen.add(actionId);
         gross += getMoney(r);
       }
+      
+      console.log(`[Impact Reports] SubId1: ${subId1}, Raw records: ${raw.length}, Filtered: ${filtered.length}, Unique actions: ${seen.size}, Gross: ${gross}`);
+      
       return { success: true, gross, count: seen.size };
     } catch (error) {
+      console.error('[Impact Reports] Error:', error.message);
       return { success: false, error: error.message };
     }
   }

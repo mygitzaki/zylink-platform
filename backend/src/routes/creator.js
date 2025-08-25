@@ -513,11 +513,15 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
         endDate: endDateYmd
       });
       if (report.success) gross = report.gross || 0;
-    } catch {}
+      console.log(`[Pending Earnings] Reports API result:`, { success: report.success, gross: report.gross, count: report.count, error: report.error });
+    } catch (error) {
+      console.error('[Pending Earnings] Reports API error:', error.message);
+    }
 
     // Fallback to Actions API if Reports returned 0 (some accounts restrict reports)
     if (!gross) {
       source = 'actions_fallback';
+      console.log('[Pending Earnings] Falling back to Actions API...');
       // Fetch actions page by page with safe fallback (cap to avoid heavy calls)
       const fetchAll = async (status) => {
         const collected = [];
@@ -566,9 +570,11 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
         unique.push(a);
       }
       gross = unique.reduce((sum, a) => sum + getCommissionValue(a), 0);
+      console.log(`[Pending Earnings] Actions API fallback: ${unique.length} unique actions, gross: ${gross}`);
     }
 
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
+    console.log(`[Pending Earnings] Final calculation: gross=${gross}, rate=${rate}%, net=${net}`);
 
     // Debug header for admins
     res.set('X-Pending-Debug', JSON.stringify({ source, days: windowDays, startDate: startDateYmd, endDate: endDateYmd, gross }));
