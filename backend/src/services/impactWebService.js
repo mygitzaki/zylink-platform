@@ -461,22 +461,18 @@ class ImpactWebService {
     try {
       const { subId1, startDate, endDate } = options;
       const id = await this.resolveActionListingReportId();
+      // Use exact filter keys per MetaData for mp_action_listing_fast
       const query = {
-        StartDate: typeof startDate === 'string' ? startDate : undefined,
-        EndDate: typeof endDate === 'string' ? endDate : undefined,
-        ActionStatus: 'PENDING',
-        SubId1: subId1,
-        SUBAID: this.programId // program filter when required
+        START_DATE: startDate, // YYYY-MM-DD
+        END_DATE: endDate,     // YYYY-MM-DD
+        'Action Status': 'Pending',
+        Program: this.programId
       };
       let result = await this.exportReportAndDownloadJson(id, query);
       if (!result.success) {
         // Fallback: try synchronous Reports endpoint (deprecated but still available)
         try {
           const qp = new URLSearchParams(query);
-          // Also include alternative subid param variants to maximize server-side filtering
-          if (subId1) {
-            qp.set('SubId', subId1);
-          }
           const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports/${encodeURIComponent(id)}?${qp.toString()}`;
           const res = await fetch(url, {
             method: 'GET',
@@ -496,8 +492,8 @@ class ImpactWebService {
       // Records may be under Records or nested in an array; normalize
       const raw = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
 
-      // Identify the SubId field name present in records
-      const subIdKeys = ['SubId1','SubID1','Sub_Id1','TrackingValue','Tracking_Value','SubId'];
+      // Identify the SubId field name present in records (per Attributes, Subid1)
+      const subIdKeys = ['Subid1','SubId1','SubID1','Sub_Id1','TrackingValue','Tracking_Value','SubId'];
       const payoutKeys = ['Payout','Commission'];
       const norm = (v) => String(v || '').trim();
 

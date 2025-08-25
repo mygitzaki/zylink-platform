@@ -498,6 +498,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const now = new Date();
     const windowDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     const start = new Date(now); start.setDate(start.getDate() - windowDays);
+    // Reports expect YYYY-MM-DD (per MetaData)
     const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
 
     let source = 'reports';
