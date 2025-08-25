@@ -496,7 +496,8 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
     const now = new Date();
-    const start = new Date(now); start.setDate(start.getDate() - 60);
+    const windowDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    const start = new Date(now); start.setDate(start.getDate() - windowDays);
     // Fetch actions page by page with safe fallback (cap to avoid heavy calls)
     const fetchAll = async (status) => {
       const collected = [];
@@ -516,7 +517,13 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     };
 
     // Pending card should reflect only PENDING (awaiting advertiser approval)
-    const actions = await fetchAll('PENDING');
+    let actions = await fetchAll('PENDING');
+    // Post-filter by date in case the upstream ignored our date filters
+    const getActionDate = (a) => new Date(a.EventDate || a.CreatedDate || a.CreationDate || a.LockingDate || a.EventTime || now);
+    actions = actions.filter(a => {
+      const d = getActionDate(a);
+      return d >= start && d <= now;
+    });
 
     // Robustly extract any commission-like numeric field from Action payloads
     // Prefer canonical fields first to avoid accidentally summing sale Amount
@@ -552,6 +559,8 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     // Sum only payout/commission fields (avoid sale Amount)
     const gross = unique.reduce((sum, a) => sum + getCommissionValue(a), 0);
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
+    // Expose debug context for admins via headers (harmless for creators)
+    res.set('X-Pending-Debug', JSON.stringify({ count: unique.length, days: windowDays }));
     res.set('Cache-Control', 'no-store');
     res.json({ pendingNet: net, count: actions.length });
   } catch (error) {
