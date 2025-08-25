@@ -88,7 +88,8 @@ export default function Earnings() {
 
   const loadPending = async () => {
     try {
-      const res = await apiFetch('/api/creator/pending-earnings', { token })
+      const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
+      const res = await apiFetch(`/api/creator/pending-earnings?days=${days}`, { token })
       setPendingNet(Number(res.pendingNet || 0))
     } catch {}
   }
