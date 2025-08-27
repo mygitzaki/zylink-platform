@@ -719,22 +719,21 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     });
     const rate = creator?.commissionRate ?? 70;
 
-    // TEMP DEBUG: Use broader date range to match Impact.com dashboard data
+    // Restore proper date range logic while keeping the ALL actions fix
     const now = new Date();
     
     // Use ISO date format for consistency and avoid timezone issues
     const fmt = (d) => d.toISOString().split('T')[0];
     const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     
-    // TEMPORARY: Use a much broader date range to capture all earnings
-    // This should match what Impact.com dashboard shows (all-time data)
-    const effectiveDays = 90; // Use 90 days to capture more data
+    // Use the actual requested days (respects UI date selection)
+    const effectiveDays = requestedDays;
     const endDate = fmt(now);
     const startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
 
-    console.log(`[Earnings Summary] TEMP DEBUG - Requested: ${requestedDays} days, Using: ${effectiveDays} days (90 days to capture all data)`);
+    console.log(`[Earnings Summary] FIXED - Requested: ${requestedDays} days, Using: ${effectiveDays} days (respects UI selection)`);
     console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
-    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=temp_debug_mode`);
+    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=responsive_to_ui`);
 
     // Set cache control headers to prevent caching issues
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
