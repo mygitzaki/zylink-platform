@@ -814,20 +814,25 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.error('[Earnings Summary] Error fetching pending earnings:', error.message);
     }
 
-    // 2. Get Approved/Completed Earnings from Database
+    // 2. Get All Approved Earnings (COMPLETED + APPROVED status) from Database
     const approvedEarnings = await prisma.earning.findMany({
       where: { 
         creatorId: req.user.id,
-        status: 'COMPLETED',
+        status: { in: ['COMPLETED', 'APPROVED'] }, // Include both completed and approved earnings
         createdAt: {
           gte: new Date(`${startDate}T00:00:00Z`),
           lte: new Date(`${endDate}T23:59:59Z`)
         }
       },
-      select: { amount: true }
+      select: { amount: true, status: true }
     });
     
-    const availableForWithdraw = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    // Separate approved earnings: ready for withdrawal vs total approved
+    const completedEarnings = approvedEarnings.filter(e => e.status === 'COMPLETED');
+    const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    
+    console.log(`[Earnings Summary] Total approved earnings: $${totalApprovedAmount}`);
     console.log(`[Earnings Summary] Available for withdraw: $${availableForWithdraw}`);
 
     // 3. Get Payouts Requested
@@ -841,9 +846,9 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     
     const totalPayoutsRequested = payoutsRequested.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-    // 4. Calculate Totals
+    // 4. Calculate Totals - Commission Earned should show Pending + ALL Approved (as stated in UI)
     const pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-    const commissionEarned = pendingNet + availableForWithdraw;
+    const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
     const totalEarnings = commissionEarned;
 
     // 5. Get Analytics Data
@@ -856,9 +861,9 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     };
 
     const summary = {
-      commissionEarned: parseFloat(commissionEarned.toFixed(2)),
-      availableForWithdraw: parseFloat(availableForWithdraw.toFixed(2)),
-      pendingApproval: parseFloat(pendingNet.toFixed(2)),
+      commissionEarned: parseFloat(commissionEarned.toFixed(2)), // Pending + All Approved commissions
+      availableForWithdraw: parseFloat(availableForWithdraw.toFixed(2)), // Only COMPLETED earnings ready for withdrawal
+      pendingApproval: parseFloat(pendingNet.toFixed(2)), // Pending commissions from Impact.com with business rate applied
       totalEarnings: parseFloat(totalEarnings.toFixed(2)),
       payoutsRequested: parseFloat(totalPayoutsRequested.toFixed(2)),
       analytics,
@@ -871,6 +876,13 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       creator: {
         commissionRate: rate,
         impactSubId: creator?.impactSubId
+      },
+      // Additional debug info for transparency
+      debug: {
+        pendingGross: parseFloat(pendingGross.toFixed(2)), // Raw pending amount from Impact.com
+        totalApprovedAmount: parseFloat(totalApprovedAmount.toFixed(2)), // All approved earnings
+        pendingActions: pendingActions,
+        rateApplied: rate
       }
     };
 
