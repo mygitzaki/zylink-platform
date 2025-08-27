@@ -719,14 +719,37 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     });
     const rate = creator?.commissionRate ?? 70;
 
-    // Get date range
+    // Get intelligent date range - don't go back further than when creator actually started earning
     const now = new Date();
     const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
-    const days = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    
+    // Get creator's first earning date to avoid going back too far
+    const firstEarning = await prisma.earning.findFirst({
+      where: { creatorId: req.user.id },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true }
+    });
+    
+    // Get creator's first link creation date as fallback
+    const firstLink = await prisma.link.findFirst({
+      where: { creatorId: req.user.id },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true }
+    });
+    
+    // Determine the earliest relevant date
+    const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
+    const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
+    
+    // Use the smaller of requested days or actual earning period
+    const effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+    
     const endDate = fmt(now);
-    const startDate = fmt(new Date(now.getTime() - (days * 24 * 60 * 60 * 1000)));
+    const startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
 
-    console.log(`[Earnings Summary] Fetching data for ${days} days: ${startDate} to ${endDate}`);
+    console.log(`[Earnings Summary] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
+    console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
 
     // 1. Get Pending Earnings from Impact.com
     let pendingGross = 0;
@@ -804,7 +827,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       payoutsRequested: parseFloat(totalPayoutsRequested.toFixed(2)),
       analytics,
       period: {
-        days,
+        requestedDays,
+        effectiveDays,
         startDate,
         endDate
       },
@@ -924,13 +948,36 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       recentActivity: []
     });
     
-    // Get date range
-    const days = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    // Get intelligent date range - don't go back further than when creator actually started earning
+    const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     const now = new Date();
-    const endDate = now.toISOString().split('T')[0];
-    const startDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
-    console.log(`[Analytics Enhanced] Fetching data for ${days} days: ${startDate} to ${endDate}`);
+    // Get creator's first earning date to avoid going back too far
+    const firstEarning = await prisma.earning.findFirst({
+      where: { creatorId: req.user.id },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true }
+    });
+    
+    // Get creator's first link creation date as fallback
+    const firstLink = await prisma.link.findFirst({
+      where: { creatorId: req.user.id },
+      orderBy: { createdAt: 'asc' },
+      select: { createdAt: true }
+    });
+    
+    // Determine the earliest relevant date
+    const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
+    const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
+    
+    // Use the smaller of requested days or actual earning period
+    const effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+    
+    const endDate = now.toISOString().split('T')[0];
+    const startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    
+    console.log(`[Analytics Enhanced] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
+    console.log(`[Analytics Enhanced] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
     
     // 1. Get Impact.com Data for Real Analytics
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
