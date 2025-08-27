@@ -492,8 +492,11 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
     
-    // Get creator's actual Impact.com SubId1 from database, or compute it
+    // Declare variables at function scope
     let correctSubId1;
+    let rate = 70; // Default commission rate
+    
+    // Get creator's actual Impact.com SubId1 from database, or compute it
     try {
       // First, try to get the actual Impact.com SubId1 if stored
       const creatorWithSubId = await prisma.creator.findUnique({ 
@@ -518,13 +521,13 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
       }
       
       // Update commission rate
-      const rate = creatorWithSubId?.commissionRate ?? 70;
+      rate = creatorWithSubId?.commissionRate ?? 70;
       
     } catch (dbError) {
       console.error('[Pending Earnings] Database error:', dbError.message);
       // Fallback to computed SubId1
       correctSubId1 = impact.computeObfuscatedSubId(req.user.id);
-      const rate = 70; // Default rate
+      rate = 70; // Default rate
     }
     
     // SAFETY CHECK: Validate SubId1
