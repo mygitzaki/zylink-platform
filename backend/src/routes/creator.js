@@ -719,7 +719,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     });
     const rate = creator?.commissionRate ?? 70;
 
-    // Get intelligent date range - don't go back further than when creator actually started earning
+    // Get intelligent date range - prioritize requested days but respect earning history
     const now = new Date();
     
     // Use ISO date format for consistency and avoid timezone issues
@@ -744,8 +744,16 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
     const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
     
-    // Use the smaller of requested days or actual earning period
-    const effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+    // For 7-day requests, always give the full 7 days if possible
+    // For longer periods, limit to actual earning period to avoid irrelevant data
+    let effectiveDays;
+    if (requestedDays <= 7) {
+      // For 7 days or less, always give the requested amount
+      effectiveDays = requestedDays;
+    } else {
+      // For longer periods, limit to actual earning period
+      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+    }
     
     // Calculate dates more precisely
     const endDate = fmt(now);
@@ -753,7 +761,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
 
     console.log(`[Earnings Summary] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
-    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}`);
+    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=${requestedDays <= 7 ? 'full_period' : 'limited_period'}`);
 
     // 1. Get Pending Earnings from Impact.com
     let pendingGross = 0;
@@ -952,7 +960,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       recentActivity: []
     });
     
-    // Get intelligent date range - don't go back further than when creator actually started earning
+    // Get intelligent date range - prioritize requested days but respect earning history
     const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     const now = new Date();
     
@@ -974,8 +982,16 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
     const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
     
-    // Use the smaller of requested days or actual earning period
-    const effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+    // For 7-day requests, always give the full 7 days if possible
+    // For longer periods, limit to actual earning period to avoid irrelevant data
+    let effectiveDays;
+    if (requestedDays <= 7) {
+      // For 7 days or less, always give the requested amount
+      effectiveDays = requestedDays;
+    } else {
+      // For longer periods, limit to actual earning period
+      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+    }
     
     // Calculate dates more precisely and consistently
     const endDate = now.toISOString().split('T')[0];
@@ -983,7 +999,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     
     console.log(`[Analytics Enhanced] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Analytics Enhanced] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
-    console.log(`[Analytics Enhanced] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}`);
+    console.log(`[Analytics Enhanced] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=${requestedDays <= 7 ? 'full_period' : 'limited_period'}`);
     
     // 1. Get Impact.com Data for Real Analytics
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
