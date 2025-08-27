@@ -1,38 +1,96 @@
-# Dependencies
-node_modules/
-*/node_modules/
+# ========================================
+# ZYLINK PLATFORM GITIGNORE
+# ========================================
+# This file ensures sensitive information is never committed
 
-# Environment files
+# ========================================
+# ENVIRONMENT & CONFIGURATION
+# ========================================
 .env
 .env.local
+.env.development
 .env.production
-backend/.env
-frontend/.env
+.env.staging
+.env.*.local
+.env.backup
+.env.temp
+.env.supabase.backup
 
-# Database
-backend/prisma/dev.db
-backend/prisma/dev.db-journal
+# ========================================
+# CREDENTIALS & SECRETS
+# ========================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+config/secrets.json
+config/credentials.json
 
-# Build outputs
-frontend/dist/
-backend/dist/
+# ========================================
+# DATABASE
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+database/
+backups/
+*.backup
+*.dump
 
-# Logs
+# ========================================
+# LOGS
+# ========================================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
-# Runtime data
-pids
+# ========================================
+# DEPENDENCIES
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ========================================
+# BUILD OUTPUTS
+# ========================================
+dist/
+build/
+.next/
+out/
+.vercel/
+
+# ========================================
+# RUNTIME
+# ========================================
+.pids
 *.pid
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
+# ========================================
+# COVERAGE
+# ========================================
 coverage/
+*.lcov
+.nyc_output
 
-# OS generated files
+# ========================================
+# EDITOR & OS
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
 .DS_Store?
 ._*
@@ -41,12 +99,41 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+# ========================================
+# TEMPORARY FILES
+# ========================================
+*.tmp
+*.temp
+.tmp/
+.temp/
+temp/
+tmp/
 
-# Test results
-frontend/test-results/
-frontend/playwright-report/
+# ========================================
+# TESTING
+# ========================================
+.nyc_output
+coverage/
+*.lcov
+test-results/
+playwright-report/
+
+# ========================================
+# DEPLOYMENT
+# ========================================
+.railway/
+.vercel/
+.netlify/
+dist/
+build/
+
+# ========================================
+# CUSTOM
+# ========================================
+# Add any project-specific files here
+check-shortlink-migration.js
+test-*.js
+debug-*.js
+fix-*.js
+*.backup
+*.fixed

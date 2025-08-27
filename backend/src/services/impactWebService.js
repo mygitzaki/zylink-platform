@@ -2,24 +2,35 @@ const crypto = require('crypto');
 
 class ImpactWebService {
   constructor() {
-    // Impact.com API credentials
-    this.accountSid = process.env.IMPACT_ACCOUNT_SID || 'IR6HvVENfaTR3908029jXFhKg7EFcPYDe1';
-    this.authToken = process.env.IMPACT_AUTH_TOKEN || 'VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd';
-    this.programId = process.env.IMPACT_PROGRAM_ID || '16662';
-    // Media partner (account) id e.g. 3908029
-    this.mediaPartnerId = process.env.IMPACT_MEDIA_PARTNER_ID || '3908029';
-    // Media partner property id (AdId) e.g. 1398372
-    this.mediaPartnerPropertyId = process.env.IMPACT_MEDIA_PARTNER_PROPERTY_ID || process.env.IMPACT_AD_ID || '1398372';
+    // CRITICAL: Remove hardcoded credentials - use environment variables only
+    this.accountSid = process.env.IMPACT_ACCOUNT_SID;
+    this.authToken = process.env.IMPACT_AUTH_TOKEN;
+    this.programId = process.env.IMPACT_PROGRAM_ID;
+    this.mediaPartnerId = process.env.IMPACT_MEDIA_PARTNER_ID;
+    this.mediaPartnerPropertyId = process.env.IMPACT_MEDIA_PARTNER_PROPERTY_ID || process.env.IMPACT_AD_ID;
     this.apiBaseUrl = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
-    // Feature flag: include MediaPartnerPropertyId in TrackingLinks request
     this.includeMediaPropertyId = String(process.env.IMPACT_SEND_MEDIA_PROPERTY_ID || process.env.IMPACT_INCLUDE_MEDIA_PROPERTY_ID || 'false').toLowerCase() === 'true';
-    // Feature flag: control deep link sanitization (default OFF per request)
     this.sanitizeDeepLink = String(process.env.IMPACT_SANITIZE_DEEPLINK || 'false').toLowerCase() === 'true';
-    // Optional default sharedid (can be overridden per-request)
     this.defaultSharedId = process.env.IMPACT_DEFAULT_SHAREDID || '';
-    // Feature flag: obfuscate subId1 with HMAC to avoid exposing raw IDs
     this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
     this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
+    
+    // Validate required credentials
+    this.validateCredentials();
+  }
+
+  // NEW: Validate credentials on initialization
+  validateCredentials() {
+    if (!this.accountSid || !this.authToken || !this.programId) {
+      console.error('🚨 CRITICAL: Missing required Impact.com environment variables!');
+      console.error('Required: IMPACT_ACCOUNT_SID, IMPACT_AUTH_TOKEN, IMPACT_PROGRAM_ID');
+      console.error('Service will fail gracefully but Impact.com features will be disabled.');
+    }
+  }
+
+  // NEW: Check if service is properly configured
+  isConfigured() {
+    return !!(this.accountSid && this.authToken && this.programId);
   }
 
   computeObfuscatedSubId(creatorId) {

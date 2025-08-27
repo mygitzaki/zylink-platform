@@ -5,22 +5,27 @@ const { getPrisma } = require('../utils/prisma');
 
 class EarningsSync {
   constructor() {
-    // Impact.com API credentials (same as ImpactWebService)
-    this.accountSid = process.env.IMPACT_ACCOUNT_SID || 'IR6HvVENfaTR3908029jXFhKg7EFcPYDe1';
-    this.authToken = process.env.IMPACT_AUTH_TOKEN || 'VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd';
+    // CRITICAL: Remove hardcoded credentials - use environment variables only
+    this.accountSid = process.env.IMPACT_ACCOUNT_SID;
+    this.authToken = process.env.IMPACT_AUTH_TOKEN;
     this.apiBaseUrl = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
     
-    // Authorization header for API calls
-    this.authHeader = 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64');
-    
-    // Sync configuration
-    this.config = {
-      batchSize: 100,
-      maxRetries: 3,
-      retryDelay: 2000,
-      syncWindowDays: 30,
-      defaultCommissionRate: 0.03 // 3% default commission
-    };
+    // Validate required credentials
+    this.validateCredentials();
+  }
+
+  // NEW: Validate credentials on initialization
+  validateCredentials() {
+    if (!this.accountSid || !this.authToken) {
+      console.error('🚨 CRITICAL: Missing required Impact.com environment variables!');
+      console.error('Required: IMPACT_ACCOUNT_SID, IMPACT_AUTH_TOKEN');
+      console.error('Service will fail gracefully but Impact.com features will be disabled.');
+    }
+  }
+
+  // NEW: Check if service is properly configured
+  isConfigured() {
+    return !!(this.accountSid && this.authToken);
   }
 
   // Get earnings data from Impact.com API
