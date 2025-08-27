@@ -814,11 +814,11 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.error('[Earnings Summary] Error fetching pending earnings:', error.message);
     }
 
-    // 2. Get All Approved Earnings (COMPLETED + APPROVED status) from Database
+    // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database
     const approvedEarnings = await prisma.earning.findMany({
       where: { 
         creatorId: req.user.id,
-        status: { in: ['COMPLETED', 'APPROVED'] }, // Include both completed and approved earnings
+        status: { in: ['COMPLETED', 'PROCESSING'] }, // Include completed and processing earnings
         createdAt: {
           gte: new Date(`${startDate}T00:00:00Z`),
           lte: new Date(`${endDate}T23:59:59Z`)
@@ -832,8 +832,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
-    console.log(`[Earnings Summary] Total approved earnings: $${totalApprovedAmount}`);
-    console.log(`[Earnings Summary] Available for withdraw: $${availableForWithdraw}`);
+    console.log(`[Earnings Summary] Total approved earnings (COMPLETED + PROCESSING): $${totalApprovedAmount}`);
+    console.log(`[Earnings Summary] Available for withdraw (COMPLETED only): $${availableForWithdraw}`);
 
     // 3. Get Payouts Requested
     const payoutsRequested = await prisma.payoutRequest.findMany({
@@ -861,7 +861,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     };
 
     const summary = {
-      commissionEarned: parseFloat(commissionEarned.toFixed(2)), // Pending + All Approved commissions
+      commissionEarned: parseFloat(commissionEarned.toFixed(2)), // Pending + All approved commissions (COMPLETED + PROCESSING)
       availableForWithdraw: parseFloat(availableForWithdraw.toFixed(2)), // Only COMPLETED earnings ready for withdrawal
       pendingApproval: parseFloat(pendingNet.toFixed(2)), // Pending commissions from Impact.com with business rate applied
       totalEarnings: parseFloat(totalEarnings.toFixed(2)),
@@ -880,7 +880,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       // Additional debug info for transparency
       debug: {
         pendingGross: parseFloat(pendingGross.toFixed(2)), // Raw pending amount from Impact.com
-        totalApprovedAmount: parseFloat(totalApprovedAmount.toFixed(2)), // All approved earnings
+        totalApprovedAmount: parseFloat(totalApprovedAmount.toFixed(2)), // All approved earnings (COMPLETED + PROCESSING)
         pendingActions: pendingActions,
         rateApplied: rate
       }
