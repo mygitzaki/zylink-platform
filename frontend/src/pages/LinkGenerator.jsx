@@ -17,10 +17,7 @@ export default function LinkGenerator() {
   const [urlValidation, setUrlValidation] = useState({ isValid: true, message: '' })
   const [dashboardData, setDashboardData] = useState({
     totalLinks: 0,
-    totalEarnings: 0,
-    conversionRate: 0,
     todayClicks: 0,
-    todayEarnings: 0,
     recentLinks: []
   })
   const [dataLoading, setDataLoading] = useState(true)
@@ -36,49 +33,41 @@ export default function LinkGenerator() {
     try {
       setDataLoading(true)
       
-      // Try direct API calls first to bypass Vercel rewrite issues
-      let analyticsRes, earningsRes, linksRes
-      
-      try {
-        console.log('🌐 Loading dashboard data via API calls to:', API_BASE)
-        const [analyticsPromise, earningsPromise, linksPromise] = [
-          fetch(`${API_BASE}/api/creator/analytics`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch(`${API_BASE}/api/creator/earnings`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch(`${API_BASE}/api/creator/links`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]
+              // Try direct API calls first to bypass Vercel rewrite issues
+        let analyticsRes, linksRes
         
-        const [analyticsResponse, earningsResponse, linksResponse] = await Promise.all([
-          analyticsPromise, earningsPromise, linksPromise
-        ])
-        
-        analyticsRes = await analyticsResponse.json()
-        earningsRes = await earningsResponse.json()
-        linksRes = await linksResponse.json()
-        
-        console.log('✅ Direct API calls successful')
-      } catch (directError) {
-        console.log('⚠️ Direct API calls failed, using fallback...')
-        
-        // Fallback to apiFetch
-        [analyticsRes, earningsRes, linksRes] = await Promise.all([
-          apiFetch('/api/creator/analytics', { token }),
-          apiFetch('/api/creator/earnings', { token }),
-          apiFetch('/api/creator/links', { token })
-        ])
-      }
+        try {
+          console.log('🌐 Loading dashboard data via API calls to:', API_BASE)
+          const [analyticsPromise, linksPromise] = [
+            fetch(`${API_BASE}/api/creator/analytics`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch(`${API_BASE}/api/creator/links`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+          ]
+          
+          const [analyticsResponse, linksResponse] = await Promise.all([
+            analyticsPromise, linksPromise
+          ])
+          
+          analyticsRes = await analyticsResponse.json()
+          linksRes = await linksResponse.json()
+          
+          console.log('✅ Direct API calls successful')
+        } catch (directError) {
+          console.log('⚠️ Direct API calls failed, using fallback...')
+          
+          // Fallback to apiFetch
+          [analyticsRes, linksRes] = await Promise.all([
+            apiFetch('/api/creator/analytics', { token }),
+            apiFetch('/api/creator/links', { token })
+          ])
+        }
       
       setDashboardData({
         totalLinks: linksRes.links?.length || 0,
-        totalEarnings: earningsRes.total || 0,
-        conversionRate: analyticsRes.clicks > 0 ? ((analyticsRes.conversions || 0) / analyticsRes.clicks * 100) : 0,
         todayClicks: analyticsRes.todayClicks || 0,
-        todayEarnings: earningsRes.today || 0,
         recentLinks: linksRes.links?.slice(0, 3) || []
       })
     } catch (err) {
@@ -303,7 +292,7 @@ export default function LinkGenerator() {
             Transform your audience into revenue with powerful affiliate links
           </p>
           {/* Stats Cards - Zylike Style */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
             <Card variant="glass" hover className="group">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 text-center sm:text-left">
                 <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 mx-auto sm:mx-0">
@@ -318,19 +307,7 @@ export default function LinkGenerator() {
               </div>
             </Card>
             
-            <Card variant="glass" hover className="group">
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 text-center sm:text-left">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 mx-auto sm:mx-0">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">${dashboardData.totalEarnings.toFixed(2)}</p>
-                  <p className="text-sm text-white/60">Total Earnings</p>
-                </div>
-              </div>
-            </Card>
+
             
             <Card variant="glass" hover className="group">
               <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 text-center sm:text-left">
@@ -340,8 +317,8 @@ export default function LinkGenerator() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-white">{dashboardData.conversionRate.toFixed(1)}%</p>
-                  <p className="text-sm text-white/60">Conversion Rate</p>
+                  <p className="text-2xl font-bold text-white">{dashboardData.todayClicks}</p>
+                  <p className="text-sm text-white/60">Today's Clicks</p>
                 </div>
               </div>
             </Card>
