@@ -37,26 +37,48 @@ export default function CreatorAnalytics() {
       
       console.log('🔄 Loading analytics data...')
       
+      // Convert timeRange to days format for API
+      const daysMap = { '7d': 7, '30d': 30, '90d': 90 }
+      const days = daysMap[timeRange] || 30
+      
+      console.log(`📊 Loading data for ${days} days (${timeRange})`)
+      
       const [analyticsRes, earningsRes] = await Promise.all([
-        apiFetch('/api/creator/analytics', { token }),
-        apiFetch('/api/creator/earnings', { token })
+        apiFetch(`/api/creator/analytics-enhanced?days=${days}`, { token }),
+        apiFetch(`/api/creator/earnings-summary?days=${days}`, { token })
       ])
       
       console.log('📊 Analytics response:', analyticsRes)
       console.log('💰 Earnings response:', earningsRes)
       
+      // Extract data from the new API structure
+      const totalRevenue = earningsRes.commissionEarned || 0
+      const totalClicks = analyticsRes.clicks || 0
+      const totalConversions = analyticsRes.conversions || 0
+      const conversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100) : 0
+      const averageOrderValue = totalConversions > 0 ? (totalRevenue / totalConversions) : 0
+      
       setAnalytics({
-        totalClicks: analyticsRes.clicks || 0,
-        totalConversions: analyticsRes.conversions || 0,
-        totalRevenue: earningsRes.total || 0,
-        conversionRate: analyticsRes.clicks > 0 ? ((analyticsRes.conversions || 0) / analyticsRes.clicks * 100) : 0,
-        averageOrderValue: analyticsRes.conversions > 0 ? (earningsRes.total || 0) / analyticsRes.conversions : 0,
+        totalClicks,
+        totalConversions,
+        totalRevenue,
+        conversionRate,
+        averageOrderValue,
         topPerformingLinks: analyticsRes.topLinks || [],
         recentActivity: analyticsRes.recentActivity || [],
         monthlyTrends: analyticsRes.monthlyTrends || []
       })
       
       console.log('✅ Analytics data loaded successfully')
+      console.log('📊 Final analytics state:', {
+        totalRevenue,
+        totalClicks,
+        totalConversions,
+        conversionRate: conversionRate.toFixed(2) + '%',
+        averageOrderValue: averageOrderValue.toFixed(2),
+        timeRange,
+        days
+      })
     } catch (err) {
       console.error('❌ Failed to load analytics:', err)
       if (err.status === 401 || err.message?.includes('Missing token')) {
@@ -164,27 +186,52 @@ export default function CreatorAnalytics() {
                 🔄 Refresh
               </Button>
               
+              {/* Force Fresh Data Button */}
+              <Button
+                onClick={() => {
+                  console.log('🔄 Force refreshing analytics data...')
+                  loadAnalytics()
+                }}
+                variant="secondary"
+                size="sm"
+                className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+              >
+                📊 Fresh Data
+              </Button>
+              
               {/* Time Range Selector */}
               <Card variant="glass" className="w-full sm:w-auto">
                 <div className="flex space-x-2">
                 <Button
                   variant={timeRange === '7d' ? 'primary' : 'secondary'}
                   size="sm"
-                  onClick={() => setTimeRange('7d')}
+                  onClick={() => {
+                    setTimeRange('7d')
+                    // Force reload to clear cache
+                    setTimeout(() => loadAnalytics(), 100)
+                  }}
                 >
                   7 Days
                 </Button>
                 <Button
                   variant={timeRange === '30d' ? 'primary' : 'secondary'}
                   size="sm"
-                  onClick={() => setTimeRange('30d')}
+                  onClick={() => {
+                    setTimeRange('30d')
+                    // Force reload to clear cache
+                    setTimeout(() => loadAnalytics(), 100)
+                  }}
                 >
                   30 Days
                 </Button>
                 <Button
                   variant={timeRange === '90d' ? 'primary' : 'secondary'}
                   size="sm"
-                  onClick={() => setTimeRange('90d')}
+                  onClick={() => {
+                    setTimeRange('90d')
+                    // Force reload to clear cache
+                    setTimeout(() => loadAnalytics(), 100)
+                  }}
                 >
                   90 Days
                 </Button>
