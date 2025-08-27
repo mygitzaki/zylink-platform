@@ -488,32 +488,89 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     const prisma = getPrisma();
     if (!prisma) return res.json({ pendingNet: 0 });
 
-    // Get creator commission rate
-    const creator = await prisma.creator.findUnique({ where: { id: req.user.id }, select: { commissionRate: true } });
-    const rate = creator?.commissionRate ?? 70;
-
-    // Use Impact Reports API (Action Listing) for authoritative pending payout sum
+    // CRITICAL FIX: Use the same SubId1 computation as tracking links
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
+    
+    // Get creator's actual Impact.com SubId1 from database, or compute it
+    let correctSubId1;
+    try {
+      // First, try to get the actual Impact.com SubId1 if stored
+      const creatorWithSubId = await prisma.creator.findUnique({ 
+        where: { id: req.user.id }, 
+        select: { 
+          commissionRate: true,
+          impactSubId: true  // This field exists in the schema
+        } 
+      });
+      
+      if (creatorWithSubId?.impactSubId) {
+        // Use the stored Impact.com SubId1
+        correctSubId1 = creatorWithSubId.impactSubId;
+        console.log(`[Pending Earnings] Using stored Impact.com SubId1: ${correctSubId1}`);
+      } else {
+        // Fallback to computed SubId1 (for backward compatibility)
+        correctSubId1 = impact.computeObfuscatedSubId(req.user.id);
+        console.log(`[Pending Earnings] Using computed SubId1: ${correctSubId1}`);
+        
+        // Log warning about missing SubId1 mapping
+        console.warn(`[Pending Earnings] WARNING: No Impact.com SubId1 stored for user ${req.user.id}. Consider updating the database.`);
+      }
+      
+      // Update commission rate
+      const rate = creatorWithSubId?.commissionRate ?? 70;
+      
+    } catch (dbError) {
+      console.error('[Pending Earnings] Database error:', dbError.message);
+      // Fallback to computed SubId1
+      correctSubId1 = impact.computeObfuscatedSubId(req.user.id);
+      const rate = 70; // Default rate
+    }
+    
+    // SAFETY CHECK: Validate SubId1
+    if (!correctSubId1 || correctSubId1 === 'default') {
+      console.error(`[Pending Earnings] CRITICAL: Invalid SubId1 for user ${req.user.id}: ${correctSubId1}`);
+      return res.status(500).json({ 
+        error: 'Unable to determine creator identifier',
+        pendingNet: 0 
+      });
+    }
+    
+    console.log(`[Pending Earnings] User ID: ${req.user.id}, Final SubId1: ${correctSubId1}`);
+    
     const now = new Date();
     const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
     const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
     const qsStart = isYmd(req.query.startDate) ? req.query.startDate : null;
     const qsEnd = isYmd(req.query.endDate) ? req.query.endDate : null;
-    const windowDays = qsStart && qsEnd ? null : Math.max(1, Math.min(90, Number(req.query.days) || 30));
-    const startDateYmd = qsStart || fmt(new Date(now.getTime() - ((windowDays || 30) * 24 * 60 * 60 * 1000)));
-    const endDateYmd = qsEnd || fmt(now);
+    
+    // FIXED: Proper date range calculation
+    let startDateYmd, endDateYmd;
+    if (qsStart && qsEnd) {
+      // Use exact dates if provided
+      startDateYmd = qsStart;
+      endDateYmd = qsEnd;
+    } else {
+      // Calculate relative date range
+      const days = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+      endDateYmd = fmt(now);
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days + 1); // +1 to include today
+      startDateYmd = fmt(startDate);
+    }
+    
+    console.log(`[Pending Earnings] Date range: ${startDateYmd} to ${endDateYmd}`);
 
     let source = 'reports';
     let gross = 0;
     try {
       const report = await impact.getPendingFromActionListingReport({
-        subId1: req.user.id,
+        subId1: correctSubId1, // FIXED: Use computed SubId1, not database ID
         startDate: startDateYmd,
         endDate: endDateYmd
       });
       if (report.success) gross = report.gross || 0;
-      console.log(`[Pending Earnings] Reports API result:`, { success: report.success, gross: report.gross, count: report.count, error: report.error });
+      console.log(`[Pending Earnings] Reports API result:`, { success: report.success, gross: report.gross, count: report.count, error: report.error, subId1: correctSubId1 });
     } catch (error) {
       console.error('[Pending Earnings] Reports API error:', error.message);
     }
@@ -532,7 +589,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
           // Build ISO-Z range from start/end YMD
           const startIso = `${startDateYmd}T00:00:00Z`;
           const endIso = `${endDateYmd}T23:59:59Z`;
-          const r = await impact.getActionsDetailed({ startDate: startIso, endDate: endIso, status, actionType: 'SALE', subId1: req.user.id, page, pageSize, noRetry: false });
+          const r = await impact.getActionsDetailed({ startDate: startIso, endDate: endIso, status, actionType: 'SALE', subId1: correctSubId1, page, pageSize, noRetry: false }); // FIXED: Use computed SubId1
           const arr = Array.isArray(r.actions) ? r.actions : [];
           collected.push(...arr);
           total = r.totalResults || total;
@@ -570,19 +627,40 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
         unique.push(a);
       }
       gross = unique.reduce((sum, a) => sum + getCommissionValue(a), 0);
-      console.log(`[Pending Earnings] Actions API fallback: ${unique.length} unique actions, gross: ${gross}`);
+      console.log(`[Pending Earnings] Actions API fallback: ${unique.length} unique actions, gross: ${gross}, subId1: ${correctSubId1}`);
     }
 
     const net = parseFloat(((gross * rate) / 100).toFixed(2));
-    console.log(`[Pending Earnings] Final calculation: gross=${gross}, rate=${rate}%, net=${net}`);
+    console.log(`[Pending Earnings] Final calculation: gross=${gross}, rate=${rate}%, net=${net}, subId1=${correctSubId1}`);
 
     // Debug header for admins
-    res.set('X-Pending-Debug', JSON.stringify({ source, days: windowDays, startDate: startDateYmd, endDate: endDateYmd, gross }));
+    const debugInfo = {
+      source,
+      days: req.query.days || 'custom',
+      startDate: startDateYmd,
+      endDate: endDateYmd,
+      gross,
+      subId1: correctSubId1,
+      userId: req.user.id,
+      commissionRate: rate
+    };
+    res.set('X-Pending-Debug', JSON.stringify(debugInfo));
     res.set('Cache-Control', 'no-store');
     res.json({ pendingNet: net, count: undefined });
   } catch (error) {
-    console.error('Pending earnings error:', error.message);
-    res.json({ pendingNet: 0, count: 0 });
+    console.error('[Pending Earnings] Critical error:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Return safe error response
+    res.status(500).json({ 
+      error: 'Unable to fetch pending earnings',
+      pendingNet: 0,
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
