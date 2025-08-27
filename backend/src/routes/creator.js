@@ -719,21 +719,38 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     });
     const rate = creator?.commissionRate ?? 70;
 
-    // Restore proper date range logic while keeping the ALL actions fix
+    // Proper date range logic with custom date support
     const now = new Date();
     
     // Use ISO date format for consistency and avoid timezone issues
     const fmt = (d) => d.toISOString().split('T')[0];
-    const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
     
-    // Use the actual requested days (respects UI date selection)
-    const effectiveDays = requestedDays;
-    const endDate = fmt(now);
-    const startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+    let startDate, endDate, effectiveDays;
+    
+    // Check if custom date range is provided
+    const customStart = req.query.startDate;
+    const customEnd = req.query.endDate;
+    
+    if (isYmd(customStart) && isYmd(customEnd)) {
+      // Use custom date range
+      startDate = customStart;
+      endDate = customEnd;
+      const startDateObj = new Date(customStart);
+      const endDateObj = new Date(customEnd);
+      effectiveDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      console.log(`[Earnings Summary] Using CUSTOM date range: ${customStart} to ${customEnd} (${effectiveDays} days)`);
+    } else {
+      // Use days parameter for preset ranges
+      const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+      effectiveDays = requestedDays;
+      endDate = fmt(now);
+      startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+      console.log(`[Earnings Summary] Using PRESET range: ${requestedDays} days (${startDate} to ${endDate})`);
+    }
 
-    console.log(`[Earnings Summary] FIXED - Requested: ${requestedDays} days, Using: ${effectiveDays} days (respects UI selection)`);
-    console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
-    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=responsive_to_ui`);
+    console.log(`[Earnings Summary] Final date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=custom_and_preset_support`);
 
     // Set cache control headers to prevent caching issues
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
