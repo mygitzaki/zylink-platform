@@ -744,20 +744,51 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
     const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
     
-    // For 7-day requests, always give the full 7 days if possible
-    // For longer periods, limit to actual earning period to avoid irrelevant data
+    // SMART DATE CALCULATION: For creators with recent earnings, ensure we capture the full earning window
     let effectiveDays;
-    if (requestedDays <= 7) {
-      // For 7 days or less, always give the requested amount
-      effectiveDays = requestedDays;
-    } else {
-      // For longer periods, limit to actual earning period
-      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
-    }
+    let startDate;
+    let endDate;
     
-    // Calculate dates more precisely
-    const endDate = fmt(now);
-    const startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+    if (requestedDays <= 7) {
+      // For 7 days, be smarter about the date range
+      // Check if creator has recent earnings and adjust accordingly
+      const recentEarnings = await prisma.earning.findMany({
+        where: { 
+          creatorId: req.user.id,
+          createdAt: {
+            gte: new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)) // Look back 14 days
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true }
+      });
+      
+      if (recentEarnings.length > 0) {
+        // Creator has recent earnings - find the earliest recent earning
+        const earliestRecentEarning = recentEarnings[recentEarnings.length - 1].createdAt;
+        const daysSinceEarliestRecent = Math.ceil((now.getTime() - earliestRecentEarning.getTime()) / (24 * 60 * 60 * 1000));
+        
+        // Use the smaller of: requested days OR days since earliest recent earning
+        effectiveDays = Math.min(requestedDays, daysSinceEarliestRecent + 1);
+        
+        // Calculate dates from the earliest recent earning
+        endDate = fmt(now);
+        startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+        
+        console.log(`[Earnings Summary] Smart 7-day: Found ${recentEarnings.length} recent earnings, earliest: ${earliestRecentEarning.toISOString().split('T')[0]}, effective: ${effectiveDays} days`);
+      } else {
+        // No recent earnings, use standard 7-day calculation
+        effectiveDays = requestedDays;
+        endDate = fmt(now);
+        startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+        console.log(`[Earnings Summary] Standard 7-day: No recent earnings, using ${effectiveDays} days`);
+      }
+    } else {
+      // For longer periods, limit to actual earning period to avoid irrelevant data
+      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+      endDate = fmt(now);
+      startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+    }
 
     console.log(`[Earnings Summary] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
@@ -988,20 +1019,51 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
     const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
     
-    // For 7-day requests, always give the full 7 days if possible
-    // For longer periods, limit to actual earning period to avoid irrelevant data
+    // SMART DATE CALCULATION: For creators with recent earnings, ensure we capture the full earning window
     let effectiveDays;
-    if (requestedDays <= 7) {
-      // For 7 days or less, always give the requested amount
-      effectiveDays = requestedDays;
-    } else {
-      // For longer periods, limit to actual earning period
-      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
-    }
+    let startDate;
+    let endDate;
     
-    // Calculate dates more precisely and consistently
-    const endDate = now.toISOString().split('T')[0];
-    const startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    if (requestedDays <= 7) {
+      // For 7 days, be smarter about the date range
+      // Check if creator has recent earnings and adjust accordingly
+      const recentEarnings = await prisma.earning.findMany({
+        where: { 
+          creatorId: req.user.id,
+          createdAt: {
+            gte: new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)) // Look back 14 days
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true }
+      });
+      
+      if (recentEarnings.length > 0) {
+        // Creator has recent earnings - find the earliest recent earning
+        const earliestRecentEarning = recentEarnings[recentEarnings.length - 1].createdAt;
+        const daysSinceEarliestRecent = Math.ceil((now.getTime() - earliestRecentEarning.getTime()) / (24 * 60 * 60 * 1000));
+        
+        // Use the smaller of: requested days OR days since earliest recent earning
+        effectiveDays = Math.min(requestedDays, daysSinceEarliestRecent + 1);
+        
+        // Calculate dates from the earliest recent earning
+        endDate = now.toISOString().split('T')[0];
+        startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        
+        console.log(`[Analytics Enhanced] Smart 7-day: Found ${recentEarnings.length} recent earnings, earliest: ${earliestRecentEarning.toISOString().split('T')[0]}, effective: ${effectiveDays} days`);
+      } else {
+        // No recent earnings, use standard 7-day calculation
+        effectiveDays = requestedDays;
+        endDate = now.toISOString().split('T')[0];
+        startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        console.log(`[Analytics Enhanced] Standard 7-day: No recent earnings, using ${effectiveDays} days`);
+      }
+    } else {
+      // For longer periods, limit to actual earning period to avoid irrelevant data
+      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
+      endDate = now.toISOString().split('T')[0];
+      startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    }
     
     console.log(`[Analytics Enhanced] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Analytics Enhanced] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
