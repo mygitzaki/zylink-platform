@@ -753,16 +753,16 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
-        const pendingReport = await impact.getPendingFromActionListingReport({
+        const allActionsReport = await impact.getPendingFromActionListingReport({
           subId1: correctSubId1,
           startDate,
           endDate
         });
         
-        if (pendingReport.success) {
-          pendingGross = pendingReport.gross || 0;
-          pendingActions = pendingReport.count || 0;
-          console.log(`[Earnings Summary] Pending: $${pendingGross} from ${pendingActions} actions`);
+        if (allActionsReport.success) {
+          pendingGross = allActionsReport.gross || 0;
+          pendingActions = allActionsReport.count || 0;
+          console.log(`[Earnings Summary] DEBUG - ALL Actions (not just pending): $${pendingGross} from ${pendingActions} actions`);
         }
       }
     } catch (error) {

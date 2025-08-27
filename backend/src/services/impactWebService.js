@@ -473,10 +473,11 @@ class ImpactWebService {
       const { subId1, startDate, endDate } = options;
       const id = await this.resolveActionListingReportId();
       // Use exact filter keys per MetaData for mp_action_listing_fast
+      // TEMP DEBUG: Remove Action Status filter to get ALL actions (not just Pending)
       const query = {
         START_DATE: startDate, // YYYY-MM-DD
         END_DATE: endDate,     // YYYY-MM-DD
-        'Action Status': 'Pending',
+        // 'Action Status': 'Pending', // REMOVED: Get all statuses to match dashboard
         Program: this.programId
       };
       let result = await this.exportReportAndDownloadJson(id, query);
