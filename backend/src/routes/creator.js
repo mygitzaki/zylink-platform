@@ -731,6 +731,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // Check if custom date range is provided
     const customStart = req.query.startDate;
     const customEnd = req.query.endDate;
+    let requestedDays; // Define this for both branches
     
     if (isYmd(customStart) && isYmd(customEnd)) {
       // Use custom date range
@@ -739,10 +740,11 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       const startDateObj = new Date(customStart);
       const endDateObj = new Date(customEnd);
       effectiveDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      requestedDays = effectiveDays; // Set to the same as effective days for custom ranges
       console.log(`[Earnings Summary] Using CUSTOM date range: ${customStart} to ${customEnd} (${effectiveDays} days)`);
     } else {
       // Use days parameter for preset ranges
-      const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+      requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
       effectiveDays = requestedDays;
       endDate = fmt(now);
       startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
