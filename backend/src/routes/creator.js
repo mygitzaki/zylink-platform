@@ -721,7 +721,9 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
 
     // Get intelligent date range - don't go back further than when creator actually started earning
     const now = new Date();
-    const fmt = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    
+    // Use ISO date format for consistency and avoid timezone issues
+    const fmt = (d) => d.toISOString().split('T')[0];
     const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     
     // Get creator's first earning date to avoid going back too far
@@ -745,11 +747,13 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // Use the smaller of requested days or actual earning period
     const effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
     
+    // Calculate dates more precisely
     const endDate = fmt(now);
     const startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
 
     console.log(`[Earnings Summary] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
+    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}`);
 
     // 1. Get Pending Earnings from Impact.com
     let pendingGross = 0;
@@ -973,11 +977,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     // Use the smaller of requested days or actual earning period
     const effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
     
+    // Calculate dates more precisely and consistently
     const endDate = now.toISOString().split('T')[0];
     const startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
     console.log(`[Analytics Enhanced] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Analytics Enhanced] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
+    console.log(`[Analytics Enhanced] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}`);
     
     // 1. Get Impact.com Data for Real Analytics
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
