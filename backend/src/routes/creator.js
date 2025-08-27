@@ -763,6 +763,12 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     console.log(`[Earnings Summary] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
     console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=${requestedDays <= 7 ? 'full_period' : 'limited_period'}`);
 
+    // Set cache control headers to prevent caching issues
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+
     // 1. Get Pending Earnings from Impact.com
     let pendingGross = 0;
     let pendingActions = 0;
@@ -1000,6 +1006,12 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     console.log(`[Analytics Enhanced] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
     console.log(`[Analytics Enhanced] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
     console.log(`[Analytics Enhanced] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=${requestedDays <= 7 ? 'full_period' : 'limited_period'}`);
+
+    // Set cache control headers to prevent caching issues
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
     
     // 1. Get Impact.com Data for Real Analytics
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
