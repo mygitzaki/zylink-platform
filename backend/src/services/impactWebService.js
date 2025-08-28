@@ -640,13 +640,20 @@ class ImpactWebService {
         const saleAmount = getSalesAmount(r);
         const commission = getCommission(r);
         
-        totalSales += saleAmount;
+        // If no sales amount but we have commission, estimate sales (temporary solution)
+        let effectiveSaleAmount = saleAmount;
+        if (saleAmount === 0 && commission > 0) {
+          // Estimate sales using 10% commission rate (adjust based on your typical rates)
+          effectiveSaleAmount = commission / 0.10;
+        }
+        
+        totalSales += effectiveSaleAmount;
         totalCommission += commission;
 
         // Collect recent sales data
         recentSales.push({
           date: r.action_date || r.Action_Date || r.EventDate || new Date().toISOString().split('T')[0],
-          orderValue: saleAmount,
+          orderValue: effectiveSaleAmount,
           commission: commission,
           status: r.ActionStatus || r.Status || 'Pending',
           actionId: actionId,
@@ -657,6 +664,14 @@ class ImpactWebService {
       // Sort recent sales by date (newest first) and limit to 10
       recentSales.sort((a, b) => new Date(b.date) - new Date(a.date));
       const limitedRecentSales = recentSales.slice(0, 10);
+
+      // DEBUG: Log available fields from first record to understand data structure
+      if (raw.length > 0) {
+        console.log(`[Sales Report DEBUG] Available fields in first record:`, Object.keys(raw[0]));
+        if (commissionableSales.length > 0) {
+          console.log(`[Sales Report DEBUG] First commissionable sale data:`, commissionableSales[0]);
+        }
+      }
 
       console.log(`[Sales Report] SubId1: ${subId1}, Raw records: ${raw.length}, Commissionable sales: ${seen.size}, Total sales: $${totalSales.toFixed(2)}, Total commission: $${totalCommission.toFixed(2)}`);
       
