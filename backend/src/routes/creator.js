@@ -1505,10 +1505,30 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             for (const field of urlFields) {
               if (action[field]) {
                 const url = action[field].toString();
-                if (url.includes('walmart.com') && !url.includes('goto.walmart.com/c/')) {
+                
+                // Check for direct walmart product URLs
+                if (url.includes('walmart.com/ip/') && !url.includes('goto.walmart.com/c/')) {
                   productUrl = url;
-                  console.log(`[Sales History DEBUG] Found product URL in field '${field}': ${url}`);
+                  console.log(`[Sales History DEBUG] Found direct product URL in field '${field}': ${url}`);
                   break;
+                }
+                
+                // Check for tracking URLs with encoded product URLs
+                if (url.includes('goto.walmart.com/c/') && url.includes('u=')) {
+                  try {
+                    const urlObj = new URL(url);
+                    const encodedTargetUrl = urlObj.searchParams.get('u');
+                    if (encodedTargetUrl) {
+                      const decodedUrl = decodeURIComponent(encodedTargetUrl);
+                      if (decodedUrl.includes('walmart.com/ip/')) {
+                        productUrl = decodedUrl;
+                        console.log(`[Sales History DEBUG] Decoded product URL from tracking link in '${field}': ${decodedUrl}`);
+                        break;
+                      }
+                    }
+                  } catch (error) {
+                    console.log(`[Sales History DEBUG] Error decoding URL from '${field}': ${error.message}`);
+                  }
                 }
               }
             }
@@ -1517,12 +1537,29 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             if (!productUrl) {
               const allValues = Object.values(action).filter(v => v && typeof v === 'string');
               for (const value of allValues) {
-                if (value.includes('walmart.com/ip/') || 
-                    value.includes('walmart.com/browse/') ||
-                    value.includes('walmart.com/search/')) {
+                // Direct product URLs
+                if (value.includes('walmart.com/ip/') && !value.includes('goto.walmart.com/c/')) {
                   productUrl = value;
-                  console.log(`[Sales History DEBUG] Found walmart URL in data: ${value}`);
+                  console.log(`[Sales History DEBUG] Found direct walmart URL in data: ${value}`);
                   break;
+                }
+                
+                // Try to decode tracking URLs
+                if (value.includes('goto.walmart.com/c/') && value.includes('u=')) {
+                  try {
+                    const urlObj = new URL(value);
+                    const encodedTargetUrl = urlObj.searchParams.get('u');
+                    if (encodedTargetUrl) {
+                      const decodedUrl = decodeURIComponent(encodedTargetUrl);
+                      if (decodedUrl.includes('walmart.com/ip/')) {
+                        productUrl = decodedUrl;
+                        console.log(`[Sales History DEBUG] Decoded walmart URL from tracking link: ${decodedUrl}`);
+                        break;
+                      }
+                    }
+                  } catch (error) {
+                    // Ignore decode errors and continue
+                  }
                 }
               }
             }
