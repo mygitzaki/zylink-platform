@@ -962,64 +962,19 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       recentActivity: []
     });
     
-    // Get intelligent date range - prioritize requested days but respect earning history
+    // Use the SAME date calculation method as earnings-summary (proven working)
     const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
     const now = new Date();
     
-    // Get creator's first earning date to avoid going back too far
-    const firstEarning = await prisma.earning.findFirst({
-      where: { creatorId: req.user.id },
-      orderBy: { createdAt: 'asc' },
-      select: { createdAt: true }
-    });
+    console.log(`[Analytics Enhanced] Using SAME method as earnings-summary for ${requestedDays} days`);
     
-    // Get creator's first link creation date as fallback
-    const firstLink = await prisma.link.findFirst({
-      where: { creatorId: req.user.id },
-      orderBy: { createdAt: 'asc' },
-      select: { createdAt: true }
-    });
+    // Use the same simple, proven date calculation as earnings-summary
+    const effectiveDays = requestedDays;
+    const endDate = now.toISOString().split('T')[0];
+    const startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
-    // Determine the earliest relevant date
-    const earliestDate = firstEarning?.createdAt || firstLink?.createdAt || now;
-    const daysSinceEarliest = Math.ceil((now.getTime() - earliestDate.getTime()) / (24 * 60 * 60 * 1000));
-    
-    // SMART DATE CALCULATION: For creators with recent earnings, ensure we capture the full earning window
-    let effectiveDays;
-    let startDate;
-    let endDate;
-    
-    if (requestedDays <= 7) {
-      // For 7 days, use a smarter approach that considers Impact.com data patterns
-      // Since earnings come from Impact.com API, not our database, we need to be more intelligent
-      
-      // For creators with recent activity, extend the 7-day window to capture full earning periods
-      // This ensures consistency between 7-day and longer periods
-      const extendedDays = Math.min(14, daysSinceEarliest + 1); // Look back up to 14 days
-      
-      if (extendedDays > requestedDays) {
-        // Use extended window to capture full earning period
-        effectiveDays = extendedDays;
-        console.log(`[Analytics Enhanced] Smart 7-day: Extended to ${extendedDays} days to capture full earning window`);
-      } else {
-        // Use requested days if no extension needed
-        effectiveDays = requestedDays;
-        console.log(`[Analytics Enhanced] Standard 7-day: Using ${effectiveDays} days`);
-      }
-      
-      // Calculate dates
-      endDate = now.toISOString().split('T')[0];
-      startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
-    } else {
-      // For longer periods, limit to actual earning period to avoid irrelevant data
-      effectiveDays = Math.min(requestedDays, daysSinceEarliest + 1);
-      endDate = now.toISOString().split('T')[0];
-      startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
-    }
-    
-    console.log(`[Analytics Enhanced] Requested: ${requestedDays} days, Effective: ${effectiveDays} days (earliest: ${earliestDate.toISOString().split('T')[0]})`);
-    console.log(`[Analytics Enhanced] Fetching data for ${effectiveDays} days: ${startDate} to ${endDate}`);
-    console.log(`[Analytics Enhanced] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=${requestedDays <= 7 ? 'full_period' : 'limited_period'}`);
+    console.log(`[Analytics Enhanced] Using proven date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    console.log(`[Analytics Enhanced] This matches earnings-summary date calculation`);
 
     // Set cache control headers to prevent caching issues
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
