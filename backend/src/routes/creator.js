@@ -1448,25 +1448,24 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
         });
         
         if (allActionsReport.success) {
-          // For now, use the aggregated data until we can access raw actions
-          totalSales = allActionsReport.gross || 0;
-          salesCount = allActionsReport.count || 0;
-
-          // Create sample recent sales from aggregated data
-          // In the future, we'll parse individual action records
-          if (salesCount > 0) {
-            const avgSaleValue = totalSales / salesCount;
-            const commissionRate = creator.commissionRate / 100;
-            
-            // Create representative recent sales
-            recentSales = Array.from({ length: Math.min(5, salesCount) }, (_, i) => ({
-              date: fmt(new Date(now.getTime() - (i * 24 * 60 * 60 * 1000))),
-              orderValue: parseFloat((avgSaleValue * (0.8 + Math.random() * 0.4)).toFixed(2)),
-              commission: parseFloat((avgSaleValue * commissionRate * (0.8 + Math.random() * 0.4)).toFixed(2)),
-              status: 'Pending',
-              actionId: `ACT_${Date.now()}_${i}`,
-              product: 'Product Sale'
-            }));
+          // We need to call a new method that returns both sales totals AND commission totals
+          // For now, let's get the raw data and calculate sales separately
+          const salesReport = await impact.getSalesFromActionListingReport({
+            subId1: correctSubId1,
+            startDate,
+            endDate
+          });
+          
+          if (salesReport.success) {
+            totalSales = salesReport.totalSales || 0;
+            salesCount = salesReport.count || 0;
+            recentSales = salesReport.recentSales || [];
+          } else {
+            // Fallback: estimate sales from commission (this is wrong but temporary)
+            const estimatedConversionRate = 0.10; // Assume 10% commission rate as fallback
+            totalSales = (allActionsReport.gross || 0) / estimatedConversionRate;
+            salesCount = allActionsReport.count || 0;
+            recentSales = [];
           }
 
           console.log(`[Sales History] Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);

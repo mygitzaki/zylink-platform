@@ -542,9 +542,133 @@ class ImpactWebService {
       
       console.log(`[Impact Reports] SubId1: ${subId1}, Raw records: ${raw.length}, Filtered: ${filtered.length}, Unique actions: ${seen.size}, Gross: ${gross}`);
       
-      return { success: true, gross, count: seen.size };
+      return { success: true, gross, count: seen.size, rawActions: filtered };
     } catch (error) {
       console.error('[Impact Reports] Error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // NEW: Get sales totals (order values) from action listing report
+  async getSalesFromActionListingReport(options = {}) {
+    try {
+      const { subId1, startDate, endDate } = options;
+      const id = await this.resolveActionListingReportId();
+      
+      const query = {
+        START_DATE: startDate,
+        END_DATE: endDate,
+        Program: this.programId
+      };
+      
+      let result = await this.exportReportAndDownloadJson(id, query);
+      if (!result.success) {
+        // Fallback: try synchronous Reports endpoint
+        try {
+          const qp = new URLSearchParams(query);
+          const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports/${encodeURIComponent(id)}?${qp.toString()}`;
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+              'Accept': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            result = { success: true, json };
+          }
+        } catch {}
+        if (!result?.success) return { success: false, error: result?.error || 'ReportExport failed and fallback returned no data' };
+      }
+
+      const raw = Array.isArray(result.json?.Records) ? result.json.Records : (Array.isArray(result.json) ? result.json : []);
+
+      // Field mappings
+      const subIdKeys = ['Subid1','SubId1','SubID1','Sub_Id1','TrackingValue','Tracking_Value','SubId'];
+      const salesKeys = ['Amount', 'SaleAmount', 'IntendedAmount', 'OrderValue', 'Total']; // Order value fields
+      const payoutKeys = ['Payout','Commission']; // Commission fields
+      const norm = (v) => String(v || '').trim();
+
+      const findSubIdKey = (row) => subIdKeys.find(k => Object.prototype.hasOwnProperty.call(row, k));
+      const getSubIdVal = (row) => {
+        const k = findSubIdKey(row);
+        return k ? norm(row[k]) : '';
+      };
+
+      // Get sales amount (order value)
+      const getSalesAmount = (row) => {
+        for (const k of salesKeys) {
+          if (row[k] !== undefined && row[k] !== null) {
+            const val = parseFloat(String(row[k]).replace(/[^0-9.-]/g, ''));
+            if (Number.isFinite(val)) return val;
+          }
+        }
+        return 0;
+      };
+
+      // Get commission amount  
+      const getCommission = (row) => {
+        for (const k of payoutKeys) {
+          if (row[k] !== undefined && row[k] !== null) {
+            const val = parseFloat(String(row[k]).replace(/[^0-9.-]/g, ''));
+            if (Number.isFinite(val)) return val;
+          }
+        }
+        return 0;
+      };
+
+      // Filter to the requested SubId1
+      const filtered = raw.filter(r => !subId1 || norm(getSubIdVal(r)) === norm(subId1));
+
+      // Filter for commissionable sales only (commission > 0)
+      const commissionableSales = filtered.filter(r => getCommission(r) > 0);
+
+      // De-duplicate and calculate totals
+      const seen = new Set();
+      let totalSales = 0;
+      let totalCommission = 0;
+      const recentSales = [];
+
+      for (const r of commissionableSales) {
+        const actionId = r.action_id || r.Action_Id || r.ActionId || r.Id || r.TransactionId || 
+                        `${r.Campaign || ''}:${r.action_date || r.Action_Date || r.EventDate || ''}:${r.Payout || r.Commission || ''}`;
+        
+        if (seen.has(actionId)) continue;
+        seen.add(actionId);
+        
+        const saleAmount = getSalesAmount(r);
+        const commission = getCommission(r);
+        
+        totalSales += saleAmount;
+        totalCommission += commission;
+
+        // Collect recent sales data
+        recentSales.push({
+          date: r.action_date || r.Action_Date || r.EventDate || new Date().toISOString().split('T')[0],
+          orderValue: saleAmount,
+          commission: commission,
+          status: r.ActionStatus || r.Status || 'Pending',
+          actionId: actionId,
+          product: r.ProductName || r.Product || r.Campaign || 'Product Sale'
+        });
+      }
+
+      // Sort recent sales by date (newest first) and limit to 10
+      recentSales.sort((a, b) => new Date(b.date) - new Date(a.date));
+      const limitedRecentSales = recentSales.slice(0, 10);
+
+      console.log(`[Sales Report] SubId1: ${subId1}, Raw records: ${raw.length}, Commissionable sales: ${seen.size}, Total sales: $${totalSales.toFixed(2)}, Total commission: $${totalCommission.toFixed(2)}`);
+      
+      return { 
+        success: true, 
+        totalSales: parseFloat(totalSales.toFixed(2)), 
+        totalCommission: parseFloat(totalCommission.toFixed(2)),
+        count: seen.size,
+        recentSales: limitedRecentSales
+      };
+    } catch (error) {
+      console.error('[Sales Report] Error:', error.message);
       return { success: false, error: error.message };
     }
   }
