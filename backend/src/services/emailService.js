@@ -23,6 +23,7 @@ class EmailService {
   }
 
   async sendEmail(to, subject, htmlContent, textContent = null) {
+    const startTime = Date.now();
     try {
       if (!this.apiKey || !this.domain) {
         console.log('📧 [EMAIL SIMULATION] To:', to);
@@ -30,6 +31,8 @@ class EmailService {
         console.log('📧 [EMAIL SIMULATION] Content:', htmlContent);
         return { success: true, message: 'Email simulated (Mailgun API not configured)' };
       }
+
+      console.log(`📧 [MAILGUN] Starting email send to ${to} at ${new Date().toISOString()}`);
 
       // Prepare form data for Mailgun API
       const formData = new URLSearchParams();
@@ -42,6 +45,11 @@ class EmailService {
       } else {
         formData.append('text', this.stripHtml(htmlContent));
       }
+      
+      // Add delivery optimization parameters
+      formData.append('o:tracking', 'yes');
+      formData.append('o:tracking-clicks', 'yes');
+      formData.append('o:tracking-opens', 'yes');
 
       // Send via Mailgun HTTP API
       const response = await fetch(this.apiUrl, {
@@ -59,9 +67,12 @@ class EmailService {
       }
 
       const result = await response.json();
-      console.log('✅ Email sent successfully via Mailgun API to:', to);
-      console.log('📧 Message ID:', result.id);
-      return { success: true, messageId: result.id };
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log(`✅ Email sent successfully via Mailgun API to: ${to} (${duration}ms)`);
+      console.log(`📧 Message ID: ${result.id}`);
+      console.log(`⏱️ API Response Time: ${duration}ms at ${new Date().toISOString()}`);
+      return { success: true, messageId: result.id, apiResponseTime: duration };
     } catch (error) {
       console.error('❌ Email sending failed:', error);
       return { success: false, error: error.message };
