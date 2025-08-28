@@ -3,7 +3,7 @@ class EmailService {
     this.apiKey = process.env.MAILGUN_API_KEY;
     this.domain = process.env.MAILGUN_DOMAIN || 'mg.zylike.com';
     this.fromEmail = process.env.MAILGUN_FROM || process.env.FROM_EMAIL || 'noreply@mg.zylike.com';
-    this.fromName = process.env.FROM_NAME || 'Zylike Platform';
+    this.fromName = process.env.FROM_NAME || 'Zylike';
     this.apiUrl = `https://api.mailgun.net/v3/${this.domain}/messages`;
   }
 
