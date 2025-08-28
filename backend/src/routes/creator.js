@@ -1439,6 +1439,8 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
+      console.log(`[Sales History DEBUG] Creator ID: ${req.user.id}, SubId1: ${correctSubId1}`);
+      
       if (correctSubId1 && correctSubId1 !== 'default') {
         // Use the same Actions API that admin dashboard uses successfully
         const actionsResponse = await impact.getActionsDetailed({
@@ -1451,11 +1453,28 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
         if (actionsResponse.success) {
           const actions = actionsResponse.actions || [];
           
-          // Filter for commissionable actions only (commission > 0)
-          const commissionableActions = actions.filter(action => {
+          console.log(`[Sales History DEBUG] Total actions returned: ${actions.length}`);
+          console.log(`[Sales History DEBUG] Requested SubId1: ${correctSubId1}`);
+          
+          // First filter: Only actions for this specific creator (additional client-side filtering)
+          const creatorActions = actions.filter(action => {
+            const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
+            const matches = actionSubId1.toString().trim() === correctSubId1.toString().trim();
+            if (!matches && actions.length < 5) {
+              console.log(`[Sales History DEBUG] Action SubId1: "${actionSubId1}" vs Creator: "${correctSubId1}"`);
+            }
+            return matches;
+          });
+          
+          console.log(`[Sales History DEBUG] Actions for this creator: ${creatorActions.length}`);
+          
+          // Second filter: Only commissionable actions (commission > 0)
+          const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
             return commission > 0;
           });
+          
+          console.log(`[Sales History DEBUG] Commissionable actions for this creator: ${commissionableActions.length}`);
 
           // Calculate totals using the same field names as admin dashboard
           let calculatedSales = 0;
