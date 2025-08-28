@@ -5,6 +5,7 @@ const { getPrisma } = require('../utils/prisma');
 const ImpactWebService = require('../services/impactWebService');
 const { LinkShortener } = require('../services/linkShortener');
 const { QRCodeService } = require('../services/qrcodeService');
+const { EmailService } = require('../services/emailService');
 const { requireAuth, requireApprovedCreator } = require('../middleware/auth');
 
 const router = express.Router();
@@ -38,6 +39,17 @@ router.post('/signup', async (req, res) => {
         walletAddress: '0x0000000000000000000000000000000000000000' // Default value
       } 
     });
+    
+    // Send welcome email (non-blocking)
+    try {
+      const emailService = new EmailService();
+      await emailService.initialize();
+      await emailService.sendWelcomeEmail(creator);
+      console.log(`✅ Welcome email sent to ${creator.email}`);
+    } catch (emailError) {
+      // Don't fail signup if email fails
+      console.error('⚠️ Failed to send welcome email:', emailError.message);
+    }
     
     const token = signToken({ id: creator.id, role });
     res.status(201).json({ token, creator: { id: creator.id, name: creator.name, email: creator.email } });

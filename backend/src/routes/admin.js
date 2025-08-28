@@ -1,6 +1,7 @@
 const express = require('express');
 const { getPrisma } = require('../utils/prisma');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { EmailService } = require('../services/emailService');
 const router = express.Router();
 const prisma = getPrisma();
 
@@ -76,18 +77,38 @@ router.get('/applications/pending', requireAuth, requireAdmin, async (req, res) 
 });
 
 router.put('/applications/:id/review', requireAuth, requireAdmin, async (req, res) => {
-  if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  const { status, commissionRate, salesBonus } = req.body;
-  const updated = await prisma.creator.update({
-    where: { id: req.params.id },
-    data: {
-      applicationStatus: status,
-      isActive: status === 'APPROVED',
-      commissionRate: commissionRate ?? undefined,
-      salesBonus: salesBonus ?? undefined,
-    },
-  });
-  res.json({ updated });
+  try {
+    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    const { status, commissionRate, salesBonus, notes } = req.body;
+    
+    const updated = await prisma.creator.update({
+      where: { id: req.params.id },
+      data: {
+        applicationStatus: status,
+        isActive: status === 'APPROVED',
+        commissionRate: commissionRate ?? undefined,
+        salesBonus: salesBonus ?? undefined,
+        applicationNotes: notes ?? undefined,
+        rejectionReason: status === 'REJECTED' ? notes : undefined,
+      },
+    });
+
+    // Send application status email (non-blocking)
+    try {
+      const emailService = new EmailService();
+      await emailService.initialize();
+      await emailService.sendApplicationStatusEmail(updated, status, notes);
+      console.log(`✅ Application status email sent to ${updated.email} (${status})`);
+    } catch (emailError) {
+      // Don't fail the application update if email fails
+      console.error('⚠️ Failed to send application status email:', emailError.message);
+    }
+
+    res.json({ updated });
+  } catch (err) {
+    console.error('Application review error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 router.put('/creators/:id/status', requireAuth, requireAdmin, async (req, res) => {
@@ -172,9 +193,43 @@ router.get('/payouts', requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.put('/payouts/:id/approve', requireAuth, requireAdmin, async (req, res) => {
-  if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  const pr = await prisma.payoutRequest.update({ where: { id: req.params.id }, data: { status: 'COMPLETED', processedAt: new Date() } })
-  res.json(pr)
+  try {
+    if (!prisma) return res.status(503).json({ message: 'Database not configured' });
+    
+    const pr = await prisma.payoutRequest.update({
+      where: { id: req.params.id },
+      data: { status: 'COMPLETED', processedAt: new Date() },
+      include: {
+        creator: {
+          include: {
+            paymentAccount: true
+          }
+        }
+      }
+    });
+
+    // Send payment notification email (non-blocking)
+    try {
+      const emailService = new EmailService();
+      await emailService.initialize();
+      
+      const paymentMethod = pr.creator.paymentAccount?.accountType || 'Payment Account';
+      await emailService.sendPaymentNotificationEmail(
+        pr.creator,
+        parseFloat(pr.amount),
+        paymentMethod
+      );
+      console.log(`✅ Payment notification email sent to ${pr.creator.email} ($${pr.amount})`);
+    } catch (emailError) {
+      // Don't fail the payout approval if email fails
+      console.error('⚠️ Failed to send payment notification email:', emailError.message);
+    }
+
+    res.json(pr);
+  } catch (err) {
+    console.error('Payout approval error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 router.put('/payouts/:id/reject', requireAuth, requireAdmin, async (req, res) => {
