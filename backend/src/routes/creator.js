@@ -1503,9 +1503,89 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               });
             }
             
-            // For now, let's remove the complex URL detection and just use homepage
-            // Until we can see what data is actually available
-            productUrl = 'https://www.walmart.com';
+            // Try to find the original product URL from our Link database
+            let productUrl = null;
+            
+            try {
+              // Method 1: Look for links with matching Impact link containing this action ID
+              const actionId = action.Id;
+              if (actionId) {
+                const linkWithAction = await prisma.link.findFirst({
+                  where: {
+                    creatorId: req.user.id,
+                    impactLink: {
+                      contains: actionId
+                    }
+                  },
+                  select: {
+                    destinationUrl: true,
+                    impactLink: true
+                  }
+                });
+                
+                if (linkWithAction) {
+                  productUrl = linkWithAction.destinationUrl;
+                  console.log(`[Sales History DEBUG] Found original URL via action ID match: ${productUrl}`);
+                }
+              }
+              
+              // Method 2: Look for earnings with matching Impact transaction ID
+              if (!productUrl && action.Id) {
+                const earningWithLink = await prisma.earning.findFirst({
+                  where: {
+                    creatorId: req.user.id,
+                    impactTransactionId: action.Id
+                  },
+                  include: {
+                    link: {
+                      select: {
+                        destinationUrl: true
+                      }
+                    }
+                  }
+                });
+                
+                if (earningWithLink?.link?.destinationUrl) {
+                  productUrl = earningWithLink.link.destinationUrl;
+                  console.log(`[Sales History DEBUG] Found original URL via earning link: ${productUrl}`);
+                }
+              }
+              
+              // Method 3: Look for recent links with similar sale amounts (less reliable)
+              if (!productUrl) {
+                const recentLinks = await prisma.link.findMany({
+                  where: {
+                    creatorId: req.user.id,
+                    createdAt: {
+                      gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+                    }
+                  },
+                  select: {
+                    destinationUrl: true,
+                    createdAt: true
+                  },
+                  orderBy: {
+                    createdAt: 'desc'
+                  },
+                  take: 10
+                });
+                
+                if (recentLinks.length > 0) {
+                  // For now, just take the most recent link as a fallback
+                  productUrl = recentLinks[0].destinationUrl;
+                  console.log(`[Sales History DEBUG] Using most recent link as fallback: ${productUrl}`);
+                }
+              }
+              
+            } catch (error) {
+              console.log(`[Sales History DEBUG] Error looking up original URL: ${error.message}`);
+            }
+            
+            // Final fallback to homepage
+            if (!productUrl) {
+              productUrl = 'https://www.walmart.com';
+              console.log(`[Sales History DEBUG] No original URL found, using homepage`);
+            }
 
             // Collect recent sales data
             processedSales.push({
