@@ -1,66 +1,67 @@
-const nodemailer = require('nodemailer');
-
 class EmailService {
   constructor() {
-    this.transporter = null;
-    this.fromEmail = process.env.MAILGUN_FROM || process.env.FROM_EMAIL || 'noreply@zylike.com';
+    this.apiKey = process.env.MAILGUN_API_KEY;
+    this.domain = process.env.MAILGUN_DOMAIN || 'mg.zylike.com';
+    this.fromEmail = process.env.MAILGUN_FROM || process.env.FROM_EMAIL || 'noreply@mg.zylike.com';
     this.fromName = process.env.FROM_NAME || 'Zylike Platform';
+    this.apiUrl = `https://api.mailgun.net/v3/${this.domain}/messages`;
   }
 
   async initialize() {
     try {
-      const smtpHost = process.env.SMTP_HOST || (process.env.MAILGUN_SMTP_LOGIN ? 'smtp.mailgun.org' : undefined);
-      const smtpPort = Number(process.env.SMTP_PORT || 587);
-      const smtpSecure = String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || smtpPort === 465;
-      const smtpUser = process.env.SMTP_USER || process.env.MAILGUN_SMTP_LOGIN;
-      const smtpPass = process.env.SMTP_PASS || process.env.MAILGUN_SMTP_PASSWORD || process.env.MAILGUN_SMTP_PASS;
-
-      if (!smtpHost || !smtpUser || !smtpPass) {
-        console.warn('⚠️ SMTP not fully configured. Email service will run in simulation mode.');
-        this.transporter = null;
+      if (!this.apiKey || !this.domain) {
+        console.warn('⚠️ Mailgun API not fully configured. Email service will run in simulation mode.');
+        console.warn('Missing:', !this.apiKey ? 'MAILGUN_API_KEY' : '', !this.domain ? 'MAILGUN_DOMAIN' : '');
         return;
       }
 
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpSecure,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass
-        }
-      });
-
-      // Verify connection
-      await this.transporter.verify();
-      console.log('✅ Email service initialized successfully');
+      console.log('✅ Mailgun HTTP API service initialized successfully');
+      console.log(`📧 Using domain: ${this.domain}`);
     } catch (error) {
       console.error('❌ Email service initialization failed:', error);
-      // Fallback to console logging for development
-      this.transporter = null;
     }
   }
 
   async sendEmail(to, subject, htmlContent, textContent = null) {
     try {
-      if (!this.transporter) {
+      if (!this.apiKey || !this.domain) {
         console.log('📧 [EMAIL SIMULATION] To:', to);
         console.log('📧 [EMAIL SIMULATION] Subject:', subject);
         console.log('📧 [EMAIL SIMULATION] Content:', htmlContent);
-        return { success: true, message: 'Email simulated (no SMTP configured)' };
+        return { success: true, message: 'Email simulated (Mailgun API not configured)' };
       }
 
-      const mailOptions = {
-        from: `"${this.fromName}" <${this.fromEmail}>`,
-        to,
-        subject,
-        html: htmlContent,
-        text: textContent || this.stripHtml(htmlContent)
-      };
+      // Prepare form data for Mailgun API
+      const formData = new URLSearchParams();
+      formData.append('from', `${this.fromName} <${this.fromEmail}>`);
+      formData.append('to', to);
+      formData.append('subject', subject);
+      formData.append('html', htmlContent);
+      if (textContent) {
+        formData.append('text', textContent);
+      } else {
+        formData.append('text', this.stripHtml(htmlContent));
+      }
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully to:', to);
-      return { success: true, messageId: result.messageId };
+      // Send via Mailgun HTTP API
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`api:${this.apiKey}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Mailgun API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Email sent successfully via Mailgun API to:', to);
+      console.log('📧 Message ID:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('❌ Email sending failed:', error);
       return { success: false, error: error.message };
