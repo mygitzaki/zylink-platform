@@ -27,6 +27,8 @@ export default function Earnings() {
     salesCount: 0,
     recentSales: []
   })
+  const [selectedSale, setSelectedSale] = useState(null)
+  const [showSaleModal, setShowSaleModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
   const [customStart, setCustomStart] = useState('')
@@ -138,6 +140,16 @@ export default function Earnings() {
       style: 'currency',
       currency: 'USD'
     }).format(amount || 0)
+  }
+
+  const handleSaleClick = (sale) => {
+    setSelectedSale(sale)
+    setShowSaleModal(true)
+  }
+
+  const closeSaleModal = () => {
+    setShowSaleModal(false)
+    setSelectedSale(null)
   }
 
   const formatPercentage = (value) => {
@@ -401,7 +413,11 @@ export default function Earnings() {
           {salesData.recentSales && salesData.recentSales.length > 0 ? (
             <div className="space-y-4">
               {salesData.recentSales.map((sale, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500">
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleSaleClick(sale)}
+                >
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
                       <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,6 +458,93 @@ export default function Earnings() {
           )}
         </div>
       </div>
+
+      {/* Sale Details Modal */}
+      {showSaleModal && selectedSale && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={closeSaleModal}>
+          <div className="bg-white rounded-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Sale Details</h3>
+              <button
+                onClick={closeSaleModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Product */}
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{selectedSale.product}</h4>
+                  <p className="text-sm text-gray-500">{new Date(selectedSale.date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long', 
+                    day: 'numeric'
+                  })}</p>
+                </div>
+              </div>
+
+              {/* Sale Information */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Customer Purchase</span>
+                  <span className="font-semibold text-lg">{formatCurrency(selectedSale.orderValue)}</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Your Commission</span>
+                  <span className="font-bold text-green-600 text-lg">{formatCurrency(selectedSale.commission)}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Status</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    selectedSale.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                    selectedSale.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {selectedSale.status}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Action ID</span>
+                  <span className="font-mono text-xs text-gray-500">{selectedSale.actionId}</span>
+                </div>
+              </div>
+
+              {/* Commission Rate Info */}
+              <div className="bg-indigo-50 rounded-lg p-3">
+                <p className="text-sm text-indigo-700">
+                  <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Commission shown is your earnings after platform rate applied
+                </p>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div className="mt-6">
+              <button
+                onClick={closeSaleModal}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
