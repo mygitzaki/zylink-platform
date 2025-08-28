@@ -1076,32 +1076,70 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] Real conversions (pending + approved): ${realConversions}`);
           console.log(`[Analytics Enhanced] Real revenue: $${realRevenue.toFixed(2)}`);
           
-          // For clicks, we need to use the detailed actions to get more accurate estimates
-          // Try to get actual click data from actions that have click information
-          const detailedActions = await impact.getActionsDetailed({
-            startDate,
-            endDate,
-            subId1: correctSubId1,
-            pageSize: 1000
-          });
-          
-          if (detailedActions.success && detailedActions.actions) {
-            const creatorActions = detailedActions.actions.filter(action => 
-              action.SubId1 === correctSubId1
-            );
+          // Get REAL click data from Impact.com Reports API (same way admin gets it)
+          try {
+            console.log(`[Analytics Enhanced] Fetching real click data from Impact.com Reports API`);
             
-            // Verify conversion count matches our proven method
-            if (creatorActions.length !== realConversions) {
-              console.log(`[Analytics Enhanced] WARNING: Action count mismatch. Using proven method count: ${realConversions}`);
+            // Use the same Reports API that admin dashboard uses for real click data
+            const reportsApi = await impact.getImpactReportsData({
+              startDate,
+              endDate,
+              subId1: correctSubId1
+            });
+            
+            if (reportsApi.success && reportsApi.data) {
+              // Find this creator's data in the reports
+              const creatorData = reportsApi.data.find(row => row.SubId1 === correctSubId1);
+              
+              if (creatorData) {
+                realClicks = parseInt(creatorData.Clicks) || 0;
+                console.log(`[Analytics Enhanced] ✅ Real clicks from Impact.com Reports: ${realClicks}`);
+                
+                // Extract metrics from Impact.com dashboard format
+                const reportConversions = parseInt(creatorData['Sales - Net']) || 0;
+                const reportCommission = parseFloat(creatorData['Commission - Total']) || 0;
+                const reportConversionRate = parseFloat(creatorData['Conversion Rate']) || 0;
+                
+                console.log(`[Analytics Enhanced] ✅ Real Impact.com dashboard data:`);
+                console.log(`  - Clicks: ${realClicks}`);
+                console.log(`  - Sales (Net/Commissionable): ${reportConversions}`);
+                console.log(`  - Commission Total: $${reportCommission}`);
+                console.log(`  - Conversion Rate: ${reportConversionRate}%`);
+                
+                // Use commissionable conversions (Sales - Net) which is what we want (198 not 262)
+                if (reportConversions > 0) {
+                  realConversions = reportConversions;
+                  console.log(`[Analytics Enhanced] ✅ Using commissionable conversions: ${realConversions}`);
+                }
+                
+                // Apply business rate to commission for creator's share
+                if (reportCommission > 0) {
+                  const businessRate = creator?.commissionRate || 70;
+                  realRevenue = (reportCommission * businessRate) / 100;
+                  console.log(`[Analytics Enhanced] ✅ Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
+                }
+              } else {
+                console.log(`[Analytics Enhanced] Creator not found in Reports API, using fallback estimation`);
+                // Fallback estimation based on industry averages
+                if (realConversions > 0) {
+                  realClicks = Math.round(realConversions / 0.059); // Use 5.9% conversion rate from Impact data
+                  console.log(`[Analytics Enhanced] Estimated clicks using 5.9% conversion rate: ${realClicks}`);
+                }
+              }
             } else {
-              console.log(`[Analytics Enhanced] ✅ Action count verified: ${realConversions}`);
+              console.log(`[Analytics Enhanced] Reports API not available, using conversion-based estimation`);
+              // Fallback estimation
+              if (realConversions > 0) {
+                realClicks = Math.round(realConversions / 0.059); // Use 5.9% conversion rate
+                console.log(`[Analytics Enhanced] Estimated clicks using 5.9% conversion rate: ${realClicks}`);
+              }
             }
-            
-            // Estimate clicks based on typical e-commerce conversion rates (1-3%)
-            // Since we have conversions, estimate clicks conservatively
+          } catch (reportsError) {
+            console.log(`[Analytics Enhanced] Error fetching Reports API: ${reportsError.message}`);
+            // Final fallback
             if (realConversions > 0) {
-              realClicks = Math.round(realConversions / 0.02); // 2% conversion rate
-              console.log(`[Analytics Enhanced] Estimated clicks based on ${realConversions} conversions: ${realClicks}`);
+              realClicks = Math.round(realConversions / 0.059); // Use 5.9% conversion rate
+              console.log(`[Analytics Enhanced] Fallback estimated clicks: ${realClicks}`);
             }
           }
         }

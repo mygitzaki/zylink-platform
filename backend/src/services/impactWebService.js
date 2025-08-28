@@ -259,6 +259,56 @@ class ImpactWebService {
     }
   }
 
+  // Get comprehensive reports data with real clicks and conversions
+  async getImpactReportsData(options = {}) {
+    try {
+      const { startDate, endDate, subId1 } = options;
+      console.log('📊 Fetching Impact.com Reports data for real metrics...');
+      
+      // Use Impact.com's comprehensive reports endpoint
+      const qp = new URLSearchParams({
+        StartDate: startDate || '2025-01-01',
+        EndDate: endDate || new Date().toISOString().split('T')[0],
+        PageSize: '1000'
+      });
+      
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports/Mp_AdvertiserClicks.json?${qp.toString()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`📊 Reports API returned ${data.TotalRecords || 0} records`);
+        
+        // Filter for specific creator if subId1 provided
+        let records = data.Records || [];
+        if (subId1) {
+          records = records.filter(record => record.SubId1 === subId1);
+          console.log(`📊 Filtered to ${records.length} records for SubId1: ${subId1}`);
+        }
+        
+        return {
+          success: true,
+          data: records,
+          totalRecords: records.length
+        };
+      } else {
+        console.log('⚠️ Reports endpoint not available, status:', response.status);
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+    } catch (error) {
+      console.log('⚠️ Error calling Reports endpoint:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Prefer Clicks endpoint for real-time click data; fallback to Actions
   async getClickAnalytics(startDate, endDate) {
     try {
