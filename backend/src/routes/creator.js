@@ -1523,6 +1523,49 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                 if (linkWithAction) {
                   productUrl = linkWithAction.destinationUrl;
                   console.log(`[Sales History DEBUG] Found original URL via action ID match: ${productUrl}`);
+                } else {
+                  // Try to extract from SubId1 - look for links with this creator's SubId1
+                  const creatorSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+                  const linkWithSubId = await prisma.link.findFirst({
+                    where: {
+                      creatorId: req.user.id,
+                      impactLink: {
+                        contains: creatorSubId1
+                      }
+                    },
+                    select: {
+                      destinationUrl: true,
+                      impactLink: true
+                    },
+                    orderBy: {
+                      createdAt: 'desc'
+                    }
+                  });
+                  
+                  if (linkWithSubId) {
+                    // Try to decode the tracking URL to get the original URL
+                    const impactUrl = linkWithSubId.impactLink;
+                    if (impactUrl.includes('u=')) {
+                      try {
+                        const urlObj = new URL(impactUrl);
+                        const encodedUrl = urlObj.searchParams.get('u');
+                        if (encodedUrl) {
+                          const decodedUrl = decodeURIComponent(encodedUrl);
+                          if (decodedUrl.includes('walmart.com/ip/')) {
+                            productUrl = decodedUrl;
+                            console.log(`[Sales History DEBUG] Decoded URL from stored tracking link: ${productUrl}`);
+                          }
+                        }
+                      } catch (error) {
+                        // If decoding fails, use the stored destinationUrl
+                        productUrl = linkWithSubId.destinationUrl;
+                        console.log(`[Sales History DEBUG] Using stored destination URL: ${productUrl}`);
+                      }
+                    } else {
+                      productUrl = linkWithSubId.destinationUrl;
+                      console.log(`[Sales History DEBUG] Using stored destination URL: ${productUrl}`);
+                    }
+                  }
                 }
               }
               
@@ -1548,29 +1591,54 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                 }
               }
               
-              // Method 3: Look for recent links with similar sale amounts (less reliable)
+              // Method 3: Try to match by sale amount and date proximity (more specific)
               if (!productUrl) {
-                const recentLinks = await prisma.link.findMany({
+                const saleDate = new Date(action.EventDate || action.ActionDate || action.CreationDate);
+                const saleDateWindow = 7 * 24 * 60 * 60 * 1000; // 7 days
+                
+                const proximateLinks = await prisma.link.findMany({
                   where: {
                     creatorId: req.user.id,
                     createdAt: {
-                      gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+                      gte: new Date(saleDate.getTime() - saleDateWindow),
+                      lte: new Date(saleDate.getTime() + saleDateWindow)
                     }
                   },
                   select: {
                     destinationUrl: true,
-                    createdAt: true
+                    createdAt: true,
+                    impactLink: true
                   },
                   orderBy: {
                     createdAt: 'desc'
-                  },
-                  take: 10
+                  }
                 });
                 
-                if (recentLinks.length > 0) {
-                  // For now, just take the most recent link as a fallback
-                  productUrl = recentLinks[0].destinationUrl;
-                  console.log(`[Sales History DEBUG] Using most recent link as fallback: ${productUrl}`);
+                if (proximateLinks.length > 0) {
+                  // Try to find a link that might match this sale based on timing
+                  productUrl = proximateLinks[0].destinationUrl;
+                  console.log(`[Sales History DEBUG] Using time-proximate link for sale on ${saleDate.toISOString()}: ${productUrl}`);
+                } else {
+                  // Absolutely last resort - get a random recent link to show something useful
+                  const anyRecentLink = await prisma.link.findFirst({
+                    where: {
+                      creatorId: req.user.id,
+                      createdAt: {
+                        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                      }
+                    },
+                    select: {
+                      destinationUrl: true
+                    },
+                    orderBy: {
+                      createdAt: 'desc'
+                    }
+                  });
+                  
+                  if (anyRecentLink) {
+                    productUrl = anyRecentLink.destinationUrl;
+                    console.log(`[Sales History DEBUG] Using any recent link as last resort: ${productUrl}`);
+                  }
                 }
               }
               
