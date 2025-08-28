@@ -251,6 +251,9 @@ body {
 .form-header {
   text-align: center;
   margin-bottom: var(--space-xl);
+  padding: var(--space-xl) var(--space-lg);
+  background: linear-gradient(135deg, var(--brand-50) 0%, var(--neutral-25) 100%);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
 }
 
 .form-title {
@@ -259,6 +262,7 @@ body {
   color: var(--neutral-900);
   margin-bottom: var(--space-sm);
   letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .form-subtitle {
@@ -266,6 +270,8 @@ body {
   font-size: 0.875rem;
   line-height: 1.5;
   font-weight: 400;
+  max-width: 90%;
+  margin: 0 auto;
 }
 
 .form-group {
@@ -351,6 +357,9 @@ body {
   background: var(--neutral-50);
   font-weight: 500;
   color: var(--neutral-900);
+  min-height: 48px; /* Ensure touch-friendly height */
+  -webkit-appearance: none; /* Remove iOS styling */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
 }
 
 .form-input:focus {
@@ -2281,6 +2290,64 @@ body {
   color: var(--neutral-900);
 }
 
+/* Mobile-first responsive design */
+@media (max-width: 480px) {
+  .application-form-container {
+    padding: 0.75rem;
+  }
+
+  .application-form {
+    padding: 1rem;
+  }
+
+  .form-section {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-header {
+    padding: 1rem 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .form-title {
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+
+  .form-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .form-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .section-description {
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .form-field {
+    margin-bottom: 0.75rem;
+  }
+
+  .form-input, .form-textarea {
+    padding: 0.875rem;
+    font-size: 0.95rem;
+  }
+
+  .submit-section {
+    padding: 1rem;
+  }
+
+  .submit-button {
+    padding: 0.875rem;
+    font-size: 0.95rem;
+  }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .split-screen {
@@ -2320,23 +2387,111 @@ body {
   }
 
   .application-form-container {
-    padding: var(--space-md);
+    padding: 1rem;
+    min-height: 100vh;
+  }
+
+  .application-form-card {
+    max-width: 100%;
+    margin: 0;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .application-form {
+    padding: 1.5rem;
   }
 
   .form-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .form-section {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border-radius: var(--radius-xl);
+  }
+
+  .form-section h3 {
+    font-size: 1.125rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .section-description {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-field {
+    margin-bottom: 1rem;
+  }
+
+  .form-field label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-header {
+    padding: 1.5rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-title {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+
+  .form-subtitle {
+    font-size: 0.875rem;
+    max-width: 100%;
+  }
+
+  .form-input, .form-textarea {
+    padding: 1rem;
+    font-size: 1rem;
+    border-radius: var(--radius-lg);
+    min-height: 48px; /* Touch-friendly minimum */
+  }
+
+  .form-textarea {
+    min-height: 100px;
+  }
+
+  .form-field small {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+  }
+
+  .submit-section {
+    padding: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  .submit-button {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1rem;
+    min-height: 48px;
+    border-radius: var(--radius-lg);
   }
 
   .application-status-container {
-    padding: var(--space-md);
+    padding: 1rem;
+    min-height: 100vh;
   }
 
   .status-content {
-    padding: var(--space-lg);
+    padding: 1.5rem;
   }
 
   .status-title {
     font-size: 1.5rem;
+  }
+
+  .status-card {
+    border-radius: var(--radius-xl);
+    margin: 0;
   }
 }
 
