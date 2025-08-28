@@ -143,8 +143,14 @@ export default function Earnings() {
   }
 
   const handleSaleClick = (sale) => {
-    setSelectedSale(sale)
-    setShowSaleModal(true)
+    // Redirect to product URL if available
+    if (sale.productUrl) {
+      window.open(sale.productUrl, '_blank')
+    } else {
+      // Fallback: show modal if no URL available
+      setSelectedSale(sale)
+      setShowSaleModal(true)
+    }
   }
 
   const closeSaleModal = () => {
@@ -415,7 +421,7 @@ export default function Earnings() {
               {salesData.recentSales.map((sale, index) => (
                 <div 
                   key={index} 
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="group flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500 cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSaleClick(sale)}
                 >
                   <div className="flex items-center space-x-4">
@@ -425,8 +431,18 @@ export default function Earnings() {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{sale.product || 'Product Sale'}</p>
-                      <p className="text-xs text-gray-500">{new Date(sale.date).toLocaleDateString()}</p>
+                      <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+                        {sale.product || 'Product Sale'}
+                        {sale.productUrl && (
+                          <svg className="w-3 h-3 inline ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        )}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(sale.date).toLocaleDateString()}
+                        {sale.productUrl && <span className="ml-2 text-indigo-500">• Click to view product</span>}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -522,15 +538,7 @@ export default function Earnings() {
                 </div>
               </div>
 
-              {/* Commission Rate Info */}
-              <div className="bg-indigo-50 rounded-lg p-3">
-                <p className="text-sm text-indigo-700">
-                  <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Commission shown is your earnings after platform rate applied
-                </p>
-              </div>
+
             </div>
 
             {/* Close Button */}

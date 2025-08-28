@@ -1486,6 +1486,24 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               productName = 'Walmart';
             }
 
+            // Try to extract product URL from Impact.com data
+            let productUrl = null;
+            
+            // Common fields where product URLs might be stored
+            const urlFields = ['TargetUrl', 'ProductUrl', 'ClickUrl', 'LandingUrl', 'Url'];
+            for (const field of urlFields) {
+              if (action[field] && action[field].includes('walmart.com')) {
+                productUrl = action[field];
+                break;
+              }
+            }
+            
+            // If no direct URL, create a search URL for the product
+            if (!productUrl && productName === 'Walmart') {
+              // Generic Walmart URL - could be enhanced with product search if we had product names
+              productUrl = 'https://www.walmart.com';
+            }
+
             // Collect recent sales data
             processedSales.push({
               date: action.EventDate || action.ActionDate || action.CreationDate,
@@ -1493,7 +1511,8 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               commission: creatorCommission, // Show creator's actual share, not raw Impact.com amount
               status: action.ActionStatus || action.Status || 'Pending',
               actionId: action.Id || action.ActionId,
-              product: productName
+              product: productName,
+              productUrl: productUrl
             });
           });
 
