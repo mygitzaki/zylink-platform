@@ -265,14 +265,16 @@ class ImpactWebService {
       const { startDate, endDate, subId1 } = options;
       console.log('📊 Fetching Impact.com Reports data for real metrics...');
       
-      // Use Impact.com's comprehensive reports endpoint
+      // Use Impact.com's Reports API endpoint (same as admin dashboard uses)
       const qp = new URLSearchParams({
         StartDate: startDate || '2025-01-01',
         EndDate: endDate || new Date().toISOString().split('T')[0],
-        PageSize: '1000'
+        PageSize: '1000',
+        Page: '1'
       });
       
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports/Mp_AdvertiserClicks.json?${qp.toString()}`;
+      // Try the correct Reports endpoint format
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Reports?${qp.toString()}`;
       
       const response = await fetch(url, {
         method: 'GET',
