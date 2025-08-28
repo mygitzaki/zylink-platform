@@ -1036,33 +1036,87 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       // Get creator's SubId1
       const creator = await prisma.creator.findUnique({
         where: { id: req.user.id },
-        select: { impactSubId: true }
+        select: { impactSubId: true, commissionRate: true }
       });
       
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
-        // Get pending actions for real conversion data
-        const pendingReport = await impact.getPendingFromActionListingReport({
-          subId1: correctSubId1,
+        console.log(`[Analytics Enhanced] Fetching real Impact.com data for SubId1: ${correctSubId1}`);
+        
+        // Get real click data from Impact.com
+        const clickAnalytics = await impact.getClickAnalytics(startDate, endDate);
+        
+        // Get real conversion data using the detailed actions API
+        const actionsResult = await impact.getActionsDetailed({
           startDate,
-          endDate
+          endDate,
+          subId1: correctSubId1,
+          pageSize: 1000 // Get more comprehensive data
         });
         
-        if (pendingReport.success) {
-          impactData = {
-            conversions: pendingReport.count || 0,
-            revenue: pendingReport.gross || 0,
-            conversionRate: 0, // Will calculate below
-            clicks: 0 // Will estimate below
-          };
+        let realClicks = 0;
+        let realConversions = 0;
+        let realRevenue = 0;
+        
+        // Process click data
+        if (clickAnalytics.success) {
+          // Filter clicks by SubId1 if we have detailed click data
+          const creatorClicks = clickAnalytics.clicks.filter(click => 
+            click.SubId1 === correctSubId1 || click.SubId === correctSubId1
+          );
+          realClicks = creatorClicks.length;
+          console.log(`[Analytics Enhanced] Real clicks from Impact.com: ${realClicks}`);
+        }
+        
+        // Process conversion/action data
+        if (actionsResult.success && actionsResult.actions) {
+          const creatorActions = actionsResult.actions.filter(action => 
+            action.SubId1 === correctSubId1
+          );
           
-          // Estimate clicks based on typical conversion rates (4-5%)
-          if (impactData.conversions > 0) {
-            impactData.clicks = Math.round(impactData.conversions / 0.05); // 5% conversion rate
-            impactData.conversionRate = parseFloat(((impactData.conversions / impactData.clicks) * 100).toFixed(1));
+          realConversions = creatorActions.length;
+          
+          // Calculate real revenue with business rate applied
+          const businessRate = creator?.commissionRate || 70;
+          realRevenue = creatorActions.reduce((sum, action) => {
+            const actionPayout = parseFloat(action.Payout || action.Commission || 0);
+            const creatorShare = (actionPayout * businessRate) / 100;
+            return sum + creatorShare;
+          }, 0);
+          
+          console.log(`[Analytics Enhanced] Real conversions: ${realConversions}, Real revenue: $${realRevenue.toFixed(2)}`);
+        }
+        
+        // Fallback to previous method if detailed APIs don't return data
+        if (realClicks === 0 && realConversions === 0) {
+          const pendingReport = await impact.getPendingFromActionListingReport({
+            subId1: correctSubId1,
+            startDate,
+            endDate
+          });
+          
+          if (pendingReport.success) {
+            realConversions = pendingReport.count || 0;
+            const businessRate = creator?.commissionRate || 70;
+            realRevenue = ((pendingReport.gross || 0) * businessRate) / 100;
+            
+            // Estimate clicks based on industry average conversion rate (2-5%)
+            if (realConversions > 0) {
+              realClicks = Math.round(realConversions / 0.03); // 3% conversion rate estimate
+            }
+            console.log(`[Analytics Enhanced] Using fallback data - Conversions: ${realConversions}, Revenue: $${realRevenue.toFixed(2)}, Estimated clicks: ${realClicks}`);
           }
         }
+        
+        impactData = {
+          clicks: realClicks,
+          conversions: realConversions,
+          revenue: realRevenue,
+          conversionRate: realClicks > 0 ? parseFloat(((realConversions / realClicks) * 100).toFixed(2)) : 0
+        };
+        
+        console.log(`[Analytics Enhanced] Final Impact.com data:`, impactData);
       }
     } catch (error) {
       console.error('[Analytics Enhanced] Error fetching Impact.com data:', error.message);
@@ -1079,13 +1133,27 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       _sum: { clicks: true },
     });
     
-    // 3. Combine Impact.com + Database Data (Impact.com takes priority)
+    // 3. Prioritize Impact.com Data - Only use database as absolute fallback
+    const hasImpactData = impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0;
+    
     const finalData = {
-      clicks: impactData.clicks || shortLinkAgg._sum.clicks || 0,
-      conversions: impactData.conversions || linkAgg._sum.conversions || 0,
-      revenue: impactData.revenue || Number(linkAgg._sum.revenue || 0),
-      conversionRate: impactData.conversionRate || 0
+      clicks: hasImpactData ? impactData.clicks : (shortLinkAgg._sum.clicks || 0),
+      conversions: hasImpactData ? impactData.conversions : (linkAgg._sum.conversions || 0),
+      revenue: hasImpactData ? impactData.revenue : Number(linkAgg._sum.revenue || 0),
+      conversionRate: hasImpactData ? impactData.conversionRate : 0
     };
+    
+    // Recalculate conversion rate with final data
+    if (finalData.clicks > 0 && finalData.conversions > 0) {
+      finalData.conversionRate = parseFloat(((finalData.conversions / finalData.clicks) * 100).toFixed(2));
+    }
+    
+    console.log(`[Analytics Enhanced] Using ${hasImpactData ? 'Impact.com' : 'database fallback'} data:`, {
+      clicks: finalData.clicks,
+      conversions: finalData.conversions,
+      revenue: finalData.revenue.toFixed(2),
+      conversionRate: finalData.conversionRate + '%'
+    });
     
     // 4. Generate Earnings Trend Data (Last 7 days)
     const earningsTrend = [];

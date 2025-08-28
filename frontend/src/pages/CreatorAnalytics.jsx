@@ -52,12 +52,20 @@ export default function CreatorAnalytics() {
       console.log('📊 Analytics response:', analyticsRes)
       console.log('💰 Earnings response:', earningsRes)
       
-      // Extract data from the new API structure
-      const totalRevenue = earningsRes.commissionEarned || 0
-      const totalClicks = analyticsRes.clicks || 0
-      const totalConversions = analyticsRes.conversions || 0
-      const conversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100) : 0
-      const averageOrderValue = totalConversions > 0 ? (totalRevenue / totalConversions) : 0
+      // Prioritize Impact.com data from analytics API, fallback to earnings API
+      const totalRevenue = analyticsRes.performanceMetrics?.revenue || earningsRes.commissionEarned || 0
+      const totalClicks = analyticsRes.performanceMetrics?.clicks || 0
+      const totalConversions = analyticsRes.performanceMetrics?.conversions || 0
+      const conversionRate = analyticsRes.performanceMetrics?.conversionRate || (totalClicks > 0 ? ((totalConversions / totalClicks) * 100) : 0)
+      const averageOrderValue = analyticsRes.performanceMetrics?.averageOrderValue || (totalConversions > 0 ? (totalRevenue / totalConversions) : 0)
+      
+      console.log('📊 Using Impact.com data source:', {
+        revenue: totalRevenue,
+        clicks: totalClicks,
+        conversions: totalConversions,
+        conversionRate: conversionRate.toFixed(2) + '%',
+        dataSource: analyticsRes.dataSource || 'unknown'
+      })
       
       setAnalytics({
         totalClicks,
@@ -324,11 +332,18 @@ export default function CreatorAnalytics() {
                 <ChartSkeleton />
               ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
                 <ClicksConversionsChart 
-                  data={analytics.earningsTrend.map(trend => ({
-                    date: trend.date,
-                    clicks: Math.floor((trend.total || 0) * 50), // Estimate clicks based on revenue
-                    conversions: Math.floor((trend.total || 0) / 10) // Estimate conversions
-                  }))} 
+                  data={analytics.earningsTrend.map((trend, index) => {
+                    // Use real data when available, distribute across trend for visualization
+                    const totalClicks = analytics.totalClicks || 0;
+                    const totalConversions = analytics.totalConversions || 0;
+                    const dayWeight = trend.total / (analytics.earningsTrend.reduce((sum, t) => sum + (t.total || 0), 0) || 1);
+                    
+                    return {
+                      date: trend.date,
+                      clicks: Math.floor(totalClicks * dayWeight),
+                      conversions: Math.floor(totalConversions * dayWeight)
+                    };
+                  })} 
                   timeRange={timeRange} 
                 />
               ) : (
@@ -358,7 +373,7 @@ export default function CreatorAnalytics() {
                 <ConversionRateChart 
                   data={analytics.earningsTrend.map(trend => ({
                     date: trend.date,
-                    conversionRate: ((trend.total || 0) / 10) > 0 ? Math.min(((trend.total || 0) / 100), 10) : 0 // Estimate conversion rate
+                    conversionRate: analytics.conversionRate || 0 // Use real conversion rate from Impact.com
                   }))} 
                   timeRange={timeRange} 
                 />
