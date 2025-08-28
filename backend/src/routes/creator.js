@@ -1489,12 +1489,41 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             // Try to extract product URL from Impact.com data
             let productUrl = null;
             
-            // Common fields where product URLs might be stored
-            const urlFields = ['TargetUrl', 'ProductUrl', 'ClickUrl', 'LandingUrl', 'Url'];
+            // DEBUG: Log all available fields to see what URL data we have
+            if (calculatedSales === 0) { // Only log for first sale to avoid spam
+              console.log(`[Sales History DEBUG] Available action fields:`, Object.keys(action));
+              console.log(`[Sales History DEBUG] Action data sample:`, action);
+            }
+            
+            // Expanded list of possible URL fields from Impact.com
+            const urlFields = [
+              'TargetUrl', 'ProductUrl', 'ClickUrl', 'LandingUrl', 'Url', 'DeepLink',
+              'ReferralUrl', 'TrackingUrl', 'DestinationUrl', 'FinalUrl', 'ProductLink',
+              'ItemUrl', 'ShoppingUrl', 'RedirectUrl', 'AffiliateUrl'
+            ];
+            
             for (const field of urlFields) {
-              if (action[field] && action[field].includes('walmart.com')) {
-                productUrl = action[field];
-                break;
+              if (action[field]) {
+                const url = action[field].toString();
+                if (url.includes('walmart.com') && !url.includes('goto.walmart.com/c/')) {
+                  productUrl = url;
+                  console.log(`[Sales History DEBUG] Found product URL in field '${field}': ${url}`);
+                  break;
+                }
+              }
+            }
+            
+            // If still no URL, try to extract from any field containing a walmart product URL
+            if (!productUrl) {
+              const allValues = Object.values(action).filter(v => v && typeof v === 'string');
+              for (const value of allValues) {
+                if (value.includes('walmart.com/ip/') || 
+                    value.includes('walmart.com/browse/') ||
+                    value.includes('walmart.com/search/')) {
+                  productUrl = value;
+                  console.log(`[Sales History DEBUG] Found walmart URL in data: ${value}`);
+                  break;
+                }
               }
             }
             
@@ -1502,6 +1531,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             if (!productUrl && productName === 'Walmart') {
               // Generic Walmart URL - could be enhanced with product search if we had product names
               productUrl = 'https://www.walmart.com';
+              console.log(`[Sales History DEBUG] No specific product URL found, using homepage`);
             }
 
             // Collect recent sales data
