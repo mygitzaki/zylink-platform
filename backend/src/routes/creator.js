@@ -1503,9 +1503,30 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               });
             }
             
-            // For now, let's remove the complex URL detection and just use homepage
-            // Until we can see what data is actually available
-            productUrl = 'https://www.walmart.com';
+            // Since Impact.com doesn't provide direct product URLs in sales data,
+            // create a search URL using available information
+            let searchQuery = '';
+            
+            // Try to extract useful search terms from available data
+            if (action.ActionTrackerName && action.ActionTrackerName !== 'Online Sale') {
+              searchQuery = action.ActionTrackerName;
+            } else if (action.CampaignName && action.CampaignName !== 'WalmartCreator.com') {
+              searchQuery = action.CampaignName;
+            } else {
+              // Use sale amount to potentially find products in that price range
+              const priceRange = Math.round(saleAmount);
+              searchQuery = `products under $${priceRange}`;
+            }
+            
+            // Create Walmart search URL with the query
+            if (searchQuery) {
+              const encodedQuery = encodeURIComponent(searchQuery);
+              productUrl = `https://www.walmart.com/search?q=${encodedQuery}`;
+              console.log(`[Sales History DEBUG] Created search URL for "${searchQuery}": ${productUrl}`);
+            } else {
+              productUrl = 'https://www.walmart.com';
+              console.log(`[Sales History DEBUG] No search terms available, using homepage`);
+            }
 
             // Collect recent sales data
             processedSales.push({
