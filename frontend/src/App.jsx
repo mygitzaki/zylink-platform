@@ -23,6 +23,8 @@ import SystemSettings from './pages/admin/SystemSettings'
 import PayoutQueue from './pages/admin/PayoutQueue'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 function Placeholder({ title }) {
   return (
@@ -325,6 +327,8 @@ export default function App() {
             <Route path="/" element={<RequireAuth><RoleBasedRedirect /></RequireAuth>} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/application-pending" element={<ApplicationPending />} />
             <Route path="/creator-application" element={<CreatorApplication />} />
             <Route path="/link-generator" element={<RequireAuth><LinkGenerator /></RequireAuth>} />

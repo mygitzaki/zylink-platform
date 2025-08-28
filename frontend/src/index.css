@@ -282,6 +282,65 @@ body {
   letter-spacing: -0.01em;
 }
 
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.forgot-password-link {
+  font-size: 0.875rem;
+  color: var(--brand-600);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.forgot-password-link:hover {
+  color: var(--brand-700);
+  text-decoration: underline;
+}
+
+.success-message {
+  padding: var(--space-md);
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-lg);
+  color: #166534;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: var(--space-lg);
+}
+
+.success-state {
+  text-align: center;
+  padding: var(--space-xl) 0;
+}
+
+.success-icon, .error-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-lg);
+}
+
+.success-state h3, .error-state h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  margin-bottom: var(--space-md);
+}
+
+.success-state p, .error-state p {
+  color: var(--neutral-600);
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+}
+
+.error-state {
+  text-align: center;
+  padding: var(--space-xl) 0;
+}
+
 .form-input {
   width: 100%;
   padding: 1rem var(--space-lg);
