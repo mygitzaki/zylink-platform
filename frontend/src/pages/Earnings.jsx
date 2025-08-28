@@ -344,44 +344,7 @@ export default function Earnings() {
           </div>
         </div>
 
-        {/* Commission Breakdown Details */}
-        {earningsSummary.debug && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Commission Breakdown</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Pending from Impact.com</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(earningsSummary.debug.pendingGross)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {earningsSummary.debug.pendingActions} actions
-                </p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Your Commission Rate</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {earningsSummary.debug.rateApplied}%
-                </p>
-                <p className="text-xs text-gray-500">Applied to earnings</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Pending (Your Share)</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(earningsSummary.pendingApproval)}
-                </p>
-                <p className="text-xs text-gray-500">After commission rate</p>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Approved Earnings</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(earningsSummary.debug.totalApprovedAmount)}
-                </p>
-                <p className="text-xs text-gray-500">From database</p>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Earnings Trend Chart Placeholder */}
         <div className="bg-white rounded-xl shadow-sm p-6">

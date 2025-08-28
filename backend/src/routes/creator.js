@@ -849,13 +849,6 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       creator: {
         commissionRate: rate,
         impactSubId: creator?.impactSubId
-      },
-      // Additional debug info for transparency
-      debug: {
-        pendingGross: parseFloat(pendingGross.toFixed(2)), // Raw pending amount from Impact.com
-        totalApprovedAmount: parseFloat(totalApprovedAmount.toFixed(2)), // All approved earnings (COMPLETED + PROCESSING)
-        pendingActions: pendingActions,
-        rateApplied: rate
       }
     };
 
