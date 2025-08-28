@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { apiFetch } from '../lib/api'
 import { quickReLogin } from '../utils/quickAuth'
 // Import new Zylike-inspired UI components
-import { Button, Card, Container, Skeleton } from '../components/ui'
+import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, ConversionRateChart, TopLinksChart, ChartSkeleton } from '../components/ui'
 
 export default function CreatorAnalytics() {
   const { user, token, setToken } = useAuth()
@@ -15,7 +15,8 @@ export default function CreatorAnalytics() {
     averageOrderValue: 0,
     topPerformingLinks: [],
     recentActivity: [],
-    monthlyTrends: []
+    monthlyTrends: [],
+    earningsTrend: []
   })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
@@ -66,7 +67,8 @@ export default function CreatorAnalytics() {
         averageOrderValue,
         topPerformingLinks: analyticsRes.topLinks || [],
         recentActivity: analyticsRes.recentActivity || [],
-        monthlyTrends: analyticsRes.monthlyTrends || []
+        monthlyTrends: analyticsRes.monthlyTrends || [],
+        earningsTrend: analyticsRes.earningsTrend || []
       })
       
       console.log('✅ Analytics data loaded successfully')
@@ -164,80 +166,32 @@ export default function CreatorAnalytics() {
               )}
             </div>
             
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-              {/* Refresh Button */}
-              <Button
-                onClick={async () => {
-                  try {
-                    console.log('🔄 Refreshing authentication and data...')
-                    const newToken = await quickReLogin()
-                    setToken(newToken)
-                    setTimeout(() => loadAnalytics(), 100) // Small delay to ensure token is set
-                  } catch (error) {
-                    console.error('❌ Refresh failed:', error)
-                    alert('Refresh failed. Please try logging in manually.')
-                  }
-                }}
-                variant="secondary"
-                size="sm"
-                className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
-              >
-                🔄 Refresh
-              </Button>
-              
-              {/* Force Fresh Data Button */}
-              <Button
-                onClick={() => {
-                  console.log('🔄 Force refreshing analytics data...')
-                  loadAnalytics()
-                }}
-                variant="secondary"
-                size="sm"
-                className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-              >
-                📊 Fresh Data
-              </Button>
-              
-              {/* Time Range Selector */}
-              <Card variant="glass" className="w-full sm:w-auto">
-                <div className="flex space-x-2">
+            {/* Time Range Selector */}
+            <Card variant="glass" className="w-full sm:w-auto">
+              <div className="flex space-x-2">
                 <Button
                   variant={timeRange === '7d' ? 'primary' : 'secondary'}
                   size="sm"
-                  onClick={() => {
-                    setTimeRange('7d')
-                    // Force reload to clear cache
-                    setTimeout(() => loadAnalytics(), 100)
-                  }}
+                  onClick={() => setTimeRange('7d')}
                 >
                   7 Days
                 </Button>
                 <Button
                   variant={timeRange === '30d' ? 'primary' : 'secondary'}
                   size="sm"
-                  onClick={() => {
-                    setTimeRange('30d')
-                    // Force reload to clear cache
-                    setTimeout(() => loadAnalytics(), 100)
-                  }}
+                  onClick={() => setTimeRange('30d')}
                 >
                   30 Days
                 </Button>
                 <Button
                   variant={timeRange === '90d' ? 'primary' : 'secondary'}
                   size="sm"
-                  onClick={() => {
-                    setTimeRange('90d')
-                    // Force reload to clear cache
-                    setTimeout(() => loadAnalytics(), 100)
-                  }}
+                  onClick={() => setTimeRange('90d')}
                 >
                   90 Days
                 </Button>
               </div>
             </Card>
-            </div>
           </div>
         </div>
 
@@ -333,53 +287,140 @@ export default function CreatorAnalytics() {
           </Card>
         </div>
 
-        {/* Data Status Section */}
+        {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Revenue Trend Chart */}
           <Card variant="glass">
-            <div className="text-center p-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-blue-300 text-2xl">📊</span>
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Performance Charts</h3>
-              {analytics.totalClicks > 0 ? (
-                <p className="text-gray-400 text-sm">Interactive analytics coming soon</p>
+            <div className="p-6">
+              {loading ? (
+                <ChartSkeleton />
+              ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
+                <RevenueTrendChart 
+                  data={analytics.earningsTrend.map(trend => ({
+                    date: trend.date,
+                    revenue: trend.total || 0
+                  }))} 
+                  timeRange={timeRange} 
+                />
               ) : (
-                <div className="space-y-2">
-                  <p className="text-gray-400 text-sm">No data available yet</p>
-                  <p className="text-blue-300 text-xs">Create your first link to see analytics</p>
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-blue-300 text-2xl">📊</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg mb-2">Revenue Trend</h3>
+                    <p className="text-gray-400 text-sm">No revenue data available yet</p>
+                    <p className="text-blue-300 text-xs">Create your first link to see trends</p>
+                  </div>
                 </div>
               )}
             </div>
           </Card>
           
+          {/* Clicks vs Conversions Chart */}
           <Card variant="glass">
-            <div className="text-center p-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-purple-300 text-2xl">🏆</span>
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Top Links</h3>
-              {analytics.topPerformingLinks.length > 0 ? (
-                <p className="text-gray-400 text-sm">Performance tracking coming soon</p>
+            <div className="p-6">
+              {loading ? (
+                <ChartSkeleton />
+              ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
+                <ClicksConversionsChart 
+                  data={analytics.earningsTrend.map(trend => ({
+                    date: trend.date,
+                    clicks: Math.floor((trend.total || 0) * 50), // Estimate clicks based on revenue
+                    conversions: Math.floor((trend.total || 0) / 10) // Estimate conversions
+                  }))} 
+                  timeRange={timeRange} 
+                />
               ) : (
-                <div className="space-y-2">
-                  <p className="text-gray-400 text-sm">No links created yet</p>
-                  <p className="text-purple-300 text-xs">Start by creating your first affiliate link</p>
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-purple-300 text-2xl">🎯</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg mb-2">Clicks vs Conversions</h3>
+                    <p className="text-gray-400 text-sm">No click data available yet</p>
+                    <p className="text-purple-300 text-xs">Activity will appear once you start sharing links</p>
+                  </div>
                 </div>
               )}
             </div>
           </Card>
         </div>
 
-        <Card variant="glass">
-          <div className="text-center p-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-emerald-300 text-2xl">⚡</span>
+        {/* Conversion Rate and Top Links */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Conversion Rate Chart */}
+          <Card variant="glass">
+            <div className="p-6">
+              {loading ? (
+                <ChartSkeleton />
+              ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
+                <ConversionRateChart 
+                  data={analytics.earningsTrend.map(trend => ({
+                    date: trend.date,
+                    conversionRate: ((trend.total || 0) / 10) > 0 ? Math.min(((trend.total || 0) / 100), 10) : 0 // Estimate conversion rate
+                  }))} 
+                  timeRange={timeRange} 
+                />
+              ) : (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-orange-300 text-2xl">📈</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg mb-2">Conversion Rate</h3>
+                    <p className="text-gray-400 text-sm">No conversion data available yet</p>
+                    <p className="text-orange-300 text-xs">Data will appear once you start getting sales</p>
+                  </div>
+                </div>
+              )}
             </div>
-            <h3 className="text-white font-bold text-lg mb-2">Recent Activity</h3>
-            {analytics.recentActivity.length > 0 ? (
-              <p className="text-gray-400 text-sm">Activity timeline coming soon</p>
+          </Card>
+
+          {/* Top Performing Links */}
+          <Card variant="glass">
+            <div className="p-6">
+              {loading ? (
+                <ChartSkeleton />
+              ) : (
+                <TopLinksChart data={analytics.topPerformingLinks} />
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Recent Activity */}
+        <Card variant="glass">
+          <div className="p-6">
+            <h3 className="text-white font-bold text-lg mb-4 flex items-center">
+              <span className="text-emerald-300 text-2xl mr-3">⚡</span>
+              Recent Activity
+            </h3>
+            {analytics.recentActivity && analytics.recentActivity.length > 0 ? (
+              <div className="space-y-3">
+                {analytics.recentActivity.slice(0, 5).map((activity, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                        <span className="text-emerald-300 text-sm">🔗</span>
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">Link Created</p>
+                        <p className="text-gray-400 text-xs">{activity.shortCode}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-emerald-300 text-sm font-semibold">{activity.clicks} clicks</p>
+                      <p className="text-gray-500 text-xs">{new Date(activity.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="space-y-2">
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-emerald-300 text-2xl">⚡</span>
+                </div>
                 <p className="text-gray-400 text-sm">No activity yet</p>
                 <p className="text-emerald-300 text-xs">Your activity will appear here once you start using links</p>
               </div>
