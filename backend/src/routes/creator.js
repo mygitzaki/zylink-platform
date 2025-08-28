@@ -1002,30 +1002,30 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         // Use the same approach as earnings-summary: get the proven working data
         console.log(`[Analytics Enhanced] Using proven working method from earnings-summary`);
         
-        // Get real conversion data using the same method that works for earnings
+        // Get real conversion data using the EXACT same method that works for earnings
         const pendingReport = await impact.getPendingFromActionListingReport({
           subId1: correctSubId1,
           startDate,
           endDate
         });
         
-        const approvedReport = await impact.getApprovedFromActionListingReport({
-          subId1: correctSubId1,
-          startDate,
-          endDate
+        console.log(`[Analytics Enhanced] Pending report result:`, {
+          success: pendingReport.success,
+          count: pendingReport.count,
+          gross: pendingReport.gross
         });
         
         let realClicks = 0;
         let realConversions = 0;
         let realRevenue = 0;
         
-        // Process the proven working data
-        if (pendingReport.success || approvedReport.success) {
-          realConversions = (pendingReport.count || 0) + (approvedReport.count || 0);
+        // Process the proven working data (pending only for now)
+        if (pendingReport.success) {
+          realConversions = pendingReport.count || 0;
           
           // Calculate real revenue with business rate applied
           const businessRate = creator?.commissionRate || 70;
-          const grossRevenue = (pendingReport.gross || 0) + (approvedReport.gross || 0);
+          const grossRevenue = pendingReport.gross || 0;
           realRevenue = (grossRevenue * businessRate) / 100;
           
           console.log(`[Analytics Enhanced] Real conversions (pending + approved): ${realConversions}`);
