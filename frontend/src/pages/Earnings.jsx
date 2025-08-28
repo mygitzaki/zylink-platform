@@ -242,7 +242,7 @@ export default function Earnings() {
               {formatCurrency(earningsSummary.commissionEarned)}
             </p>
             <p className="text-green-100 text-sm">
-              Pending + Approved from Impact.com
+              Pending + Approved commissions
             </p>
           </div>
 

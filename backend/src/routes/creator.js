@@ -1475,14 +1475,25 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             calculatedSales += saleAmount;
             calculatedCommission += commission;
 
+            // Apply business commission rate to individual sale commission (creator's actual share)
+            const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
+            
+            // Mask product/campaign names for cleaner display
+            let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
+            if (productName.toLowerCase().includes('walmartcreator')) {
+              productName = 'Walmart';
+            } else if (productName.toLowerCase().includes('walmart')) {
+              productName = 'Walmart';
+            }
+
             // Collect recent sales data
             processedSales.push({
               date: action.EventDate || action.ActionDate || action.CreationDate,
               orderValue: saleAmount,
-              commission: commission,
+              commission: creatorCommission, // Show creator's actual share, not raw Impact.com amount
               status: action.ActionStatus || action.Status || 'Pending',
               actionId: action.Id || action.ActionId,
-              product: action.ProductName || action.Product || action.CampaignName || 'Product Sale'
+              product: productName
             });
           });
 
