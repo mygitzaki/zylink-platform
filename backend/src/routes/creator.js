@@ -1468,7 +1468,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           let calculatedCommission = 0;
           const processedSales = [];
 
-          commissionableActions.forEach(action => {
+          for (const action of commissionableActions) {
             const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
             const commission = parseFloat(action.Payout || action.Commission || 0);
             
@@ -1490,7 +1490,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             let productUrl = null;
             
             // DEBUG: Log all available fields to see what URL data we have
-            if (calculatedSales === 0) { // Only log for first sale to avoid spam
+            if (calculatedSales <= saleAmount) { // Only log for first sale to avoid spam
               console.log(`[Sales History DEBUG] Available action fields:`, Object.keys(action));
               console.log(`[Sales History DEBUG] Action data sample:`, JSON.stringify(action, null, 2));
               
@@ -1503,107 +1503,9 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               });
             }
             
-            // Expanded list of possible URL fields from Impact.com
-            const urlFields = [
-              'TargetUrl', 'ProductUrl', 'ClickUrl', 'LandingUrl', 'Url', 'DeepLink',
-              'ReferralUrl', 'TrackingUrl', 'DestinationUrl', 'FinalUrl', 'ProductLink',
-              'ItemUrl', 'ShoppingUrl', 'RedirectUrl', 'AffiliateUrl'
-            ];
-            
-            for (const field of urlFields) {
-              if (action[field]) {
-                const url = action[field].toString();
-                
-                // Check for direct walmart product URLs
-                if (url.includes('walmart.com/ip/') && !url.includes('goto.walmart.com/c/')) {
-                  productUrl = url;
-                  console.log(`[Sales History DEBUG] Found direct product URL in field '${field}': ${url}`);
-                  break;
-                }
-                
-                // Check for tracking URLs with encoded product URLs
-                if (url.includes('goto.walmart.com/c/') && url.includes('u=')) {
-                  try {
-                    const urlObj = new URL(url);
-                    const encodedTargetUrl = urlObj.searchParams.get('u');
-                    if (encodedTargetUrl) {
-                      const decodedUrl = decodeURIComponent(encodedTargetUrl);
-                      if (decodedUrl.includes('walmart.com/ip/')) {
-                        productUrl = decodedUrl;
-                        console.log(`[Sales History DEBUG] Decoded product URL from tracking link in '${field}': ${decodedUrl}`);
-                        break;
-                      }
-                    }
-                  } catch (error) {
-                    console.log(`[Sales History DEBUG] Error decoding URL from '${field}': ${error.message}`);
-                  }
-                }
-              }
-            }
-            
-            // If still no URL, try to extract from any field containing a walmart product URL
-            if (!productUrl) {
-              const allValues = Object.values(action).filter(v => v && typeof v === 'string');
-              for (const value of allValues) {
-                // Direct product URLs
-                if (value.includes('walmart.com/ip/') && !value.includes('goto.walmart.com/c/')) {
-                  productUrl = value;
-                  console.log(`[Sales History DEBUG] Found direct walmart URL in data: ${value}`);
-                  break;
-                }
-                
-                // Try to decode tracking URLs
-                if (value.includes('goto.walmart.com/c/') && value.includes('u=')) {
-                  try {
-                    const urlObj = new URL(value);
-                    const encodedTargetUrl = urlObj.searchParams.get('u');
-                    if (encodedTargetUrl) {
-                      const decodedUrl = decodeURIComponent(encodedTargetUrl);
-                      if (decodedUrl.includes('walmart.com/ip/')) {
-                        productUrl = decodedUrl;
-                        console.log(`[Sales History DEBUG] Decoded walmart URL from tracking link: ${decodedUrl}`);
-                        break;
-                      }
-                    }
-                  } catch (error) {
-                    // Ignore decode errors and continue
-                  }
-                }
-              }
-            }
-            
-            // Try to get more detailed action information if we have the action ID
-            if (!productUrl && action.Id) {
-              try {
-                console.log(`[Sales History DEBUG] Attempting to get detailed action info for: ${action.Id}`);
-                const detailResult = await impact.getActionDetail(action.Id);
-                if (detailResult.success && detailResult.data) {
-                  console.log(`[Sales History DEBUG] Detailed action data:`, JSON.stringify(detailResult.data, null, 2));
-                  
-                  // Look for URLs in detailed data
-                  const detailKeys = Object.keys(detailResult.data);
-                  for (const key of detailKeys) {
-                    const value = detailResult.data[key];
-                    if (typeof value === 'string' && value.includes('walmart.com')) {
-                      console.log(`[Sales History DEBUG] Found URL in detailed action '${key}': ${value}`);
-                      if (value.includes('walmart.com/ip/')) {
-                        productUrl = value;
-                        break;
-                      }
-                    }
-                  }
-                }
-              } catch (error) {
-                console.log(`[Sales History DEBUG] Error getting detailed action: ${error.message}`);
-              }
-            }
-            
-            // If no direct URL, create a search URL for the product
-            if (!productUrl && productName === 'Walmart') {
-              // Generic Walmart URL - could be enhanced with product search if we had product names
-              productUrl = 'https://www.walmart.com';
-              console.log(`[Sales History DEBUG] No specific product URL found, using homepage`);
-            }
+            // For now, let's remove the complex URL detection and just use homepage
+            // Until we can see what data is actually available
+            productUrl = 'https://www.walmart.com';
 
             // Collect recent sales data
             processedSales.push({
@@ -1615,7 +1517,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               product: productName,
               productUrl: productUrl
             });
-          });
+          }
 
           // Sort by date and take the most recent
           processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
