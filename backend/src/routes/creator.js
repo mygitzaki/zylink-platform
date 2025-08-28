@@ -772,7 +772,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     res.set('Expires', '0');
     res.set('Surrogate-Control', 'no-store');
 
-    // 1. Get Pending Earnings from Impact.com
+    // 1. Get Pending Earnings from Impact.com (COMMISSIONABLE ONLY - same as analytics)
     let pendingGross = 0;
     let pendingActions = 0;
     try {
@@ -783,16 +783,54 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
-        const allActionsReport = await impact.getPendingFromActionListingReport({
-          subId1: correctSubId1,
+        console.log(`[Earnings Summary] Fetching commissionable actions for SubId1: ${correctSubId1}`);
+        
+        // Get detailed actions to filter for commissionable only (same as analytics-enhanced)
+        const detailedActions = await impact.getActionsDetailed({
           startDate,
-          endDate
+          endDate,
+          subId1: correctSubId1,
+          pageSize: 1000
         });
         
-        if (allActionsReport.success) {
-          pendingGross = allActionsReport.gross || 0;
-          pendingActions = allActionsReport.count || 0;
-          console.log(`[Earnings Summary] DEBUG - ALL Actions (not just pending): $${pendingGross} from ${pendingActions} actions`);
+        if (detailedActions.success && detailedActions.actions) {
+          // Filter for this creator's actions
+          const creatorActions = detailedActions.actions.filter(action => 
+            action.SubId1 === correctSubId1
+          );
+          
+          // Filter for ONLY commissionable actions (commission > 0) - same as analytics
+          const commissionableActions = creatorActions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
+          
+          pendingActions = commissionableActions.length;
+          
+          // Calculate gross revenue from commissionable actions only
+          pendingGross = commissionableActions.reduce((sum, action) => {
+            return sum + parseFloat(action.Payout || action.Commission || 0);
+          }, 0);
+          
+          console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
+          console.log(`  - Total actions: ${creatorActions.length}`);
+          console.log(`  - Commissionable actions: ${pendingActions}`);
+          console.log(`  - Gross commission: $${pendingGross}`);
+        } else {
+          console.log(`[Earnings Summary] ⚠️ Could not get detailed actions, using fallback`);
+          
+          // Fallback to basic pending report
+          const allActionsReport = await impact.getPendingFromActionListingReport({
+            subId1: correctSubId1,
+            startDate,
+            endDate
+          });
+          
+          if (allActionsReport.success) {
+            pendingGross = allActionsReport.gross || 0;
+            pendingActions = allActionsReport.count || 0;
+            console.log(`[Earnings Summary] Fallback - ALL Actions: $${pendingGross} from ${pendingActions} actions`);
+          }
         }
       }
     } catch (error) {
