@@ -255,16 +255,137 @@ class ImpactWebService {
 ✅ **Reliable Fallbacks**: System never fails to generate working links  
 ✅ **Production Ready**: Stable and tested implementation  
 
+## 📈 Creator Sales Tracking API
+
+### 5. Creator Sales History (NEW)
+```bash
+GET /api/creator/sales-history?days=30
+```
+
+**Purpose:** Provides creators with visibility into their commissionable sales data, showing actual customer purchase amounts and commission earnings.
+
+**Implementation:** Uses Impact.com Actions API with creator-specific SubId1 filtering.
+
+**Working Example:**
+```bash
+curl -H "Authorization: Bearer {creator_token}" \
+     "https://api.zylike.com/api/creator/sales-history?days=30"
+```
+
+**Response Format:**
+```json
+{
+  "totalSales": 15.26,
+  "salesCount": 2,
+  "recentSales": [
+    {
+      "date": "2025-08-27",
+      "orderValue": 12.99,
+      "commission": 1.30,
+      "status": "Pending",
+      "actionId": "16662.6433.1943541",
+      "product": "WalmartCreator.com"
+    },
+    {
+      "date": "2025-08-25", 
+      "orderValue": 2.27,
+      "commission": 0.65,
+      "status": "Pending",
+      "actionId": "16662.6433.1943542",
+      "product": "WalmartCreator.com"
+    }
+  ],
+  "period": {
+    "requestedDays": 30,
+    "effectiveDays": 30,
+    "startDate": "2025-07-29",
+    "endDate": "2025-08-28"
+  },
+  "creator": {
+    "commissionRate": 70
+  }
+}
+```
+
+**Query Parameters:**
+- `days` - Preset period (7, 30, 90)
+- `startDate` - Custom start date (YYYY-MM-DD)
+- `endDate` - Custom end date (YYYY-MM-DD)
+
+**Data Processing Flow:**
+
+1. **Creator Authentication**: Validates creator access token
+2. **SubId1 Resolution**: Uses stored `impactSubId` or computes from creator ID
+3. **Impact API Call**: Fetches actions using `getActionsDetailed()` method
+4. **Creator Filtering**: Client-side filter by SubId1 for data isolation
+5. **Commission Filter**: Only includes actions with commission > 0
+6. **Sales Calculation**: Extracts `Amount || SaleAmount || IntendedAmount` fields
+7. **Response Assembly**: Returns totals + recent sales breakdown
+
+**Debug Logging Example:**
+```
+[Sales History DEBUG] Creator ID: a2f43d61-b4fe-4c2c-8caa-72f2b43fc09b, SubId1: a2f43d61-b4fe-4c2c-8caa-72f2b43fc09b
+[Sales History DEBUG] Total actions returned: 322
+[Sales History DEBUG] Actions for this creator: 6  
+[Sales History DEBUG] Commissionable actions for this creator: 2
+[Sales History] Using Actions API: 2 commissionable sales totaling $15.26 (commission: $1.95)
+```
+
+**Key Features:**
+- ✅ **Creator-Specific**: Each creator only sees their own sales data
+- ✅ **Real Sales Values**: Shows actual customer purchase amounts (not commission totals)
+- ✅ **Commissionable Filter**: Only displays sales that generated commission
+- ✅ **Date Range Support**: Flexible time period selection
+- ✅ **Recent Sales Detail**: Individual sale breakdown with commission mapping
+
+**Field Mapping (Impact.com → API Response):**
+```javascript
+// Sales Amount (customer purchase value)
+orderValue: action.Amount || action.SaleAmount || action.IntendedAmount
+
+// Commission Earned  
+commission: action.Payout || action.Commission
+
+// Action Details
+status: action.ActionStatus || action.Status
+actionId: action.Id || action.ActionId
+product: action.ProductName || action.Product || action.CampaignName
+date: action.EventDate || action.ActionDate || action.CreationDate
+```
+
+**Performance Characteristics:**
+- **Response Time**: ~1.5-3 seconds
+- **Data Freshness**: Real-time from Impact.com
+- **Pagination**: Handles up to 1000 actions per request
+- **Filtering Efficiency**: Multi-stage filtering ensures accurate creator isolation
+
+**Error Handling:**
+```json
+{
+  "error": "Unable to fetch sales history",
+  "totalSales": 0,
+  "salesCount": 0, 
+  "recentSales": []
+}
+```
+
+**Frontend Integration:**
+- Powers "Sales Generated" card in creator earnings dashboard
+- Displays "Recent Commissionable Sales" section
+- Replaces static chart placeholder with dynamic sales data
+- Syncs with earnings data using same date range controls
+
 ## 🚀 Next Steps
 
-1. **Frontend Integration**: Connect UI to working API
-2. **Analytics Dashboard**: Display real earnings data
-3. **Webhook Integration**: Implement real-time conversion tracking
-4. **Performance Optimization**: Cache frequently accessed data
-5. **Monitoring**: Set up API health monitoring
+1. **Frontend Integration**: Connect UI to working API ✅ **COMPLETED**
+2. **Analytics Dashboard**: Display real earnings data ✅ **COMPLETED**
+3. **Sales Visibility**: Creator sales tracking ✅ **COMPLETED**
+4. **Webhook Integration**: Implement real-time conversion tracking
+5. **Performance Optimization**: Cache frequently accessed data
+6. **Monitoring**: Set up API health monitoring
 
 ---
 
-**Note**: This implementation represents a fully functional Impact.com affiliate marketing system with real API integration and comprehensive tracking capabilities.
+**Note**: This implementation represents a fully functional Impact.com affiliate marketing system with real API integration, comprehensive tracking capabilities, and creator-focused sales transparency.
 
 
