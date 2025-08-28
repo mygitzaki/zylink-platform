@@ -1716,9 +1716,17 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             });
           }
 
-          // Sort by date and take the most recent
+          // Sort by date and handle pagination
           processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
-          recentSales = processedSales.slice(0, 10);
+          
+          // Support pagination: ?limit=50 or ?limit=all
+          const limit = req.query.limit;
+          if (limit === 'all') {
+            recentSales = processedSales; // Show all sales
+          } else {
+            const limitNumber = parseInt(limit) || 10; // Default to 10, allow custom limit
+            recentSales = processedSales.slice(0, Math.min(limitNumber, 100)); // Cap at 100 for performance
+          }
 
           totalSales = parseFloat(calculatedSales.toFixed(2));
           salesCount = commissionableActions.length;

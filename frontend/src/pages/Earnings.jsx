@@ -27,6 +27,7 @@ export default function Earnings() {
     salesCount: 0,
     recentSales: []
   })
+  const [salesLimit, setSalesLimit] = useState(10) // Track how many sales to show
   const [selectedSale, setSelectedSale] = useState(null)
   const [showSaleModal, setShowSaleModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -95,14 +96,14 @@ export default function Earnings() {
     }
   }
 
-  const loadSalesData = async () => {
+  const loadSalesData = async (limit = salesLimit) => {
     try {
       let path = '/api/creator/sales-history'
       if (timeRange === 'custom' && customStart && customEnd) {
-        path += `?startDate=${customStart}&endDate=${customEnd}`
+        path += `?startDate=${customStart}&endDate=${customEnd}&limit=${limit}`
       } else {
         const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
-        path += `?days=${days}`
+        path += `?days=${days}&limit=${limit}`
       }
       
       const salesRes = await apiFetch(path, { token })
@@ -133,6 +134,22 @@ export default function Earnings() {
       loadAnalytics()
       loadSalesData()
     }
+  }
+
+  const loadMoreSales = () => {
+    const newLimit = salesLimit + 20 // Load 20 more at a time
+    setSalesLimit(newLimit)
+    loadSalesData(newLimit)
+  }
+
+  const loadAllSales = () => {
+    setSalesLimit('all')
+    loadSalesData('all')
+  }
+
+  const resetSalesLimit = () => {
+    setSalesLimit(10)
+    loadSalesData(10)
   }
 
   const formatCurrency = (amount) => {
@@ -456,10 +473,37 @@ export default function Earnings() {
                 </div>
               ))}
               {salesData.salesCount > salesData.recentSales.length && (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">
+                <div className="text-center py-6 border-t border-gray-200">
+                  <p className="text-sm text-gray-500 mb-4">
                     Showing {salesData.recentSales.length} of {salesData.salesCount} total sales
                   </p>
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={loadMoreSales}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                    >
+                      Load 20 More
+                    </button>
+                    <button
+                      onClick={loadAllSales}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
+                    >
+                      Show All ({salesData.salesCount})
+                    </button>
+                  </div>
+                </div>
+              )}
+              {salesData.salesCount === salesData.recentSales.length && salesData.salesCount > 10 && (
+                <div className="text-center py-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-500 mb-3">
+                    Showing all {salesData.salesCount} sales
+                  </p>
+                  <button
+                    onClick={resetSalesLimit}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
+                  >
+                    Show Less (10)
+                  </button>
                 </div>
               )}
             </div>
