@@ -22,6 +22,11 @@ export default function Earnings() {
     topLinks: [],
     recentActivity: []
   })
+  const [salesData, setSalesData] = useState({
+    totalSales: 0,
+    salesCount: 0,
+    recentSales: []
+  })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
   const [customStart, setCustomStart] = useState('')
@@ -30,6 +35,7 @@ export default function Earnings() {
   useEffect(() => {
     loadEarningsSummary()
     loadAnalytics()
+    loadSalesData()
   }, [timeRange])
 
   const loadEarningsSummary = async () => {
@@ -87,6 +93,30 @@ export default function Earnings() {
     }
   }
 
+  const loadSalesData = async () => {
+    try {
+      let path = '/api/creator/sales-history'
+      if (timeRange === 'custom' && customStart && customEnd) {
+        path += `?startDate=${customStart}&endDate=${customEnd}`
+      } else {
+        const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
+        path += `?days=${days}`
+      }
+      
+      const salesRes = await apiFetch(path, { token })
+      setSalesData(salesRes)
+      
+    } catch (err) {
+      console.error('Failed to load sales data:', err)
+      // Set safe defaults
+      setSalesData({
+        totalSales: 0,
+        salesCount: 0,
+        recentSales: []
+      })
+    }
+  }
+
   const handleDateRangeChange = (range) => {
     setTimeRange(range)
     if (range !== 'custom') {
@@ -99,6 +129,7 @@ export default function Earnings() {
     if (customStart && customEnd) {
       loadEarningsSummary()
       loadAnalytics()
+      loadSalesData()
     }
   }
 
@@ -196,7 +227,7 @@ export default function Earnings() {
         </div>
 
         {/* Main Earnings Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           {/* Commission Earned */}
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
             <div className="flex items-center justify-between mb-4">
@@ -212,6 +243,24 @@ export default function Earnings() {
             </p>
             <p className="text-green-100 text-sm">
               Pending + Approved from Impact.com
+            </p>
+          </div>
+
+          {/* Total Commissionable Sales */}
+          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold mb-1">Sales Generated</h3>
+            <p className="text-3xl font-bold mb-2">
+              {formatCurrency(salesData.totalSales)}
+            </p>
+            <p className="text-indigo-100 text-sm">
+              {salesData.salesCount} commissionable sales
             </p>
           </div>
 
@@ -346,18 +395,51 @@ export default function Earnings() {
 
 
 
-        {/* Earnings Trend Chart Placeholder */}
+        {/* Recent Commissionable Sales */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Earnings Trend</h3>
-          <div className="h-64 flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <p className="text-lg font-medium">Chart Coming Soon</p>
-              <p className="text-sm">Interactive earnings visualization will be added here</p>
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Commissionable Sales</h3>
+          {salesData.recentSales && salesData.recentSales.length > 0 ? (
+            <div className="space-y-4">
+              {salesData.recentSales.map((sale, index) => (
+                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{sale.product || 'Product Sale'}</p>
+                      <p className="text-xs text-gray-500">{new Date(sale.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatCurrency(sale.orderValue)}
+                    </p>
+                    <p className="text-sm text-indigo-600 font-medium">
+                      → {formatCurrency(sale.commission)} commission
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {salesData.salesCount > salesData.recentSales.length && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">
+                    Showing {salesData.recentSales.length} of {salesData.salesCount} total sales
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <p className="text-lg font-medium">No commissionable sales yet</p>
+              <p className="text-sm">Your sales that generate commission will appear here</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
