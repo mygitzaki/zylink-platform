@@ -1492,7 +1492,15 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             // DEBUG: Log all available fields to see what URL data we have
             if (calculatedSales === 0) { // Only log for first sale to avoid spam
               console.log(`[Sales History DEBUG] Available action fields:`, Object.keys(action));
-              console.log(`[Sales History DEBUG] Action data sample:`, action);
+              console.log(`[Sales History DEBUG] Action data sample:`, JSON.stringify(action, null, 2));
+              
+              // Look for any field containing URLs
+              Object.keys(action).forEach(key => {
+                const value = action[key];
+                if (typeof value === 'string' && (value.includes('http') || value.includes('walmart'))) {
+                  console.log(`[Sales History DEBUG] URL-like field '${key}': ${value}`);
+                }
+              });
             }
             
             // Expanded list of possible URL fields from Impact.com
@@ -1561,6 +1569,32 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                     // Ignore decode errors and continue
                   }
                 }
+              }
+            }
+            
+            // Try to get more detailed action information if we have the action ID
+            if (!productUrl && action.Id) {
+              try {
+                console.log(`[Sales History DEBUG] Attempting to get detailed action info for: ${action.Id}`);
+                const detailResult = await impact.getActionDetail(action.Id);
+                if (detailResult.success && detailResult.data) {
+                  console.log(`[Sales History DEBUG] Detailed action data:`, JSON.stringify(detailResult.data, null, 2));
+                  
+                  // Look for URLs in detailed data
+                  const detailKeys = Object.keys(detailResult.data);
+                  for (const key of detailKeys) {
+                    const value = detailResult.data[key];
+                    if (typeof value === 'string' && value.includes('walmart.com')) {
+                      console.log(`[Sales History DEBUG] Found URL in detailed action '${key}': ${value}`);
+                      if (value.includes('walmart.com/ip/')) {
+                        productUrl = value;
+                        break;
+                      }
+                    }
+                  }
+                }
+              } catch (error) {
+                console.log(`[Sales History DEBUG] Error getting detailed action: ${error.message}`);
               }
             }
             
