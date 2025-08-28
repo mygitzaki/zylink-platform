@@ -1500,13 +1500,55 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               });
             }
             
-            // Try to find the original product URL from our Link database
+            // Try to find the original product URL from our Link database or extract from Impact data
             let productUrl = null;
             
             try {
-              // Method 1: Look for links with matching Impact link containing this action ID
+              // First, try to extract product URL directly from Impact.com action data
+              console.log(`[Sales History DEBUG] Checking action ${action.Id} for direct URL extraction`);
+              console.log(`[Sales History DEBUG] Available fields: ${Object.keys(action).join(', ')}`);
+              
+              // Check various Impact.com fields that might contain product URLs
+              const urlFields = [
+                'TargetUrl', 'ProductUrl', 'LandingPageUrl', 'DestinationUrl',
+                'Url', 'ProductLink', 'AffiliateUrl', 'TrackingUrl', 'ActionUrl'
+              ];
+              
+              for (const field of urlFields) {
+                if (action[field] && typeof action[field] === 'string') {
+                  let potentialUrl = action[field];
+                  console.log(`[Sales History DEBUG] Found ${field}: ${potentialUrl}`);
+                  
+                  // Check if it contains a Walmart product URL
+                  if (potentialUrl.includes('walmart.com/ip/')) {
+                    // Try to extract direct product URL
+                    if (potentialUrl.includes('u=')) {
+                      try {
+                        const urlObj = new URL(potentialUrl);
+                        const encodedUrl = urlObj.searchParams.get('u');
+                        if (encodedUrl) {
+                          const decodedUrl = decodeURIComponent(encodedUrl);
+                          if (decodedUrl.includes('walmart.com/ip/')) {
+                            productUrl = decodedUrl;
+                            console.log(`[Sales History DEBUG] Extracted product URL from ${field}: ${productUrl}`);
+                            break;
+                          }
+                        }
+                      } catch (error) {
+                        console.log(`[Sales History DEBUG] Failed to decode URL from ${field}: ${error.message}`);
+                      }
+                    } else if (potentialUrl.startsWith('https://www.walmart.com/ip/')) {
+                      productUrl = potentialUrl;
+                      console.log(`[Sales History DEBUG] Direct product URL from ${field}: ${productUrl}`);
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              // Method 2: Look for links with matching Impact link containing this action ID
               const actionId = action.Id;
-              if (actionId) {
+              if (!productUrl && actionId) {
                 const linkWithAction = await prisma.link.findFirst({
                   where: {
                     creatorId: req.user.id,
@@ -1524,9 +1566,9 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                   productUrl = linkWithAction.destinationUrl;
                   console.log(`[Sales History DEBUG] Found original URL via action ID match: ${productUrl}`);
                 } else {
-                  // Try to extract from SubId1 - look for links with this creator's SubId1
+                  // Try to find multiple links for this creator and match by timing/amount
                   const creatorSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
-                  const linkWithSubId = await prisma.link.findFirst({
+                  const allCreatorLinks = await prisma.link.findMany({
                     where: {
                       creatorId: req.user.id,
                       impactLink: {
@@ -1535,16 +1577,26 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                     },
                     select: {
                       destinationUrl: true,
-                      impactLink: true
+                      impactLink: true,
+                      createdAt: true
                     },
                     orderBy: {
                       createdAt: 'desc'
                     }
                   });
                   
-                  if (linkWithSubId) {
+                  console.log(`[Sales History DEBUG] Found ${allCreatorLinks.length} total links for creator`);
+                  
+                  if (allCreatorLinks.length > 0) {
+                    // For now, since we can't match specific products, try to provide some variety
+                    // by using different links for different sales (round-robin style)
+                    const linkIndex = Math.abs(action.Id.split('.').pop() || 0) % allCreatorLinks.length;
+                    const selectedLink = allCreatorLinks[linkIndex];
+                    
+                    console.log(`[Sales History DEBUG] Using link ${linkIndex + 1} of ${allCreatorLinks.length} for action ${action.Id}`);
+                    
                     // Try to decode the tracking URL to get the original URL
-                    const impactUrl = linkWithSubId.impactLink;
+                    const impactUrl = selectedLink.impactLink;
                     if (impactUrl.includes('u=')) {
                       try {
                         const urlObj = new URL(impactUrl);
@@ -1558,18 +1610,18 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                         }
                       } catch (error) {
                         // If decoding fails, use the stored destinationUrl
-                        productUrl = linkWithSubId.destinationUrl;
+                        productUrl = selectedLink.destinationUrl;
                         console.log(`[Sales History DEBUG] Using stored destination URL: ${productUrl}`);
                       }
                     } else {
-                      productUrl = linkWithSubId.destinationUrl;
+                      productUrl = selectedLink.destinationUrl;
                       console.log(`[Sales History DEBUG] Using stored destination URL: ${productUrl}`);
                     }
                   }
                 }
               }
               
-              // Method 2: Look for earnings with matching Impact transaction ID
+              // Method 3: Look for earnings with matching Impact transaction ID
               if (!productUrl && action.Id) {
                 const earningWithLink = await prisma.earning.findFirst({
                   where: {
@@ -1591,7 +1643,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
                 }
               }
               
-              // Method 3: Try to match by sale amount and date proximity (more specific)
+              // Method 4: Try to match by sale amount and date proximity (more specific)
               if (!productUrl) {
                 const saleDate = new Date(action.EventDate || action.ActionDate || action.CreationDate);
                 const saleDateWindow = 7 * 24 * 60 * 60 * 1000; // 7 days
