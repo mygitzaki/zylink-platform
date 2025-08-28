@@ -1486,9 +1486,6 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               productName = 'Walmart';
             }
 
-            // Try to extract product URL from Impact.com data
-            let productUrl = null;
-            
             // DEBUG: Log all available fields to see what URL data we have
             if (calculatedSales <= saleAmount) { // Only log for first sale to avoid spam
               console.log(`[Sales History DEBUG] Available action fields:`, Object.keys(action));
