@@ -1440,35 +1440,54 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
-        // Get all actions (not just pending)
-        const allActionsReport = await impact.getPendingFromActionListingReport({
+        // Use the same Actions API that admin dashboard uses successfully
+        const actionsResponse = await impact.getActionsDetailed({
           subId1: correctSubId1,
           startDate,
-          endDate
+          endDate,
+          pageSize: 1000 // Get more records to calculate totals
         });
         
-        if (allActionsReport.success) {
-          // We need to call a new method that returns both sales totals AND commission totals
-          // For now, let's get the raw data and calculate sales separately
-          const salesReport = await impact.getSalesFromActionListingReport({
-            subId1: correctSubId1,
-            startDate,
-            endDate
-          });
+        if (actionsResponse.success) {
+          const actions = actionsResponse.actions || [];
           
-          if (salesReport.success) {
-            totalSales = salesReport.totalSales || 0;
-            salesCount = salesReport.count || 0;
-            recentSales = salesReport.recentSales || [];
-          } else {
-            // Fallback: estimate sales from commission (this is wrong but temporary)
-            const estimatedConversionRate = 0.10; // Assume 10% commission rate as fallback
-            totalSales = (allActionsReport.gross || 0) / estimatedConversionRate;
-            salesCount = allActionsReport.count || 0;
-            recentSales = [];
-          }
+          // Filter for commissionable actions only (commission > 0)
+          const commissionableActions = actions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
 
-          console.log(`[Sales History] Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
+          // Calculate totals using the same field names as admin dashboard
+          let calculatedSales = 0;
+          let calculatedCommission = 0;
+          const processedSales = [];
+
+          commissionableActions.forEach(action => {
+            const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            
+            calculatedSales += saleAmount;
+            calculatedCommission += commission;
+
+            // Collect recent sales data
+            processedSales.push({
+              date: action.EventDate || action.ActionDate || action.CreationDate,
+              orderValue: saleAmount,
+              commission: commission,
+              status: action.ActionStatus || action.Status || 'Pending',
+              actionId: action.Id || action.ActionId,
+              product: action.ProductName || action.Product || action.CampaignName || 'Product Sale'
+            });
+          });
+
+          // Sort by date and take the most recent
+          processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
+          recentSales = processedSales.slice(0, 10);
+
+          totalSales = parseFloat(calculatedSales.toFixed(2));
+          salesCount = commissionableActions.length;
+
+          console.log(`[Sales History] Using Actions API: ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)} (commission: $${calculatedCommission.toFixed(2)})`);
         }
       }
     } catch (error) {
