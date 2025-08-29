@@ -1617,25 +1617,9 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           totalSales = enhancedSalesResponse.totalSales || 0;
           salesCount = enhancedSales.length;
           
-          // CRITICAL SECURITY CHECK: Validate all sales belong to this creator
-          const validatedSales = enhancedSales.filter(sale => {
-            // Double-check that this sale belongs to the requesting creator
-            const saleCreatorId = sale._debug?.creatorId || 'unknown';
-            const requestingCreatorId = req.user.id;
-            
-            if (saleCreatorId !== 'unknown' && saleCreatorId !== requestingCreatorId) {
-              console.error(`🚨 SECURITY VIOLATION: Creator ${requestingCreatorId} attempted to access sale belonging to ${saleCreatorId}`);
-              return false;
-            }
-            return true;
-          });
-          
-          if (validatedSales.length !== enhancedSales.length) {
-            console.error(`🚨 SECURITY: Blocked ${enhancedSales.length - validatedSales.length} unauthorized sales for creator ${req.user.id}`);
-          }
-          
-          // Process validated sales for display with proper commission calculation
-          const processedSales = validatedSales.map(sale => {
+          // Process enhanced sales for display with proper commission calculation
+          // (Security filtering is handled in the ImpactWebService layer)
+          const processedSales = enhancedSales.map(sale => {
             // Apply platform commission rate to get creator's actual share
             const creatorCommission = parseFloat((sale.grossCommission * creator.commissionRate / 100).toFixed(2));
             

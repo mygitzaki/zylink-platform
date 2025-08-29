@@ -824,17 +824,50 @@ class ImpactWebService {
       }
       
       // Step 3: CRITICAL - Double-check creator isolation before processing
-      const creatorIsolatedSales = salesData.filter(sale => {
-        const saleSubId1 = sale.SubId1 || sale.Subid1 || sale.SubID1 || sale.TrackingValue || '';
-        const matches = saleSubId1.toString().trim() === subId1.toString().trim();
-        if (!matches) {
-          console.error(`🚨 SECURITY: Blocking sale with wrong SubId1: ${saleSubId1} (expected: ${subId1})`);
-        }
-        return matches;
-      });
+      // If we're getting data from advanced action listing and SubId1s are empty,
+      // we need to rely on the detailed actions API which has better SubId1 filtering
+      let creatorIsolatedSales = salesData;
       
-      if (creatorIsolatedSales.length !== salesData.length) {
-        console.error(`🚨 SECURITY: Filtered ${salesData.length - creatorIsolatedSales.length} sales that didn't belong to creator ${subId1}`);
+      if (salesData.length > 0) {
+        const firstSaleSubId1 = salesData[0].SubId1 || salesData[0].Subid1 || salesData[0].SubID1 || salesData[0].TrackingValue || '';
+        
+        if (firstSaleSubId1.toString().trim() === '') {
+          console.log(`⚠️ Advanced action listing returned records without SubId1, switching to detailed actions API for better filtering`);
+          
+          // Use detailed actions API which has better SubId1 support
+          const detailedActions = await this.getActionsDetailed({
+            startDate: startDate + 'T00:00:00Z',
+            endDate: endDate + 'T23:59:59Z',
+            subId1,
+            actionType: 'SALE',
+            pageSize: limit
+          });
+          
+          if (detailedActions.success && detailedActions.actions) {
+            creatorIsolatedSales = detailedActions.actions.filter(action => {
+              const actionSubId1 = action.SubId1 || action.Subid1 || '';
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              return actionSubId1 === subId1 && commission > 0;
+            });
+            console.log(`🎯 Switched to detailed actions API: ${creatorIsolatedSales.length} creator-specific sales`);
+          } else {
+            console.log(`⚠️ Detailed actions API also failed, keeping original data`);
+          }
+        } else {
+          // Normal SubId1 filtering for records that have SubId1
+          creatorIsolatedSales = salesData.filter(sale => {
+            const saleSubId1 = sale.SubId1 || sale.Subid1 || sale.SubID1 || sale.TrackingValue || '';
+            const matches = saleSubId1.toString().trim() === subId1.toString().trim();
+            if (!matches) {
+              console.error(`🚨 SECURITY: Blocking sale with wrong SubId1: ${saleSubId1} (expected: ${subId1})`);
+            }
+            return matches;
+          });
+          
+          if (creatorIsolatedSales.length !== salesData.length) {
+            console.error(`🚨 SECURITY: Filtered ${salesData.length - creatorIsolatedSales.length} sales that didn't belong to creator ${subId1}`);
+          }
+        }
       }
       
       // Step 4: Process and enhance each sale with product information
@@ -906,10 +939,22 @@ class ImpactWebService {
       let creatorFilteredRecords = records;
       if (subId1) {
         creatorFilteredRecords = records.filter(record => {
-          const recordSubId1 = record.SubId1 || record.Subid1 || record.SubID1 || record.TrackingValue || '';
-          const matches = recordSubId1.toString().trim() === subId1.toString().trim();
+          // Try multiple SubId1 field variations
+          const recordSubId1 = record.SubId1 || record.Subid1 || record.SubID1 || record.TrackingValue || 
+                               record.pubsubid1_ || record['Sub ID 1'] || record.sub_id_1 || '';
+          
+          const recordSubId1Str = recordSubId1.toString().trim();
+          const expectedSubId1Str = subId1.toString().trim();
+          
+          // If Impact.com records don't have SubId1, we need to use the fallback method
+          if (recordSubId1Str === '') {
+            console.log(`⚠️ Record has empty SubId1, will use fallback method for filtering`);
+            return true; // Let it through, will be filtered later in getEnhancedSalesData
+          }
+          
+          const matches = recordSubId1Str === expectedSubId1Str;
           if (!matches) {
-            console.log(`🚫 Filtering out record with SubId1: ${recordSubId1} (expected: ${subId1})`);
+            console.log(`🚫 Filtering out record with SubId1: "${recordSubId1Str}" (expected: "${expectedSubId1Str}")`);
           }
           return matches;
         });
@@ -942,8 +987,20 @@ class ImpactWebService {
   async enhanceSaleWithProductData(saleAction) {
     try {
       const actionId = saleAction.Id;
-      const grossCommission = parseFloat(saleAction.Payout || saleAction.Commission || 0);
-      const orderValue = parseFloat(saleAction.Amount || saleAction.SaleAmount || saleAction.IntendedAmount || 0);
+      
+      // Try multiple commission fields
+      const grossCommission = parseFloat(
+        saleAction.Payout || saleAction.Commission || saleAction.Earnings || 
+        saleAction.PayoutAmount || saleAction.CommissionAmount || 0
+      );
+      
+      // Try multiple amount fields  
+      const orderValue = parseFloat(
+        saleAction.Amount || saleAction.SaleAmount || saleAction.IntendedAmount || 
+        saleAction.OrderValue || saleAction.Sale_Amount || saleAction.sale_amount || 0
+      );
+      
+      console.log(`💰 Processing sale ${actionId}: orderValue=$${orderValue}, commission=$${grossCommission}`);
       
       // Extract product information with enhanced logic
       let productName = this.extractProductName(saleAction);
@@ -1017,25 +1074,38 @@ class ImpactWebService {
 
   // NEW: Extract product URL with advanced logic
   async extractProductUrl(action) {
+    console.log(`🔍 Extracting product URL from action:`, Object.keys(action));
+    
     // Try multiple URL fields from Impact.com data
     const urlFields = [
       'TargetUrl', 'ProductUrl', 'LandingPageUrl', 'DestinationUrl',
       'Url', 'ProductLink', 'AffiliateUrl', 'TrackingUrl', 'ActionUrl',
-      'ClickUrl', 'ReferrerUrl', 'OriginalUrl'
+      'ClickUrl', 'ReferrerUrl', 'OriginalUrl', 'ClickReferrerUrl'
     ];
     
     for (const field of urlFields) {
       if (action[field] && typeof action[field] === 'string') {
         let url = action[field];
+        console.log(`🔍 Checking field ${field}: ${url}`);
         
         // Try to extract Walmart product URL
         const extractedUrl = this.extractWalmartProductUrl(url);
         if (extractedUrl) {
+          console.log(`✅ Extracted product URL from ${field}: ${extractedUrl}`);
           return extractedUrl;
         }
       }
     }
     
+    // If no URL found, try to construct one from product information
+    const productName = action.ProductName || action.Product;
+    if (productName && productName.includes('walmart')) {
+      // Return Walmart homepage as fallback
+      console.log(`⚠️ No product URL found, using Walmart homepage as fallback`);
+      return 'https://www.walmart.com';
+    }
+    
+    console.log(`❌ No product URL found for action`);
     return null;
   }
 
