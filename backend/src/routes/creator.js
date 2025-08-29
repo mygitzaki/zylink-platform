@@ -941,9 +941,12 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
       });
       console.log('✅ Main table query result:', paymentAccount ? 'Found' : 'Not found');
     } catch (mainTableError) {
-      console.log('⚠️ Main table query failed, trying fallback table...');
-      
-      // Try fallback table if main table fails
+      console.log('⚠️ Main table query failed:', mainTableError.message);
+    }
+    
+    // If not found in main table, try fallback table
+    if (!paymentAccount) {
+      console.log('🔄 No data in main table, checking fallback table...');
       try {
         const fallbackResult = await prisma.$queryRaw`
           SELECT * FROM "PaymentAccountFallback" WHERE "creatorId" = ${req.user.id}
@@ -956,7 +959,7 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
           console.log('✅ Fallback table query result: Not found');
         }
       } catch (fallbackError) {
-        console.log('⚠️ Fallback table query also failed');
+        console.log('⚠️ Fallback table query failed:', fallbackError.message);
       }
     }
     
