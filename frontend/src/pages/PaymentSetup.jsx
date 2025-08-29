@@ -20,6 +20,7 @@ export default function PaymentSetup(){
   const [hasExistingPayment, setHasExistingPayment] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Load existing payment data when component mounts
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function PaymentSetup(){
   async function onSave(e){
     e.preventDefault()
     setMsg(''); setError('')
+    setIsSubmitting(true) // Show loading state
     
     console.log('Form submission started')
     console.log('Current type:', type)
@@ -75,11 +77,13 @@ export default function PaymentSetup(){
     if (type === 'BANK') {
       if (!bankDetails.accountName || !bankDetails.accountNumber || !bankDetails.routingNumber || !bankDetails.bankName) {
         setError('Please fill in all required bank account fields')
+        setIsSubmitting(false)
         return
       }
     } else if (type === 'PAYPAL') {
       if (!paypalDetails.email) {
         setError('Please enter your PayPal email address')
+        setIsSubmitting(false)
         return
       }
     }
@@ -95,15 +99,22 @@ export default function PaymentSetup(){
       
       console.log('Response received:', res)
       
+      // Immediately update the UI to show success state
       setMsg(`SUCCESS! Your ${type === 'BANK' ? 'bank account' : 'PayPal'} details have been securely submitted!`)
       setHasExistingPayment(true) // Mark that we now have a payment method
       setIsEditing(false) // Exit editing mode
       
-      // Reload the payment data to show updated information
-      setTimeout(() => loadPaymentData(), 1000)
+      // Don't reload immediately to avoid reverting the success state
+      // Instead, wait longer and only reload if needed
+      setTimeout(() => {
+        console.log('Reloading payment data to verify persistence...')
+        loadPaymentData()
+      }, 3000) // Wait 3 seconds instead of 1
     }catch(err){ 
       console.error('Form submission error:', err)
       setError(err.message || 'Failed to save payment method') 
+    } finally {
+      setIsSubmitting(false) // Hide loading state
     }
   }
 
@@ -325,16 +336,16 @@ export default function PaymentSetup(){
               {msg && <div className="success-message">{msg}</div>}
               {error && <div className="error-message">{error}</div>}
 
-              <div className="form-actions">
-                <button type="submit" className="primary-btn">
-                  {hasExistingPayment ? 'Update Payment Details' : 'Submit Payment Details'}
-                </button>
-                {hasExistingPayment && (
-                  <button type="button" onClick={cancelEditing} className="secondary-btn">
-                    Cancel
+                              <div className="form-actions">
+                  <button type="submit" className="primary-btn" disabled={isSubmitting}>
+                    {isSubmitting ? 'Submitting...' : (hasExistingPayment ? 'Update Payment Details' : 'Submit Payment Details')}
                   </button>
-                )}
-              </div>
+                  {hasExistingPayment && (
+                    <button type="button" onClick={cancelEditing} className="secondary-btn" disabled={isSubmitting}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
             </form>
           </div>
         )}

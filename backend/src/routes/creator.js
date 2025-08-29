@@ -932,13 +932,36 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
     
     console.log('✅ Prisma client available, querying payment account...');
     
-    const paymentAccount = await prisma.paymentAccount.findUnique({
-      where: { creatorId: req.user.id }
-    });
+    let paymentAccount = null;
     
-    console.log('✅ Payment account query result:', paymentAccount ? 'Found' : 'Not found');
+    // Try to find in main table first
+    try {
+      paymentAccount = await prisma.paymentAccount.findUnique({
+        where: { creatorId: req.user.id }
+      });
+      console.log('✅ Main table query result:', paymentAccount ? 'Found' : 'Not found');
+    } catch (mainTableError) {
+      console.log('⚠️ Main table query failed, trying fallback table...');
+      
+      // Try fallback table if main table fails
+      try {
+        const fallbackResult = await prisma.$queryRaw`
+          SELECT * FROM "PaymentAccountFallback" WHERE "creatorId" = ${req.user.id}
+        `;
+        
+        if (fallbackResult && fallbackResult.length > 0) {
+          paymentAccount = fallbackResult[0];
+          console.log('✅ Fallback table query result: Found');
+        } else {
+          console.log('✅ Fallback table query result: Not found');
+        }
+      } catch (fallbackError) {
+        console.log('⚠️ Fallback table query also failed');
+      }
+    }
     
     if (!paymentAccount) {
+      console.log('📝 No payment method found in any table');
       return res.json({ hasPaymentMethod: false });
     }
     
@@ -949,8 +972,9 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
       'CRYPTO_WALLET': 'CRYPTO'
     };
     
-    const type = frontendTypeMapping[paymentAccount.accountType];
+    const type = frontendTypeMapping[paymentAccount.accountType] || paymentAccount.accountType;
     console.log('✅ Mapped account type:', paymentAccount.accountType, '->', type);
+    console.log('✅ Account details preview:', JSON.stringify(paymentAccount.accountDetails).substring(0, 100));
     
     res.json({
       hasPaymentMethod: true,
