@@ -1,4 +1,9 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -8,10 +13,5 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
-  }
+  ]
 }
