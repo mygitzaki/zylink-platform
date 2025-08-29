@@ -944,8 +944,7 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
     // Map schema enum values back to frontend values
     const frontendTypeMapping = {
       'BANK_ACCOUNT': 'BANK',
-      'PAYPAL': 'PAYPAL', 
-      'CRYPTO_WALLET': 'CRYPTO'
+      'PAYPAL': 'PAYPAL'
     };
     
     const type = frontendTypeMapping[paymentAccount.accountType];
@@ -974,6 +973,9 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
 
 router.post('/payment-setup', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Payment setup endpoint called for user:', req.user.id);
+    console.log('📝 Request body:', req.body);
+    
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ message: 'Database not configured' });
     const { type, accountDetails } = req.body || {};
@@ -982,21 +984,37 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
     // Map frontend type to schema enum values
     const accountTypeMapping = {
       'BANK': 'BANK_ACCOUNT',
-      'PAYPAL': 'PAYPAL', 
-      'CRYPTO': 'CRYPTO_WALLET'
+      'PAYPAL': 'PAYPAL'
     };
     
     const accountType = accountTypeMapping[type];
-    if (!accountType) return res.status(400).json({ message: 'Invalid payment type' });
+    if (!accountType) return res.status(400).json({ message: 'Invalid payment type. Only BANK and PAYPAL are supported.' });
+    
+    // Validate account details based on type
+    if (type === 'BANK') {
+      const { accountName, accountNumber, routingNumber, bankName } = accountDetails;
+      if (!accountName || !accountNumber || !routingNumber || !bankName) {
+        return res.status(400).json({ message: 'Missing required bank account fields' });
+      }
+    } else if (type === 'PAYPAL') {
+      const { email } = accountDetails;
+      if (!email) {
+        return res.status(400).json({ message: 'PayPal email address is required' });
+      }
+    }
+    
+    console.log('✅ Validation passed, upserting payment account...');
     
     const upserted = await prisma.paymentAccount.upsert({
       where: { creatorId: req.user.id },
-      update: { accountType, accountDetails },
+      update: { accountType, accountDetails, updatedAt: new Date() },
       create: { creatorId: req.user.id, accountType, accountDetails },
     });
-    res.status(201).json({ paymentAccountId: upserted.id });
+    
+    console.log('✅ Payment account upserted:', upserted.id);
+    res.status(201).json({ paymentAccountId: upserted.id, message: 'Payment method saved successfully' });
   } catch (error) {
-    console.error('Payment setup error:', error);
+    console.error('❌ Payment setup error:', error);
     res.status(500).json({ message: 'Failed to save payment method', error: error.message });
   }
 });

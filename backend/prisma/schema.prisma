@@ -195,7 +195,6 @@ enum PayoutStatus {
 enum PaymentAccountType {
   BANK_ACCOUNT
   PAYPAL
-  CRYPTO_WALLET
 }
 
 enum AdminRole {
