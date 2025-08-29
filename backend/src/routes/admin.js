@@ -560,9 +560,27 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     const totalClicks = creator.links.reduce((sum, link) => sum + (link.clicks || 0), 0);
     const totalConversions = creator.links.reduce((sum, link) => sum + (link.conversions || 0), 0);
     
-    // Format payment account
+    // Format payment account - check both main and fallback tables
     let paymentDetails = null;
-    if (creator.paymentAccount) {
+    let paymentAccount = creator.paymentAccount;
+    
+    // If no payment account in main table, check fallback table
+    if (!paymentAccount) {
+      try {
+        const fallbackResult = await prisma.$queryRaw`
+          SELECT * FROM "PaymentAccountFallback" WHERE "creatorId" = ${creatorId}
+        `;
+        
+        if (fallbackResult && fallbackResult.length > 0) {
+          paymentAccount = fallbackResult[0];
+          console.log('✅ Admin: Found payment data in fallback table for creator:', creatorId);
+        }
+      } catch (fallbackError) {
+        console.log('⚠️ Admin: Fallback table query failed for creator:', creatorId);
+      }
+    }
+    
+    if (paymentAccount) {
       const frontendTypeMapping = {
         'BANK_ACCOUNT': 'Bank Transfer',
         'PAYPAL': 'PayPal', 
@@ -570,13 +588,17 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
       };
       
       paymentDetails = {
-        id: creator.paymentAccount.id,
-        type: frontendTypeMapping[creator.paymentAccount.accountType] || creator.paymentAccount.accountType,
-        accountDetails: creator.paymentAccount.accountDetails,
-        isVerified: creator.paymentAccount.isVerified || false,
-        createdAt: creator.paymentAccount.createdAt,
-        updatedAt: creator.paymentAccount.updatedAt
+        id: paymentAccount.id,
+        type: frontendTypeMapping[paymentAccount.accountType] || paymentAccount.accountType,
+        accountDetails: paymentAccount.accountDetails,
+        isVerified: paymentAccount.isVerified || false,
+        createdAt: paymentAccount.createdAt,
+        updatedAt: paymentAccount.updatedAt
       };
+      
+      console.log('✅ Admin: Payment details prepared for creator:', creatorId, 'Type:', paymentDetails.type);
+    } else {
+      console.log('📝 Admin: No payment details found for creator:', creatorId);
     }
     
     // Calculate referral earnings
