@@ -9,11 +9,9 @@
       "destination": "/index.html"
     }
   ],
-  "functions": {},
   "build": {
     "env": {
-      "DEPLOYMENT_TIMESTAMP": "2025-08-29T20:50:24.000Z",
-      "DEPLOYMENT_REASON": "Payment setup improvements - Bank & PayPal only"
+      "NODE_ENV": "production"
     }
   }
 }
