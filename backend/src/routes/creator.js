@@ -1013,15 +1013,66 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
     console.log('✅ Validation passed, upserting payment account...');
     console.log('📝 Upserting with data:', { creatorId: req.user.id, accountType, accountDetails });
     
-    const upserted = await prisma.paymentAccount.upsert({
-      where: { creatorId: req.user.id },
-      update: { accountType, accountDetails, updatedAt: new Date() },
-      create: { creatorId: req.user.id, accountType, accountDetails },
-    });
-    
-    console.log('✅ Payment account upserted successfully:', upserted.id);
-    console.log('📤 Sending success response');
-    res.status(201).json({ paymentAccountId: upserted.id, message: 'Payment method saved successfully' });
+    // Try to find existing payment account first
+    let upserted;
+    try {
+      const existing = await prisma.paymentAccount.findUnique({
+        where: { creatorId: req.user.id }
+      });
+      
+      if (existing) {
+        // Update existing record
+        console.log('📝 Updating existing payment account:', existing.id);
+        upserted = await prisma.paymentAccount.update({
+          where: { creatorId: req.user.id },
+          data: { accountType, accountDetails, updatedAt: new Date() }
+        });
+      } else {
+        // Create new record
+        console.log('📝 Creating new payment account');
+        upserted = await prisma.paymentAccount.create({
+          data: { creatorId: req.user.id, accountType, accountDetails }
+        });
+      }
+      
+      console.log('✅ Payment account operation successful:', upserted.id);
+      console.log('📤 Sending success response');
+      res.status(201).json({ paymentAccountId: upserted.id, message: 'Payment method saved successfully' });
+      
+    } catch (dbError) {
+      console.error('❌ Database operation failed:', dbError);
+      console.error('❌ Error details:', {
+        name: dbError.name,
+        message: dbError.message,
+        code: dbError.code,
+        meta: dbError.meta
+      });
+      
+      // If it's a schema-related error, try a raw SQL approach as fallback
+      if (dbError.message && dbError.message.includes('Invalid `prisma.paymentAccount')) {
+        console.log('🔄 Attempting raw SQL fallback for schema compatibility...');
+        try {
+          // Use raw SQL to insert/update the payment account
+          const result = await prisma.$executeRaw`
+            INSERT INTO "PaymentAccount" ("id", "creatorId", "accountType", "accountDetails", "isVerified", "createdAt", "updatedAt")
+            VALUES (gen_random_uuid(), ${req.user.id}, ${accountType}::"PaymentAccountType", ${JSON.stringify(accountDetails)}::jsonb, false, NOW(), NOW())
+            ON CONFLICT ("creatorId") 
+            DO UPDATE SET 
+              "accountType" = ${accountType}::"PaymentAccountType",
+              "accountDetails" = ${JSON.stringify(accountDetails)}::jsonb,
+              "updatedAt" = NOW()
+          `;
+          
+          console.log('✅ Raw SQL fallback successful');
+          res.status(201).json({ message: 'Payment method saved successfully (via fallback)' });
+          return;
+        } catch (sqlError) {
+          console.error('❌ Raw SQL fallback also failed:', sqlError);
+        }
+      }
+      
+      throw dbError; // Re-throw to be caught by outer catch block
+    }
   } catch (error) {
     console.error('❌ Payment setup error:', error);
     res.status(500).json({ message: 'Failed to save payment method', error: error.message });
