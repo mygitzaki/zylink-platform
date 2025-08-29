@@ -1,4 +1,4 @@
 RAILWAY DEPLOYMENT TRIGGER
 This file forces Railway to redeploy with the latest code
-Timestamp: 2025-08-20T12:35:00.000Z
-Reason: Payment account functionality not working due to old code deployment
+Timestamp: 2025-08-29T20:50:24.000Z
+Reason: Deploy payment setup improvements - Bank & PayPal only with enhanced UX
