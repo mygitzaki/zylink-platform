@@ -1004,6 +1004,7 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
     }
     
     console.log('✅ Validation passed, upserting payment account...');
+    console.log('📝 Upserting with data:', { creatorId: req.user.id, accountType, accountDetails });
     
     const upserted = await prisma.paymentAccount.upsert({
       where: { creatorId: req.user.id },
@@ -1011,7 +1012,8 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
       create: { creatorId: req.user.id, accountType, accountDetails },
     });
     
-    console.log('✅ Payment account upserted:', upserted.id);
+    console.log('✅ Payment account upserted successfully:', upserted.id);
+    console.log('📤 Sending success response');
     res.status(201).json({ paymentAccountId: upserted.id, message: 'Payment method saved successfully' });
   } catch (error) {
     console.error('❌ Payment setup error:', error);

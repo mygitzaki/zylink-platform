@@ -66,6 +66,11 @@ export default function PaymentSetup(){
     e.preventDefault()
     setMsg(''); setError('')
     
+    console.log('🔍 Form submission started')
+    console.log('📝 Current type:', type)
+    console.log('📝 Bank details:', bankDetails)
+    console.log('📝 PayPal details:', paypalDetails)
+    
     // Validate required fields
     if (type === 'BANK') {
       if (!bankDetails.accountName || !bankDetails.accountNumber || !bankDetails.routingNumber || !bankDetails.bankName) {
@@ -84,14 +89,22 @@ export default function PaymentSetup(){
       if(type === 'BANK') accountDetails = bankDetails
       else if(type === 'PAYPAL') accountDetails = paypalDetails  
 
+      console.log('📤 Sending request with:', { type, accountDetails })
+      
       const res = await apiFetch('/api/creator/payment-setup',{ method:'POST', token, body:{ type, accountDetails } })
+      
+      console.log('✅ Response received:', res)
+      
       setMsg(`🎉 SUCCESS! Your ${type === 'BANK' ? 'bank account' : 'PayPal'} details have been securely submitted!`)
       setHasExistingPayment(true) // Mark that we now have a payment method
       setIsEditing(false) // Exit editing mode
       
       // Reload the payment data to show updated information
       setTimeout(() => loadPaymentData(), 1000)
-    }catch(err){ setError(err.message || 'Failed to save payment method') }
+    }catch(err){ 
+      console.error('❌ Form submission error:', err)
+      setError(err.message || 'Failed to save payment method') 
+    }
   }
 
   const handleBankDetailsChange = (field, value) => {
