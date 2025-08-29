@@ -823,10 +823,24 @@ class ImpactWebService {
         }
       }
       
-      // Step 3: Process and enhance each sale with product information
+      // Step 3: CRITICAL - Double-check creator isolation before processing
+      const creatorIsolatedSales = salesData.filter(sale => {
+        const saleSubId1 = sale.SubId1 || sale.Subid1 || sale.SubID1 || sale.TrackingValue || '';
+        const matches = saleSubId1.toString().trim() === subId1.toString().trim();
+        if (!matches) {
+          console.error(`🚨 SECURITY: Blocking sale with wrong SubId1: ${saleSubId1} (expected: ${subId1})`);
+        }
+        return matches;
+      });
+      
+      if (creatorIsolatedSales.length !== salesData.length) {
+        console.error(`🚨 SECURITY: Filtered ${salesData.length - creatorIsolatedSales.length} sales that didn't belong to creator ${subId1}`);
+      }
+      
+      // Step 4: Process and enhance each sale with product information
       const enhancedSales = [];
       
-      for (const sale of salesData) {
+      for (const sale of creatorIsolatedSales) {
         const enhancedSale = await this.enhanceSaleWithProductData(sale);
         if (enhancedSale) {
           enhancedSales.push(enhancedSale);
@@ -888,8 +902,22 @@ class ImpactWebService {
       const records = Array.isArray(result.json?.Records) ? result.json.Records : [];
       console.log(`📊 Advanced action listing returned ${records.length} records`);
       
-      // Filter for commissionable actions only
-      const commissionableActions = records.filter(record => {
+      // CRITICAL FIX: Filter by SubId1 FIRST to ensure creator isolation
+      let creatorFilteredRecords = records;
+      if (subId1) {
+        creatorFilteredRecords = records.filter(record => {
+          const recordSubId1 = record.SubId1 || record.Subid1 || record.SubID1 || record.TrackingValue || '';
+          const matches = recordSubId1.toString().trim() === subId1.toString().trim();
+          if (!matches) {
+            console.log(`🚫 Filtering out record with SubId1: ${recordSubId1} (expected: ${subId1})`);
+          }
+          return matches;
+        });
+        console.log(`🎯 Creator filter: ${records.length} total → ${creatorFilteredRecords.length} for creator ${subId1}`);
+      }
+      
+      // Filter for commissionable actions only (after creator filtering)
+      const commissionableActions = creatorFilteredRecords.filter(record => {
         const commission = parseFloat(record.Payout || record.Commission || 0);
         return commission > 0;
       });
@@ -940,10 +968,11 @@ class ImpactWebService {
         date: saleDate,
         status: saleAction.State || saleAction.Status || 'Pending',
         campaignName: this.maskBrandNames(saleAction.CampaignName || 'Walmart'),
-        // Additional metadata for debugging
+        // Additional metadata for debugging and security validation
         _debug: {
           originalProductName: saleAction.ProductName || saleAction.Product,
-          availableFields: Object.keys(saleAction)
+          availableFields: Object.keys(saleAction),
+          subId1: saleAction.SubId1 || saleAction.Subid1 || saleAction.SubID1 || saleAction.TrackingValue || 'unknown'
         }
       };
       
