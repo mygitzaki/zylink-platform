@@ -1771,6 +1771,138 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
   }
 });
 
+// DEBUG: Check Impact.com data for specific SubId1
+router.get('/debug-impact/:subId1', requireAuth, requireApprovedCreator, async (req, res) => {
+  try {
+    const subId1 = req.params.subId1;
+    console.log(`[DEBUG Impact] Checking Impact.com data for SubId1: ${subId1}`);
+    
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Get current date range (last 30 days)
+    const now = new Date();
+    const endDate = now.toISOString().split('T')[0];
+    const startDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    
+    console.log(`[DEBUG Impact] Date range: ${startDate} to ${endDate}`);
+    
+    const results = {};
+    
+    // 1. Check Performance by SubId (clicks data)
+    try {
+      const performanceData = await impact.getPerformanceBySubId({
+        startDate,
+        endDate,
+        subId1: subId1
+      });
+      
+      results.performanceReport = {
+        success: performanceData.success,
+        clicks: performanceData.data?.clicks || 0,
+        data: performanceData.data,
+        error: performanceData.error
+      };
+      
+      console.log(`[DEBUG Impact] Performance data:`, results.performanceReport);
+    } catch (error) {
+      results.performanceReport = { error: error.message };
+    }
+    
+    // 2. Check Actions Detailed (sales data)
+    try {
+      const actionsData = await impact.getActionsDetailed({
+        startDate: startDate + 'T00:00:00Z',
+        endDate: endDate + 'T23:59:59Z',
+        subId1: subId1,
+        pageSize: 100
+      });
+      
+      if (actionsData.success && actionsData.actions) {
+        const creatorActions = actionsData.actions.filter(action => 
+          action.SubId1 === subId1
+        );
+        
+        const commissionableActions = creatorActions.filter(action => {
+          const commission = parseFloat(action.Payout || action.Commission || 0);
+          return commission > 0;
+        });
+        
+        results.actionsReport = {
+          success: true,
+          totalActions: creatorActions.length,
+          commissionableActions: commissionableActions.length,
+          actions: creatorActions.slice(0, 5), // Show first 5 for debugging
+          commissionableActionsDetails: commissionableActions.map(action => ({
+            id: action.Id,
+            date: action.EventDate || action.ActionDate,
+            commission: parseFloat(action.Payout || action.Commission || 0),
+            amount: parseFloat(action.Amount || action.SaleAmount || 0),
+            status: action.ActionStatus || action.Status
+          }))
+        };
+      } else {
+        results.actionsReport = {
+          success: false,
+          error: actionsData.error || 'No actions data'
+        };
+      }
+      
+      console.log(`[DEBUG Impact] Actions data:`, results.actionsReport);
+    } catch (error) {
+      results.actionsReport = { error: error.message };
+    }
+    
+    // 3. Check Reports API (admin dashboard data)
+    try {
+      const reportsData = await impact.getImpactReportsData({
+        startDate,
+        endDate,
+        subId1: subId1
+      });
+      
+      if (reportsData.success && reportsData.data) {
+        const creatorData = reportsData.data.find(row => row.SubId1 === subId1);
+        results.reportsData = {
+          success: true,
+          found: !!creatorData,
+          data: creatorData
+        };
+      } else {
+        results.reportsData = {
+          success: false,
+          error: reportsData.error || 'No reports data'
+        };
+      }
+      
+      console.log(`[DEBUG Impact] Reports data:`, results.reportsData);
+    } catch (error) {
+      results.reportsData = { error: error.message };
+    }
+    
+    const summary = {
+      subId1: subId1,
+      dateRange: { startDate, endDate },
+      clicks: results.performanceReport?.clicks || 0,
+      totalActions: results.actionsReport?.totalActions || 0,
+      commissionableActions: results.actionsReport?.commissionableActions || 0,
+      reportsFound: results.reportsData?.found || false,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log(`[DEBUG Impact] SUMMARY for ${subId1}:`, summary);
+    
+    res.json({
+      summary,
+      details: results
+    });
+    
+  } catch (error) {
+    console.error('[DEBUG Impact] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DEBUG: Check what's actually in the database for this creator
 router.get('/debug-earnings', requireAuth, requireApprovedCreator, async (req, res) => {
   try {
