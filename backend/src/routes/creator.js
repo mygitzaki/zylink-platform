@@ -1613,13 +1613,91 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
         if (enhancedSalesResponse.success && enhancedSalesResponse.sales.length > 0) {
           const enhancedSales = enhancedSalesResponse.sales;
           
-          // Calculate totals from enhanced sales data
-          totalSales = enhancedSalesResponse.totalSales || 0;
-          salesCount = enhancedSales.length;
+          console.log(`🔒 SECURITY CHECK: Validating ${enhancedSales.length} sales belong to creator ${req.user.id}`);
           
-          // Process enhanced sales for display with proper commission calculation
-          // (Security filtering is handled in the ImpactWebService layer)
-          const processedSales = await Promise.all(enhancedSales.map(async (sale) => {
+          // CRITICAL SECURITY: Use database-based filtering instead of trusting Impact.com SubId1 filtering
+          // Get all earnings for this creator from our database (source of truth)
+          const creatorEarnings = await prisma.earning.findMany({
+            where: {
+              creatorId: req.user.id,
+              type: 'COMMISSION',
+              createdAt: {
+                gte: new Date(startDate + 'T00:00:00Z'),
+                lte: new Date(endDate + 'T23:59:59Z')
+              }
+            },
+            include: {
+              link: {
+                select: {
+                  destinationUrl: true,
+                  impactLink: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
+          });
+          
+          console.log(`🔒 Found ${creatorEarnings.length} database earnings for creator validation`);
+          
+          // Match Impact.com sales with database earnings by transaction ID or amount/date proximity
+          const validatedSales = [];
+          
+          for (const sale of enhancedSales) {
+            let isValid = false;
+            let productUrl = sale.productUrl;
+            
+            // Method 1: Match by Impact transaction ID
+            const matchingEarning = creatorEarnings.find(earning => 
+              earning.impactTransactionId === sale.actionId
+            );
+            
+            if (matchingEarning) {
+              isValid = true;
+              // Use the original destination URL from our database
+              if (matchingEarning.link?.destinationUrl) {
+                productUrl = matchingEarning.link.destinationUrl;
+                console.log(`✅ Validated sale ${sale.actionId} via transaction ID match - URL: ${productUrl}`);
+              }
+            } else {
+              // Method 2: Match by amount and date proximity (within 24 hours)
+              const saleDate = new Date(sale.date);
+              const saleAmount = sale.orderValue;
+              
+              const proximateEarning = creatorEarnings.find(earning => {
+                const earningDate = new Date(earning.createdAt);
+                const timeDiff = Math.abs(saleDate.getTime() - earningDate.getTime());
+                const hoursDiff = timeDiff / (1000 * 60 * 60);
+                const amountMatch = Math.abs(parseFloat(earning.amount) - sale.grossCommission) < 0.01;
+                
+                return hoursDiff <= 24 && amountMatch;
+              });
+              
+              if (proximateEarning) {
+                isValid = true;
+                if (proximateEarning.link?.destinationUrl) {
+                  productUrl = proximateEarning.link.destinationUrl;
+                  console.log(`✅ Validated sale ${sale.actionId} via date/amount proximity - URL: ${productUrl}`);
+                }
+              }
+            }
+            
+            if (isValid) {
+              validatedSales.push({ ...sale, productUrl });
+            } else {
+              console.error(`🚨 SECURITY: Blocking sale ${sale.actionId} - not found in creator's database earnings`);
+            }
+          }
+          
+          console.log(`🔒 SECURITY RESULT: ${validatedSales.length}/${enhancedSales.length} sales validated for creator ${req.user.id}`);
+          
+          // Calculate totals from validated sales only
+          totalSales = validatedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
+          salesCount = validatedSales.length;
+          
+          // Process validated sales for display
+          const processedSales = validatedSales.map((sale) => {
             // Apply platform commission rate to get creator's actual share
             const creatorCommission = parseFloat((sale.grossCommission * creator.commissionRate / 100).toFixed(2));
             

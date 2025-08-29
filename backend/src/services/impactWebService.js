@@ -901,32 +901,36 @@ class ImpactWebService {
     }
   }
 
-  // NEW: Get advanced action listing with detailed product information
+  // NEW: Get advanced action listing with detailed product information (Impact.com recommended method)
   async getAdvancedActionListing(options = {}) {
     try {
       const { subId1, startDate, endDate, includeProductDetails = true, limit = 100 } = options;
       
-      // Use the comprehensive action listing report with all available fields
+      console.log(`📊 Using Impact.com Advanced Action Listing API (as recommended by support)`);
+      
+      // Use Impact.com's exact Advanced Action Listing API endpoint as shown in support chat
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/mp_action_listing_sku.json`;
+      
       const query = {
         START_DATE: startDate,
         END_DATE: endDate,
         Program: this.programId,
         ResultFormat: 'JSON',
         PageSize: limit.toString(),
-        // Include additional fields for product information
-        INCLUDE_PRODUCT_DETAILS: includeProductDetails ? '1' : '0',
-        INCLUDE_TRACKING_URLS: '1',
-        INCLUDE_CUSTOMER_INFO: '0', // Privacy compliance
-        ACTION_STATUS: 'APPROVED,PENDING' // Get both approved and pending
+        // Use Impact.com's exact parameter names from support documentation
+        'Action Status': 'Approved,Pending',
+        'Commissionable': 'All', // Get all commissionable actions
+        'Device Type': 'All'
       };
       
-      // Add SubId1 filter if provided
+      // Add SubId1 filter using Impact.com's exact parameter name
       if (subId1) {
         query.SUBID1 = subId1;
       }
       
-      const reportId = await this.resolveActionListingReportId();
-      const result = await this.exportReportAndDownloadJson(reportId, query);
+      console.log(`📊 Advanced Action Listing query:`, query);
+      
+      const result = await this.exportReportAndDownloadJson('mp_action_listing_sku', query);
       
       if (!result.success) {
         return { success: false, actions: [], error: result.error };
@@ -1039,17 +1043,52 @@ class ImpactWebService {
     }
   }
 
-  // NEW: Extract product name with fallback logic
+  // NEW: Extract product name using Advanced Action Listing fields (Impact.com support recommended)
   extractProductName(action) {
-    // Try multiple fields that might contain product names
-    const productFields = [
-      'ProductName', 'Product', 'ItemName', 'ItemDescription', 
-      'ProductTitle', 'ProductDescription', 'Sku', 'ProductSku'
+    console.log(`🏷️ Extracting product name from Advanced Action Listing fields`);
+    
+    // Use Advanced Action Listing specific fields (from Impact.com support chat)
+    const advancedFields = [
+      'ITEM_NAME',        // Primary product name field in Advanced Action Listing
+      'SKU',              // Product SKU
+      'CATEGORY_LIST',    // Product category
+      'SUB_CATEGORY'      // Product subcategory
     ];
     
-    for (const field of productFields) {
+    // Try advanced fields first
+    for (const field of advancedFields) {
       if (action[field] && typeof action[field] === 'string' && action[field].trim()) {
         let productName = action[field].trim();
+        console.log(`✅ Found product name in ${field}: ${productName}`);
+        
+        // Clean up the product name
+        productName = productName.replace(/^(Walmart\.com - |Walmart - |Product: )/i, '');
+        productName = productName.replace(/ - Walmart\.com$/i, '');
+        
+        // If it's a category, make it more descriptive
+        if (field === 'CATEGORY_LIST' || field === 'SUB_CATEGORY') {
+          productName = `${productName} Product`;
+        }
+        
+        // Truncate if too long
+        if (productName.length > 60) {
+          productName = productName.substring(0, 57) + '...';
+        }
+        
+        return productName;
+      }
+    }
+    
+    // Fallback to standard fields
+    const standardFields = [
+      'ProductName', 'Product', 'ItemName', 'ItemDescription', 
+      'ProductTitle', 'ProductDescription'
+    ];
+    
+    for (const field of standardFields) {
+      if (action[field] && typeof action[field] === 'string' && action[field].trim()) {
+        let productName = action[field].trim();
+        console.log(`✅ Found product name in standard field ${field}: ${productName}`);
         
         // Clean up common prefixes/suffixes
         productName = productName.replace(/^(Walmart\.com - |Walmart - |Product: )/i, '');
@@ -1064,20 +1103,29 @@ class ImpactWebService {
       }
     }
     
-    // Fallback to campaign or generic name
-    if (action.CampaignName && !action.CampaignName.toLowerCase().includes('walmart')) {
-      return action.CampaignName;
-    }
-    
+    console.log(`⚠️ No product name found, using fallback`);
     return 'Product Sale';
   }
 
-  // NEW: Extract product URL with advanced logic
+  // NEW: Extract product URL using Impact.com Advanced Action Listing data
   async extractProductUrl(action) {
-    console.log(`🔍 Extracting product URL from action:`, Object.keys(action));
+    console.log(`🔍 Extracting product URL from Advanced Action Listing:`, {
+      actionId: action.ACTION_ID || action.Id,
+      availableFields: Object.keys(action)
+    });
     
-    // Try multiple URL fields from Impact.com data
+    // Method 1: Use SKU to construct Walmart URL (most accurate)
+    const sku = action.SKU || action.Sku || action.ITEM_NAME || action.ProductSku;
+    if (sku && sku.toString().trim()) {
+      // Walmart URLs follow pattern: https://www.walmart.com/ip/product-name/SKU
+      const walmartUrl = `https://www.walmart.com/ip/${sku}`;
+      console.log(`✅ Constructed Walmart URL from SKU ${sku}: ${walmartUrl}`);
+      return walmartUrl;
+    }
+    
+    // Method 2: Try URL fields from Advanced Action Listing
     const urlFields = [
+      'ITEM_NAME', 'CATEGORY_LIST', 'SUB_CATEGORY', // These might contain product identifiers
       'TargetUrl', 'ProductUrl', 'LandingPageUrl', 'DestinationUrl',
       'Url', 'ProductLink', 'AffiliateUrl', 'TrackingUrl', 'ActionUrl',
       'ClickUrl', 'ReferrerUrl', 'OriginalUrl', 'ClickReferrerUrl'
@@ -1086,21 +1134,28 @@ class ImpactWebService {
     for (const field of urlFields) {
       if (action[field] && typeof action[field] === 'string') {
         let url = action[field];
-        console.log(`🔍 Checking field ${field}: ${url}`);
+        console.log(`🔍 Checking Advanced Action Listing field ${field}: ${url}`);
         
         // Try to extract Walmart product URL
         const extractedUrl = this.extractWalmartProductUrl(url);
         if (extractedUrl) {
-          console.log(`✅ Extracted product URL from ${field}: ${extractedUrl}`);
+          console.log(`✅ Extracted product URL from Advanced Action Listing ${field}: ${extractedUrl}`);
           return extractedUrl;
         }
       }
     }
     
-    // If no URL found in Impact.com data, try to find it from the creator's original links
-    console.log(`⚠️ No URL found in Impact.com data, searching creator's links...`);
+    // Method 3: Use ITEM_NAME to search Walmart (if it contains useful product info)
+    const itemName = action.ITEM_NAME || action.ItemName || action.ProductName;
+    if (itemName && typeof itemName === 'string' && itemName.length > 3) {
+      // Create a search URL for the actual product
+      const searchQuery = encodeURIComponent(itemName.replace(/[^\w\s]/g, '').trim());
+      const searchUrl = `https://www.walmart.com/search?q=${searchQuery}`;
+      console.log(`🔍 Created Walmart search URL for "${itemName}": ${searchUrl}`);
+      return searchUrl;
+    }
     
-    // This will be handled by the calling method which has access to creator data
+    console.log(`⚠️ No product URL extractable from Advanced Action Listing data`);
     return null;
   }
 
@@ -1155,16 +1210,31 @@ class ImpactWebService {
     return null;
   }
 
-  // NEW: Extract product SKU
+  // NEW: Extract product SKU using Advanced Action Listing fields
   extractProductSku(action) {
-    const skuFields = ['Sku', 'ProductSku', 'ItemSku', 'ProductId', 'ItemId'];
+    // Advanced Action Listing specific fields (from Impact.com support)
+    const advancedSkuFields = ['SKU', 'ITEM_NAME'];
+    const standardSkuFields = ['Sku', 'ProductSku', 'ItemSku', 'ProductId', 'ItemId'];
     
-    for (const field of skuFields) {
+    // Try advanced fields first
+    for (const field of advancedSkuFields) {
       if (action[field] && typeof action[field] === 'string') {
-        return action[field].trim();
+        const sku = action[field].trim();
+        console.log(`✅ Found SKU in Advanced Action Listing field ${field}: ${sku}`);
+        return sku;
       }
     }
     
+    // Fallback to standard fields
+    for (const field of standardSkuFields) {
+      if (action[field] && typeof action[field] === 'string') {
+        const sku = action[field].trim();
+        console.log(`✅ Found SKU in standard field ${field}: ${sku}`);
+        return sku;
+      }
+    }
+    
+    console.log(`⚠️ No SKU found in action data`);
     return null;
   }
 
