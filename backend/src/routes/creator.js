@@ -1696,144 +1696,79 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           totalSales = validatedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
           salesCount = validatedSales.length;
           
-          // Process validated sales for display
+          // Process validated sales for display (note: productUrl is already set from database validation)
           const processedSales = validatedSales.map((sale) => {
             // Apply platform commission rate to get creator's actual share
             const creatorCommission = parseFloat((sale.grossCommission * creator.commissionRate / 100).toFixed(2));
             
-            let productUrl = sale.productUrl;
-            
-            // If no product URL found in enhanced data, try to find it from creator's original links
-            if (!productUrl) {
-              console.log(`🔍 No product URL in enhanced data, searching creator's links for sale ${sale.actionId}`);
-              
-              try {
-                // Try to find a link that might match this sale by date proximity
-                const saleDate = new Date(sale.date);
-                const saleDateWindow = 7 * 24 * 60 * 60 * 1000; // 7 days window
-                
-                const proximateLinks = await prisma.link.findMany({
-                  where: {
-                    creatorId: req.user.id,
-                    createdAt: {
-                      gte: new Date(saleDate.getTime() - saleDateWindow),
-                      lte: new Date(saleDate.getTime() + saleDateWindow)
-                    }
-                  },
-                  select: {
-                    destinationUrl: true,
-                    impactLink: true,
-                    createdAt: true
-                  },
-                  orderBy: {
-                    createdAt: 'desc'
-                  },
-                  take: 5 // Get up to 5 recent links
-                });
-                
-                if (proximateLinks.length > 0) {
-                  // Use the most recent link as the product URL
-                  productUrl = proximateLinks[0].destinationUrl;
-                  console.log(`✅ Found fallback product URL: ${productUrl}`);
-                } else {
-                  // Final fallback - get any recent link from this creator
-                  const anyRecentLink = await prisma.link.findFirst({
-                    where: { creatorId: req.user.id },
-                    select: { destinationUrl: true },
-                    orderBy: { createdAt: 'desc' }
-                  });
-                  
-                  if (anyRecentLink) {
-                    productUrl = anyRecentLink.destinationUrl;
-                    console.log(`⚠️ Using most recent link as fallback: ${productUrl}`);
-                  } else {
-                    // Ultimate fallback
-                    productUrl = 'https://www.walmart.com';
-                    console.log(`⚠️ No links found, using Walmart homepage`);
-                  }
-                }
-              } catch (error) {
-                console.error(`❌ Error finding fallback URL: ${error.message}`);
-                productUrl = 'https://www.walmart.com';
-              }
-            }
+            // productUrl is already set from database validation above
+            const productUrl = sale.productUrl || 'https://www.walmart.com'; // Safe fallback
             
             return {
               actionId: sale.actionId,
-              product: sale.product, // Already masked in enhanced method
-              productUrl: productUrl, // Enhanced with fallback URL lookup
+              product: sale.product,
+              productUrl: productUrl,
               productCategory: sale.productCategory,
               productSku: sale.productSku,
               orderValue: sale.orderValue,
-              commission: creatorCommission, // Creator's actual commission after platform rate
-              grossCommission: sale.grossCommission, // Original commission before platform rate
+              commission: creatorCommission,
+              grossCommission: sale.grossCommission,
               date: sale.date,
               status: sale.status,
-              campaignName: sale.campaignName // Already masked in enhanced method
+              campaignName: sale.campaignName
             };
-          }));
+          });
           
           // Sort by date and apply pagination
           processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
           recentSales = processedSales;
           
-          console.log(`[Sales History Enhanced] Successfully processed ${salesCount} sales totaling $${totalSales.toFixed(2)}`);
+          console.log(`[Sales History Enhanced] Successfully processed ${salesCount} validated sales totaling $${totalSales.toFixed(2)}`);
         } else {
-          console.log(`[Sales History Enhanced] Enhanced method failed, using fallback: ${enhancedSalesResponse.error || 'No sales found'}`);
+          console.log(`[Sales History Enhanced] Enhanced method failed, using database-only fallback: ${enhancedSalesResponse.error || 'No sales found'}`);
           
-          // Fallback to basic method with masking
-          const fallbackResponse = await impact.getActionsDetailed({
-            subId1: correctSubId1,
-            startDate: startDate + 'T00:00:00Z',
-            endDate: endDate + 'T23:59:59Z',
-            actionType: 'SALE',
-            pageSize: limitNumber === 'all' ? 1000 : limitNumber
+          // Database-only fallback: show earnings from database with basic product info
+          const creatorEarnings = await prisma.earning.findMany({
+            where: {
+              creatorId: req.user.id,
+              type: 'COMMISSION',
+              createdAt: {
+                gte: new Date(startDate + 'T00:00:00Z'),
+                lte: new Date(endDate + 'T23:59:59Z')
+              }
+            },
+            include: {
+              link: {
+                select: {
+                  destinationUrl: true,
+                  impactLink: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
           });
           
-          if (fallbackResponse.success && fallbackResponse.actions) {
-            const actions = fallbackResponse.actions.filter(action => {
-              const actionSubId1 = action.SubId1 || action.Subid1 || '';
-              const commission = parseFloat(action.Payout || action.Commission || 0);
-              return actionSubId1 === correctSubId1 && commission > 0;
-            });
-            
-            let calculatedSales = 0;
-            const processedSales = [];
-            
-            for (const action of actions) {
-              const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-              const commission = parseFloat(action.Payout || action.Commission || 0);
-              const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
-              
-              calculatedSales += saleAmount;
-              
-              // Apply masking to product names
-              let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
-              productName = productName.replace(/walmartcreator\.com/gi, 'Walmart')
-                                     .replace(/walmart creator/gi, 'Walmart')
-                                     .replace(/impact\.com/gi, '')
-                                     .replace(/impact/gi, '')
-                                     .replace(/\s+/g, ' ').trim();
-              
-              processedSales.push({
-                date: action.EventDate || action.ActionDate || action.CreationDate || new Date().toISOString(),
-                orderValue: saleAmount,
-                commission: creatorCommission,
-                status: action.ActionStatus || action.Status || 'Pending',
-                actionId: action.Id || action.ActionId,
-                product: productName,
-                productUrl: null // No URL extraction in fallback
-              });
-            }
-            
-            processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            totalSales = calculatedSales;
-            salesCount = actions.length;
-            recentSales = processedSales;
-            
-            console.log(`[Sales History Fallback] Processed ${salesCount} sales totaling $${totalSales.toFixed(2)}`);
-          }
+          const processedSales = creatorEarnings.map(earning => ({
+            actionId: earning.impactTransactionId || earning.id,
+            product: 'Walmart Product', // Generic name for database fallback
+            productUrl: earning.link?.destinationUrl || 'https://www.walmart.com',
+            productCategory: null,
+            productSku: null,
+            orderValue: parseFloat(earning.amount) / (creator.commissionRate / 100), // Reverse calculate order value
+            commission: parseFloat(earning.amount),
+            grossCommission: parseFloat(earning.amount) / (creator.commissionRate / 100),
+            date: earning.createdAt,
+            status: earning.status,
+            campaignName: 'Walmart'
+          }));
+          
+          totalSales = processedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
+          salesCount = processedSales.length;
+          recentSales = processedSales;
+          
+          console.log(`[Sales History Database Fallback] Processed ${salesCount} database earnings totaling $${totalSales.toFixed(2)}`);
         }
       }
     } catch (error) {
