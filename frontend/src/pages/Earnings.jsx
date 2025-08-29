@@ -106,16 +106,24 @@ export default function Earnings() {
         path += `?days=${days}&limit=${limit}`
       }
       
+      console.log(`🔄 Loading sales data from: ${path}`)
       const salesRes = await apiFetch(path, { token })
+      console.log(`✅ Sales data loaded:`, {
+        totalSales: salesRes.totalSales,
+        salesCount: salesRes.salesCount,
+        dataSource: salesRes.dataSource
+      })
       setSalesData(salesRes)
       
     } catch (err) {
-      console.error('Failed to load sales data:', err)
-      // Set safe defaults
+      console.error('❌ Failed to load sales data:', err)
+      // Set safe defaults with error indication
       setSalesData({
         totalSales: 0,
         salesCount: 0,
-        recentSales: []
+        recentSales: [],
+        error: true,
+        errorMessage: err.message || 'Unable to load sales data'
       })
     }
   }
@@ -436,7 +444,14 @@ export default function Earnings() {
 
         {/* Recent Commissionable Sales */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Commissionable Sales</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-900">Recent Commissionable Sales</h3>
+            {salesData.error && (
+              <div className="px-3 py-1 bg-red-100 text-red-600 text-xs rounded-full">
+                Error loading data
+              </div>
+            )}
+          </div>
           {salesData.recentSales && salesData.recentSales.length > 0 ? (
             <div className="space-y-4">
               {salesData.recentSales.map((sale, index) => (

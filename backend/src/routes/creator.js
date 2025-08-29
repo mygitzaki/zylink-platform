@@ -1536,7 +1536,7 @@ router.get('/referrals', requireAuth, async (req, res) => {
 // Get creator earnings - as specified in docs: GET /api/creator/earnings
 // (removed duplicate earnings route to avoid ambiguity)
 
-// NEW: Get creator's commissionable sales history
+// NEW: Get creator's commissionable sales history - SIMPLIFIED VERSION
 router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, res) => {
   try {
     const prisma = getPrisma();
@@ -1557,7 +1557,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       return res.status(404).json({ message: 'Creator not found' });
     }
 
-    // Parse date parameters
+    // Parse date parameters (simplified)
     const now = new Date();
     const fmt = (d) => d.toISOString().split('T')[0];
     const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -1583,197 +1583,107 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
 
     // Parse limit parameter
     const limit = req.query.limit;
-    const limitNumber = limit === 'all' ? 'all' : Math.max(1, Math.min(100, parseInt(limit) || 10));
+    const limitNumber = limit === 'all' ? 1000 : Math.max(1, Math.min(100, parseInt(limit) || 10));
 
-    console.log(`[Sales History Enhanced] Fetching sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
+    console.log(`[Sales History Simplified] Fetching sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
 
-    // Get commissionable sales from Impact.com using enhanced method
+    // SIMPLIFIED APPROACH: Start with database earnings as primary source
     let totalSales = 0;
     let salesCount = 0;
     let recentSales = [];
 
-    try {
+    // Get all commission earnings for this creator in the date range
+    const creatorEarnings = await prisma.earning.findMany({
+      where: {
+        creatorId: req.user.id,
+        type: 'COMMISSION',
+        createdAt: {
+          gte: new Date(startDate + 'T00:00:00Z'),
+          lte: new Date(endDate + 'T23:59:59Z')
+        }
+      },
+      include: {
+        link: {
+          select: {
+            destinationUrl: true,
+            impactLink: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: limitNumber === 1000 ? undefined : limitNumber
+    });
+
+    console.log(`[Sales History Simplified] Found ${creatorEarnings.length} commission earnings in database`);
+
+    if (creatorEarnings.length > 0) {
+      // Try to enhance with Impact.com data, but don't fail if it doesn't work
       const ImpactWebService = require('../services/impactWebService');
       const impact = new ImpactWebService();
-      
-      // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
-      if (correctSubId1 && correctSubId1 !== 'default') {
-        console.log(`[Sales History Enhanced] Using enhanced sales data for SubId1: ${correctSubId1}`);
-        
-        // Use the new enhanced sales data method
-        const enhancedSalesResponse = await impact.getEnhancedSalesData({
-          subId1: correctSubId1,
-          startDate,
-          endDate,
-          limit: limitNumber === 'all' ? 1000 : limitNumber
-        });
-        
-        if (enhancedSalesResponse.success && enhancedSalesResponse.sales.length > 0) {
-          const enhancedSales = enhancedSalesResponse.sales;
+      let impactSalesMap = new Map(); // Map transaction ID to enhanced data
+      
+      try {
+        if (correctSubId1 && correctSubId1 !== 'default') {
+          console.log(`[Sales History Simplified] Attempting to enhance with Impact.com data for SubId1: ${correctSubId1}`);
           
-          console.log(`🔒 SECURITY CHECK: Validating ${enhancedSales.length} sales belong to creator ${req.user.id}`);
-          
-          // CRITICAL SECURITY: Use database-based filtering instead of trusting Impact.com SubId1 filtering
-          // Get all earnings for this creator from our database (source of truth)
-          const creatorEarnings = await prisma.earning.findMany({
-            where: {
-              creatorId: req.user.id,
-              type: 'COMMISSION',
-              createdAt: {
-                gte: new Date(startDate + 'T00:00:00Z'),
-                lte: new Date(endDate + 'T23:59:59Z')
-              }
-            },
-            include: {
-              link: {
-                select: {
-                  destinationUrl: true,
-                  impactLink: true
-                }
-              }
-            },
-            orderBy: {
-              createdAt: 'desc'
-            }
+          // Try to get enhanced sales data (but don't fail if it doesn't work)
+          const enhancedSalesResponse = await impact.getEnhancedSalesData({
+            subId1: correctSubId1,
+            startDate,
+            endDate,
+            limit: limitNumber
           });
           
-          console.log(`🔒 Found ${creatorEarnings.length} database earnings for creator validation`);
-          
-          // Match Impact.com sales with database earnings by transaction ID or amount/date proximity
-          const validatedSales = [];
-          
-          for (const sale of enhancedSales) {
-            let isValid = false;
-            let productUrl = sale.productUrl;
-            
-            // Method 1: Match by Impact transaction ID
-            const matchingEarning = creatorEarnings.find(earning => 
-              earning.impactTransactionId === sale.actionId
-            );
-            
-            if (matchingEarning) {
-              isValid = true;
-              // Use the original destination URL from our database
-              if (matchingEarning.link?.destinationUrl) {
-                productUrl = matchingEarning.link.destinationUrl;
-                console.log(`✅ Validated sale ${sale.actionId} via transaction ID match - URL: ${productUrl}`);
+          if (enhancedSalesResponse.success && enhancedSalesResponse.sales.length > 0) {
+            // Create a map of transaction ID to enhanced data
+            enhancedSalesResponse.sales.forEach(sale => {
+              if (sale.actionId) {
+                impactSalesMap.set(sale.actionId, sale);
               }
-            } else {
-              // Method 2: Match by amount and date proximity (within 24 hours)
-              const saleDate = new Date(sale.date);
-              const saleAmount = sale.orderValue;
-              
-              const proximateEarning = creatorEarnings.find(earning => {
-                const earningDate = new Date(earning.createdAt);
-                const timeDiff = Math.abs(saleDate.getTime() - earningDate.getTime());
-                const hoursDiff = timeDiff / (1000 * 60 * 60);
-                const amountMatch = Math.abs(parseFloat(earning.amount) - sale.grossCommission) < 0.01;
-                
-                return hoursDiff <= 24 && amountMatch;
-              });
-              
-              if (proximateEarning) {
-                isValid = true;
-                if (proximateEarning.link?.destinationUrl) {
-                  productUrl = proximateEarning.link.destinationUrl;
-                  console.log(`✅ Validated sale ${sale.actionId} via date/amount proximity - URL: ${productUrl}`);
-                }
-              }
-            }
-            
-            if (isValid) {
-              validatedSales.push({ ...sale, productUrl });
-            } else {
-              console.error(`🚨 SECURITY: Blocking sale ${sale.actionId} - not found in creator's database earnings`);
-            }
+            });
+            console.log(`[Sales History Simplified] Enhanced data available for ${impactSalesMap.size} sales`);
           }
-          
-          console.log(`🔒 SECURITY RESULT: ${validatedSales.length}/${enhancedSales.length} sales validated for creator ${req.user.id}`);
-          
-          // Calculate totals from validated sales only
-          totalSales = validatedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
-          salesCount = validatedSales.length;
-          
-          // Process validated sales for display (note: productUrl is already set from database validation)
-          const processedSales = validatedSales.map((sale) => {
-            // Apply platform commission rate to get creator's actual share
-            const creatorCommission = parseFloat((sale.grossCommission * creator.commissionRate / 100).toFixed(2));
-            
-            // productUrl is already set from database validation above
-            const productUrl = sale.productUrl || 'https://www.walmart.com'; // Safe fallback
-            
-            return {
-              actionId: sale.actionId,
-              product: sale.product,
-              productUrl: productUrl,
-              productCategory: sale.productCategory,
-              productSku: sale.productSku,
-              orderValue: sale.orderValue,
-              commission: creatorCommission,
-              grossCommission: sale.grossCommission,
-              date: sale.date,
-              status: sale.status,
-              campaignName: sale.campaignName
-            };
-          });
-          
-          // Sort by date and apply pagination
-          processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
-          recentSales = processedSales;
-          
-          console.log(`[Sales History Enhanced] Successfully processed ${salesCount} validated sales totaling $${totalSales.toFixed(2)}`);
-        } else {
-          console.log(`[Sales History Enhanced] Enhanced method failed, using database-only fallback: ${enhancedSalesResponse.error || 'No sales found'}`);
-          
-          // Database-only fallback: show earnings from database with basic product info
-          const creatorEarnings = await prisma.earning.findMany({
-            where: {
-              creatorId: req.user.id,
-              type: 'COMMISSION',
-              createdAt: {
-                gte: new Date(startDate + 'T00:00:00Z'),
-                lte: new Date(endDate + 'T23:59:59Z')
-              }
-            },
-            include: {
-              link: {
-                select: {
-                  destinationUrl: true,
-                  impactLink: true
-                }
-              }
-            },
-            orderBy: {
-              createdAt: 'desc'
-            }
-          });
-          
-          const processedSales = creatorEarnings.map(earning => ({
-            actionId: earning.impactTransactionId || earning.id,
-            product: 'Walmart Product', // Generic name for database fallback
-            productUrl: earning.link?.destinationUrl || 'https://www.walmart.com',
-            productCategory: null,
-            productSku: null,
-            orderValue: parseFloat(earning.amount) / (creator.commissionRate / 100), // Reverse calculate order value
-            commission: parseFloat(earning.amount),
-            grossCommission: parseFloat(earning.amount) / (creator.commissionRate / 100),
-            date: earning.createdAt,
-            status: earning.status,
-            campaignName: 'Walmart'
-          }));
-          
-          totalSales = processedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
-          salesCount = processedSales.length;
-          recentSales = processedSales;
-          
-          console.log(`[Sales History Database Fallback] Processed ${salesCount} database earnings totaling $${totalSales.toFixed(2)}`);
         }
+      } catch (impactError) {
+        console.log(`[Sales History Simplified] Impact.com enhancement failed (continuing with database data): ${impactError.message}`);
       }
-    } catch (error) {
-      console.error('[Sales History Enhanced] Error fetching enhanced sales data:', error.message);
-      // Continue with empty data rather than failing
+
+      // Process earnings with optional Impact.com enhancement
+      const processedSales = creatorEarnings.map(earning => {
+        const transactionId = earning.impactTransactionId;
+        const enhancedData = transactionId ? impactSalesMap.get(transactionId) : null;
+        
+        // Calculate order value (reverse from commission)
+        const commissionAmount = parseFloat(earning.amount);
+        const estimatedOrderValue = commissionAmount / (creator.commissionRate / 100);
+        
+        return {
+          actionId: transactionId || earning.id,
+          product: enhancedData?.product || 'Walmart Product',
+          productUrl: earning.link?.destinationUrl || enhancedData?.productUrl || 'https://www.walmart.com',
+          productCategory: enhancedData?.productCategory || null,
+          productSku: enhancedData?.productSku || null,
+          orderValue: enhancedData?.orderValue || estimatedOrderValue,
+          commission: commissionAmount,
+          grossCommission: enhancedData?.grossCommission || estimatedOrderValue,
+          date: earning.createdAt,
+          status: earning.status === 'COMPLETED' ? 'Approved' : 'Pending',
+          campaignName: enhancedData?.campaignName || 'Walmart'
+        };
+      });
+
+      // Calculate totals
+      totalSales = processedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
+      salesCount = processedSales.length;
+      recentSales = processedSales;
+      
+      console.log(`[Sales History Simplified] Successfully processed ${salesCount} sales totaling $${totalSales.toFixed(2)}`);
+    } else {
+      console.log(`[Sales History Simplified] No commission earnings found in database for the specified period`);
     }
 
     const response = {
@@ -1788,19 +1698,21 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       },
       creator: {
         commissionRate: creator.commissionRate
-      }
+      },
+      dataSource: creatorEarnings.length > 0 ? 'database_with_enhancement' : 'no_data'
     };
 
-    console.log(`[Sales History Enhanced] Response summary: ${salesCount} sales, $${totalSales.toFixed(2)} total`);
+    console.log(`[Sales History Simplified] Response summary: ${salesCount} sales, $${totalSales.toFixed(2)} total, source: ${response.dataSource}`);
     res.json(response);
 
   } catch (error) {
-    console.error('[Sales History Enhanced] Error:', error.message);
+    console.error('[Sales History Simplified] Error:', error.message);
     res.status(500).json({ 
       error: 'Unable to fetch sales history',
       totalSales: 0,
       salesCount: 0,
-      recentSales: []
+      recentSales: [],
+      dataSource: 'error'
     });
   }
 });
