@@ -160,10 +160,14 @@ export default function Earnings() {
   }
 
   const handleSaleClick = (sale) => {
+    console.log('🔍 Sale clicked:', { productUrl: sale.productUrl, product: sale.product });
+    
     // Redirect to product URL if available
-    if (sale.productUrl) {
+    if (sale.productUrl && sale.productUrl.trim() !== '') {
+      console.log('✅ Redirecting to product URL:', sale.productUrl);
       window.open(sale.productUrl, '_blank')
     } else {
+      console.log('⚠️ No product URL available, showing modal');
       // Fallback: show modal if no URL available
       setSelectedSale(sale)
       setShowSaleModal(true)

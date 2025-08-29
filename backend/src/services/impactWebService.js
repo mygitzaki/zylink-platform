@@ -1097,15 +1097,10 @@ class ImpactWebService {
       }
     }
     
-    // If no URL found, try to construct one from product information
-    const productName = action.ProductName || action.Product;
-    if (productName && productName.includes('walmart')) {
-      // Return Walmart homepage as fallback
-      console.log(`⚠️ No product URL found, using Walmart homepage as fallback`);
-      return 'https://www.walmart.com';
-    }
+    // If no URL found in Impact.com data, try to find it from the creator's original links
+    console.log(`⚠️ No URL found in Impact.com data, searching creator's links...`);
     
-    console.log(`❌ No product URL found for action`);
+    // This will be handled by the calling method which has access to creator data
     return null;
   }
 

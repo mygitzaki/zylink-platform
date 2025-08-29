@@ -1619,14 +1619,71 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           
           // Process enhanced sales for display with proper commission calculation
           // (Security filtering is handled in the ImpactWebService layer)
-          const processedSales = enhancedSales.map(sale => {
+          const processedSales = await Promise.all(enhancedSales.map(async (sale) => {
             // Apply platform commission rate to get creator's actual share
             const creatorCommission = parseFloat((sale.grossCommission * creator.commissionRate / 100).toFixed(2));
+            
+            let productUrl = sale.productUrl;
+            
+            // If no product URL found in enhanced data, try to find it from creator's original links
+            if (!productUrl) {
+              console.log(`🔍 No product URL in enhanced data, searching creator's links for sale ${sale.actionId}`);
+              
+              try {
+                // Try to find a link that might match this sale by date proximity
+                const saleDate = new Date(sale.date);
+                const saleDateWindow = 7 * 24 * 60 * 60 * 1000; // 7 days window
+                
+                const proximateLinks = await prisma.link.findMany({
+                  where: {
+                    creatorId: req.user.id,
+                    createdAt: {
+                      gte: new Date(saleDate.getTime() - saleDateWindow),
+                      lte: new Date(saleDate.getTime() + saleDateWindow)
+                    }
+                  },
+                  select: {
+                    destinationUrl: true,
+                    impactLink: true,
+                    createdAt: true
+                  },
+                  orderBy: {
+                    createdAt: 'desc'
+                  },
+                  take: 5 // Get up to 5 recent links
+                });
+                
+                if (proximateLinks.length > 0) {
+                  // Use the most recent link as the product URL
+                  productUrl = proximateLinks[0].destinationUrl;
+                  console.log(`✅ Found fallback product URL: ${productUrl}`);
+                } else {
+                  // Final fallback - get any recent link from this creator
+                  const anyRecentLink = await prisma.link.findFirst({
+                    where: { creatorId: req.user.id },
+                    select: { destinationUrl: true },
+                    orderBy: { createdAt: 'desc' }
+                  });
+                  
+                  if (anyRecentLink) {
+                    productUrl = anyRecentLink.destinationUrl;
+                    console.log(`⚠️ Using most recent link as fallback: ${productUrl}`);
+                  } else {
+                    // Ultimate fallback
+                    productUrl = 'https://www.walmart.com';
+                    console.log(`⚠️ No links found, using Walmart homepage`);
+                  }
+                }
+              } catch (error) {
+                console.error(`❌ Error finding fallback URL: ${error.message}`);
+                productUrl = 'https://www.walmart.com';
+              }
+            }
             
             return {
               actionId: sale.actionId,
               product: sale.product, // Already masked in enhanced method
-              productUrl: sale.productUrl, // Real product URLs extracted
+              productUrl: productUrl, // Enhanced with fallback URL lookup
               productCategory: sale.productCategory,
               productSku: sale.productSku,
               orderValue: sale.orderValue,
@@ -1636,7 +1693,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
               status: sale.status,
               campaignName: sale.campaignName // Already masked in enhanced method
             };
-          });
+          }));
           
           // Sort by date and apply pagination
           processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
