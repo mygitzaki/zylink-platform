@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { getPrisma } = require('../utils/prisma');
 const ImpactWebService = require('../services/impactWebService');
 const { LinkShortener } = require('../services/linkShortener');
@@ -1049,13 +1050,14 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
       });
       
       // If it's a schema-related error, try a raw SQL approach as fallback
-      if (dbError.message && dbError.message.includes('Invalid `prisma.paymentAccount')) {
+      if (dbError.message && (dbError.message.includes('Invalid `prisma.paymentAccount') || dbError.message.includes('column: None'))) {
         console.log('🔄 Attempting raw SQL fallback for schema compatibility...');
         try {
-          // Use raw SQL to insert/update the payment account
+          // Use raw SQL to insert/update the payment account with explicit UUID generation
+          const paymentId = crypto.randomUUID();
           const result = await prisma.$executeRaw`
             INSERT INTO "PaymentAccount" ("id", "creatorId", "accountType", "accountDetails", "isVerified", "createdAt", "updatedAt")
-            VALUES (gen_random_uuid(), ${req.user.id}, ${accountType}::"PaymentAccountType", ${JSON.stringify(accountDetails)}::jsonb, false, NOW(), NOW())
+            VALUES (${paymentId}, ${req.user.id}, ${accountType}::"PaymentAccountType", ${JSON.stringify(accountDetails)}::jsonb, false, NOW(), NOW())
             ON CONFLICT ("creatorId") 
             DO UPDATE SET 
               "accountType" = ${accountType}::"PaymentAccountType",
@@ -1063,11 +1065,32 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
               "updatedAt" = NOW()
           `;
           
-          console.log('✅ Raw SQL fallback successful');
-          res.status(201).json({ message: 'Payment method saved successfully (via fallback)' });
+          console.log('✅ Raw SQL fallback successful with ID:', paymentId);
+          res.status(201).json({ paymentAccountId: paymentId, message: 'Payment method saved successfully (via fallback)' });
           return;
         } catch (sqlError) {
           console.error('❌ Raw SQL fallback also failed:', sqlError);
+          
+          // Final fallback - try without enum casting
+          try {
+            console.log('🔄 Attempting final fallback without enum casting...');
+            const paymentId2 = crypto.randomUUID();
+            await prisma.$executeRaw`
+              INSERT INTO "PaymentAccount" ("id", "creatorId", "accountType", "accountDetails", "isVerified", "createdAt", "updatedAt")
+              VALUES (${paymentId2}, ${req.user.id}, ${accountType}, ${JSON.stringify(accountDetails)}::jsonb, false, NOW(), NOW())
+              ON CONFLICT ("creatorId") 
+              DO UPDATE SET 
+                "accountType" = ${accountType},
+                "accountDetails" = ${JSON.stringify(accountDetails)}::jsonb,
+                "updatedAt" = NOW()
+            `;
+            
+            console.log('✅ Final fallback successful with ID:', paymentId2);
+            res.status(201).json({ paymentAccountId: paymentId2, message: 'Payment method saved successfully (via final fallback)' });
+            return;
+          } catch (finalError) {
+            console.error('❌ All fallbacks failed:', finalError);
+          }
         }
       }
       
