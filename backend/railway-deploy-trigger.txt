@@ -1,4 +1,4 @@
 RAILWAY DEPLOYMENT TRIGGER
 This file forces Railway to redeploy with the latest code
-Timestamp: 2025-08-29T20:50:24.000Z
-Reason: Deploy payment setup improvements - Bank & PayPal only with enhanced UX
+Timestamp: 2025-08-29T21:17:00.000Z
+Reason: Fix database schema mismatch - ensure CRYPTO_WALLET enum exists in production DB
