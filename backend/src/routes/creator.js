@@ -1587,103 +1587,157 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
 
     console.log(`[Sales History Simplified] Fetching sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
 
-    // SIMPLIFIED APPROACH: Start with database earnings as primary source
+    // Get commissionable sales from Impact.com (working approach - restored)
     let totalSales = 0;
     let salesCount = 0;
     let recentSales = [];
 
-    // Get all commission earnings for this creator in the date range
-    const creatorEarnings = await prisma.earning.findMany({
-      where: {
-        creatorId: req.user.id,
-        type: 'COMMISSION',
-        createdAt: {
-          gte: new Date(startDate + 'T00:00:00Z'),
-          lte: new Date(endDate + 'T23:59:59Z')
-        }
-      },
-      include: {
-        link: {
-          select: {
-            destinationUrl: true,
-            impactLink: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: limitNumber === 1000 ? undefined : limitNumber
-    });
-
-    console.log(`[Sales History Simplified] Found ${creatorEarnings.length} commission earnings in database`);
-
-    if (creatorEarnings.length > 0) {
-      // Try to enhance with Impact.com data, but don't fail if it doesn't work
+    try {
       const ImpactWebService = require('../services/impactWebService');
       const impact = new ImpactWebService();
+      
+      // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
-      let impactSalesMap = new Map(); // Map transaction ID to enhanced data
-      
-      try {
-        if (correctSubId1 && correctSubId1 !== 'default') {
-          console.log(`[Sales History Simplified] Attempting to enhance with Impact.com data for SubId1: ${correctSubId1}`);
+      if (correctSubId1 && correctSubId1 !== 'default') {
+        console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
+        
+        // Use the same Actions API that was working before
+        const actionsResponse = await impact.getActionsDetailed({
+          subId1: correctSubId1,
+          startDate,
+          endDate,
+          pageSize: 1000 // Get more records to calculate totals
+        });
+        
+        if (actionsResponse.success) {
+          const actions = actionsResponse.actions || [];
           
-          // Try to get enhanced sales data (but don't fail if it doesn't work)
-          const enhancedSalesResponse = await impact.getEnhancedSalesData({
-            subId1: correctSubId1,
-            startDate,
-            endDate,
-            limit: limitNumber
+          // Filter for this creator's actions
+          const creatorActions = actions.filter(action => {
+            const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
+            return actionSubId1.toString().trim() === correctSubId1.toString().trim();
           });
           
-          if (enhancedSalesResponse.success && enhancedSalesResponse.sales.length > 0) {
-            // Create a map of transaction ID to enhanced data
-            enhancedSalesResponse.sales.forEach(sale => {
-              if (sale.actionId) {
-                impactSalesMap.set(sale.actionId, sale);
+          // Filter for ONLY commissionable actions (commission > 0) - this was working before
+          const commissionableActions = creatorActions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
+
+          // Calculate totals using the same field names that were working
+          let calculatedSales = 0;
+          let calculatedCommission = 0;
+          const processedSales = [];
+
+          for (const action of commissionableActions) {
+            const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            
+            calculatedSales += saleAmount;
+            calculatedCommission += commission;
+
+            // Apply business commission rate to individual sale commission (creator's actual share)
+            const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
+            
+            // Mask product/campaign names for cleaner display
+            let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
+            if (productName.toLowerCase().includes('walmartcreator') || productName.toLowerCase().includes('walmart')) {
+              productName = 'Walmart';
+            }
+
+            // Try to get original product URL
+            let productUrl = 'https://www.walmart.com'; // Default fallback
+            
+            try {
+              // Look for URL fields in the action data
+              const urlFields = [
+                'TargetUrl', 'ProductUrl', 'LandingPageUrl', 'DestinationUrl',
+                'Url', 'ProductLink', 'AffiliateUrl', 'TrackingUrl', 'ActionUrl'
+              ];
+              
+              for (const field of urlFields) {
+                if (action[field] && typeof action[field] === 'string') {
+                  let potentialUrl = action[field];
+                  
+                  // Check if it contains a Walmart product URL
+                  if (potentialUrl.includes('walmart.com/ip/')) {
+                    // Try to extract direct product URL
+                    if (potentialUrl.includes('u=')) {
+                      try {
+                        const urlObj = new URL(potentialUrl);
+                        const encodedUrl = urlObj.searchParams.get('u');
+                        if (encodedUrl) {
+                          const decodedUrl = decodeURIComponent(encodedUrl);
+                          if (decodedUrl.includes('walmart.com/ip/')) {
+                            productUrl = decodedUrl;
+                            break;
+                          }
+                        }
+                      } catch (error) {
+                        // Continue with fallback
+                      }
+                    } else if (potentialUrl.startsWith('https://www.walmart.com/ip/')) {
+                      productUrl = potentialUrl;
+                      break;
+                    }
+                  }
+                }
               }
+              
+              // If no URL found in action data, try to find from our links
+              if (productUrl === 'https://www.walmart.com') {
+                const linkWithAction = await prisma.link.findFirst({
+                  where: {
+                    creatorId: req.user.id,
+                    OR: [
+                      { impactLink: { contains: action.Id } },
+                      { impactLink: { contains: correctSubId1 } }
+                    ]
+                  },
+                  select: { destinationUrl: true },
+                  orderBy: { createdAt: 'desc' }
+                });
+                
+                if (linkWithAction?.destinationUrl) {
+                  productUrl = linkWithAction.destinationUrl;
+                }
+              }
+            } catch (error) {
+              // Keep default fallback
+            }
+
+            // Collect recent sales data
+            processedSales.push({
+              date: action.EventDate || action.ActionDate || action.CreationDate,
+              orderValue: saleAmount,
+              commission: creatorCommission, // Show creator's actual share
+              status: action.ActionStatus || action.Status || 'Pending',
+              actionId: action.Id || action.ActionId,
+              product: productName,
+              productUrl: productUrl
             });
-            console.log(`[Sales History Simplified] Enhanced data available for ${impactSalesMap.size} sales`);
           }
+
+          // Sort by date and handle pagination
+          processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
+          
+          // Apply limit
+          if (limit === 'all') {
+            recentSales = processedSales; // Show all sales
+          } else {
+            recentSales = processedSales.slice(0, Math.min(limitNumber, 100)); // Cap at 100 for performance
+          }
+
+          totalSales = parseFloat(calculatedSales.toFixed(2));
+          salesCount = commissionableActions.length;
+
+          console.log(`[Sales History] ✅ Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
         }
-      } catch (impactError) {
-        console.log(`[Sales History Simplified] Impact.com enhancement failed (continuing with database data): ${impactError.message}`);
       }
-
-      // Process earnings with optional Impact.com enhancement
-      const processedSales = creatorEarnings.map(earning => {
-        const transactionId = earning.impactTransactionId;
-        const enhancedData = transactionId ? impactSalesMap.get(transactionId) : null;
-        
-        // Calculate order value (reverse from commission)
-        const commissionAmount = parseFloat(earning.amount);
-        const estimatedOrderValue = commissionAmount / (creator.commissionRate / 100);
-        
-        return {
-          actionId: transactionId || earning.id,
-          product: enhancedData?.product || 'Walmart Product',
-          productUrl: earning.link?.destinationUrl || enhancedData?.productUrl || 'https://www.walmart.com',
-          productCategory: enhancedData?.productCategory || null,
-          productSku: enhancedData?.productSku || null,
-          orderValue: enhancedData?.orderValue || estimatedOrderValue,
-          commission: commissionAmount,
-          grossCommission: enhancedData?.grossCommission || estimatedOrderValue,
-          date: earning.createdAt,
-          status: earning.status === 'COMPLETED' ? 'Approved' : 'Pending',
-          campaignName: enhancedData?.campaignName || 'Walmart'
-        };
-      });
-
-      // Calculate totals
-      totalSales = processedSales.reduce((sum, sale) => sum + sale.orderValue, 0);
-      salesCount = processedSales.length;
-      recentSales = processedSales;
-      
-      console.log(`[Sales History Simplified] Successfully processed ${salesCount} sales totaling $${totalSales.toFixed(2)}`);
-    } else {
-      console.log(`[Sales History Simplified] No commission earnings found in database for the specified period`);
+    } catch (error) {
+      console.error('[Sales History] Error fetching sales data:', error.message);
+      // Continue with empty data rather than failing
     }
 
     const response = {
@@ -1699,10 +1753,10 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       creator: {
         commissionRate: creator.commissionRate
       },
-      dataSource: creatorEarnings.length > 0 ? 'database_with_enhancement' : 'no_data'
+      dataSource: salesCount > 0 ? 'impact_com_api' : 'no_data'
     };
 
-    console.log(`[Sales History Simplified] Response summary: ${salesCount} sales, $${totalSales.toFixed(2)} total, source: ${response.dataSource}`);
+    console.log(`[Sales History] Response summary: ${salesCount} sales, $${totalSales.toFixed(2)} total, source: ${response.dataSource}`);
     res.json(response);
 
   } catch (error) {
