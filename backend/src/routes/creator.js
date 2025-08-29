@@ -944,7 +944,8 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
     // Map schema enum values back to frontend values
     const frontendTypeMapping = {
       'BANK_ACCOUNT': 'BANK',
-      'PAYPAL': 'PAYPAL'
+      'PAYPAL': 'PAYPAL',
+      'CRYPTO_WALLET': 'CRYPTO'
     };
     
     const type = frontendTypeMapping[paymentAccount.accountType];
@@ -984,11 +985,17 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
     // Map frontend type to schema enum values
     const accountTypeMapping = {
       'BANK': 'BANK_ACCOUNT',
-      'PAYPAL': 'PAYPAL'
+      'PAYPAL': 'PAYPAL',
+      'CRYPTO': 'CRYPTO_WALLET'
     };
     
+    // Only allow BANK and PAYPAL from frontend (even though CRYPTO exists in DB schema)
+    if (type !== 'BANK' && type !== 'PAYPAL') {
+      return res.status(400).json({ message: 'Invalid payment type. Only BANK and PAYPAL are supported.' });
+    }
+    
     const accountType = accountTypeMapping[type];
-    if (!accountType) return res.status(400).json({ message: 'Invalid payment type. Only BANK and PAYPAL are supported.' });
+    if (!accountType) return res.status(400).json({ message: 'Invalid payment type.' });
     
     // Validate account details based on type
     if (type === 'BANK') {
