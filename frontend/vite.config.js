@@ -5,10 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/',
-  define: {
-    // Ensure no hardcoded remote URL leaks into the build
-    __API_URL__: JSON.stringify(process.env.VITE_API_URL || '')
-  },
+
   build: {
     outDir: 'dist',
     sourcemap: false,

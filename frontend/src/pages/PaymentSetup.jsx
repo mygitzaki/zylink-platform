@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { apiFetch } from '../lib/api'
 
@@ -24,9 +24,9 @@ export default function PaymentSetup(){
   // Load existing payment data when component mounts
   useEffect(() => {
     loadPaymentData()
-  }, [token])
+  }, [token, loadPaymentData])
 
-  async function loadPaymentData() {
+  const loadPaymentData = useCallback(async () => {
     if (!token) return
     
     try {
@@ -60,7 +60,7 @@ export default function PaymentSetup(){
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
 
   async function onSave(e){
     e.preventDefault()
