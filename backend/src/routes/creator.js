@@ -1717,4 +1717,104 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
   }
 });
 
+// DEBUG: Check what's actually in the database for this creator
+router.get('/debug-earnings', requireAuth, requireApprovedCreator, async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ error: 'No database connection' });
+
+    const creatorId = req.user.id;
+    console.log(`[DEBUG] Checking earnings for creator: ${creatorId}`);
+
+    // Get ALL earnings for this creator (no date filter)
+    const allEarnings = await prisma.earning.findMany({
+      where: { creatorId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        link: {
+          select: {
+            id: true,
+            destinationUrl: true,
+            shortLink: true
+          }
+        }
+      }
+    });
+
+    // Get ALL commission earnings specifically
+    const commissionEarnings = await prisma.earning.findMany({
+      where: { 
+        creatorId,
+        type: 'COMMISSION'
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Get recent earnings (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentEarnings = await prisma.earning.findMany({
+      where: {
+        creatorId,
+        type: 'COMMISSION',
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Get creator info
+    const creator = await prisma.creator.findUnique({
+      where: { id: creatorId },
+      select: { 
+        id: true, 
+        email: true, 
+        name: true, 
+        commissionRate: true,
+        impactSubId: true,
+        createdAt: true
+      }
+    });
+
+    const debugInfo = {
+      creator: creator,
+      totalEarnings: allEarnings.length,
+      commissionEarnings: commissionEarnings.length,
+      recentEarnings: recentEarnings.length,
+      thirtyDaysAgo: thirtyDaysAgo.toISOString(),
+      allEarningsDetails: allEarnings.map(earning => ({
+        id: earning.id,
+        amount: earning.amount,
+        type: earning.type,
+        status: earning.status,
+        createdAt: earning.createdAt,
+        impactTransactionId: earning.impactTransactionId,
+        linkId: earning.linkId,
+        link: earning.link
+      })),
+      commissionEarningsDetails: commissionEarnings.map(earning => ({
+        id: earning.id,
+        amount: earning.amount,
+        status: earning.status,
+        createdAt: earning.createdAt,
+        impactTransactionId: earning.impactTransactionId
+      })),
+      recentEarningsDetails: recentEarnings.map(earning => ({
+        id: earning.id,
+        amount: earning.amount,
+        status: earning.status,
+        createdAt: earning.createdAt,
+        impactTransactionId: earning.impactTransactionId
+      }))
+    };
+
+    console.log('[DEBUG] Earnings debug info:', JSON.stringify(debugInfo, null, 2));
+    res.json(debugInfo);
+
+  } catch (error) {
+    console.error('[DEBUG] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
