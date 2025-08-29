@@ -675,6 +675,81 @@ class ImpactWebService {
     }
   }
 
+  // Get real clicks and performance data by SubId1 (NEW - for accurate analytics)
+  async getPerformanceBySubId(options = {}) {
+    try {
+      const { startDate, endDate, subId1 } = options;
+      console.log(`🎯 Fetching real performance data for SubId1: ${subId1}`);
+      
+      const exp = await this.exportReportAndDownloadJson("partner_performance_by_subid", {
+        START_DATE: startDate,
+        END_DATE: endDate,
+        Program: this.programId,
+        ResultFormat: "JSON"
+      });
+      
+      if (!exp.success) {
+        console.log('⚠️ Performance by SubId report failed:', exp.error);
+        return { success: false, error: exp.error };
+      }
+      
+      const records = Array.isArray(exp.json.Records) ? exp.json.Records : [];
+      console.log(`📊 Found ${records.length} performance records`);
+      
+      if (subId1) {
+        // Find specific creator's data
+        const match = records.find(r => {
+          const pubSubId = (r.pubsubid1_ || r.SubId1 || r.Subid1 || '') + '';
+          return pubSubId.trim() === subId1;
+        });
+        
+        if (match) {
+          const clicks = parseInt(match.Clicks || match.raw_clicks || 0);
+          const actions = parseInt(match.Actions || 0);
+          const sales = parseFloat(match.sale_amount || match.Sale_Amount || 0);
+          const commission = parseFloat(match.Earnings || 0);
+          const conversionRate = clicks > 0 ? parseFloat(((actions / clicks) * 100).toFixed(2)) : 0;
+          
+          console.log(`✅ Real performance for ${subId1}: ${clicks} clicks, ${actions} actions, ${conversionRate}% CR`);
+          
+          return {
+            success: true,
+            data: {
+              clicks,
+              actions,
+              sales,
+              commission,
+              conversionRate,
+              subId1
+            }
+          };
+        } else {
+          console.log(`❌ No performance data found for SubId1: ${subId1}`);
+          return { success: false, error: 'No data found for this SubId1' };
+        }
+      } else {
+        // Return all records for platform analytics
+        const platformData = records.map(r => ({
+          subId1: r.pubsubid1_ || r.SubId1 || 'unknown',
+          clicks: parseInt(r.Clicks || r.raw_clicks || 0),
+          actions: parseInt(r.Actions || 0),
+          sales: parseFloat(r.sale_amount || r.Sale_Amount || 0),
+          commission: parseFloat(r.Earnings || 0),
+          conversionRate: parseInt(r.Clicks || 0) > 0 ? 
+            parseFloat(((parseInt(r.Actions || 0) / parseInt(r.Clicks || 0)) * 100).toFixed(2)) : 0
+        }));
+        
+        return {
+          success: true,
+          data: platformData
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error fetching performance by SubId:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Test API connectivity
   async testConnection() {
     try {

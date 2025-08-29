@@ -111,21 +111,165 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
   
   try {
     // Get basic platform statistics
-    const [creatorCount, linkCount, linkAgg, shortLinkAgg] = await Promise.all([
+    const [creatorCount, linkCount] = await Promise.all([
       prisma.creator.count(),
-      prisma.link.count(),
-      prisma.link.aggregate({ _sum: { conversions: true, revenue: true } }),
-      prisma.shortLink.aggregate({ _sum: { clicks: true } }),
+      prisma.link.count()
     ]);
     
-    // Combine click data from ShortLink table (where clicks are actually tracked)
-    const combinedAgg = {
-      _sum: {
-        clicks: shortLinkAgg._sum.clicks || 0,
-        conversions: linkAgg._sum.conversions || 0,
-        revenue: linkAgg._sum.revenue || 0
+    // Get Real Platform Analytics from Impact.com (Real Clicks + Commissionable Sales)
+    let platformData = { clicks: 0, conversions: 0, revenue: 0 };
+    
+    try {
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
+      
+      console.log('[Platform Analytics] Fetching real platform data from Impact.com...');
+      
+      // Use same date calculation
+      const requestedDays = 30; // Default platform view
+      const now = new Date();
+      const endDate = now.toISOString().split('T')[0];
+      const startDate = new Date(now.getTime() - (requestedDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+      
+      // Get all creators' performance data
+      const allPerformanceData = await impact.getPerformanceBySubId({
+        startDate,
+        endDate
+        // No subId1 filter = get all creators
+      });
+      
+      if (allPerformanceData.success && allPerformanceData.data) {
+        // Aggregate real clicks and commissionable sales across all creators
+        const platformTotals = allPerformanceData.data.reduce((totals, creatorData) => {
+          return {
+            clicks: totals.clicks + (creatorData.clicks || 0),
+            conversions: totals.conversions + (creatorData.actions || 0), // Note: actions in performance report
+            revenue: totals.revenue + (creatorData.commission || 0)
+          };
+        }, { clicks: 0, conversions: 0, revenue: 0 });
+        
+        // Now get commissionable-only conversions for all creators
+        let totalCommissionableConversions = 0;
+        let totalCommissionableRevenue = 0;
+        
+        // Get all creators with Impact SubId1s
+        const creatorsWithSubIds = await prisma.creator.findMany({
+          where: {
+            OR: [
+              { impactSubId: { not: null } },
+              { id: { not: null } } // All creators (we can compute SubId1)
+            ]
+          },
+          select: { id: true, impactSubId: true, commissionRate: true }
+        });
+        
+        console.log(`[Platform Analytics] Processing ${creatorsWithSubIds.length} creators for commissionable data...`);
+        
+        // Process in batches to avoid overwhelming the API
+        const batchSize = 5;
+        for (let i = 0; i < creatorsWithSubIds.length; i += batchSize) {
+          const batch = creatorsWithSubIds.slice(i, i + batchSize);
+          
+          const batchPromises = batch.map(async (creator) => {
+            try {
+              const correctSubId1 = creator.impactSubId || impact.computeObfuscatedSubId(creator.id);
+              
+              const detailedActions = await impact.getActionsDetailed({
+                startDate: startDate + 'T00:00:00Z',
+                endDate: endDate + 'T23:59:59Z',
+                subId1: correctSubId1,
+                actionType: 'SALE',
+                pageSize: 500
+              });
+              
+              if (detailedActions.success && detailedActions.actions) {
+                const creatorActions = detailedActions.actions.filter(action => 
+                  action.SubId1 === correctSubId1
+                );
+                
+                const commissionableActions = creatorActions.filter(action => {
+                  const commission = parseFloat(action.Payout || action.Commission || 0);
+                  return commission > 0;
+                });
+                
+                const grossRevenue = commissionableActions.reduce((sum, action) => {
+                  return sum + parseFloat(action.Payout || action.Commission || 0);
+                }, 0);
+                
+                const businessRate = creator.commissionRate || 70;
+                const creatorRevenue = (grossRevenue * businessRate) / 100;
+                
+                return {
+                  commissionableConversions: commissionableActions.length,
+                  revenue: creatorRevenue
+                };
+              }
+              
+              return { commissionableConversions: 0, revenue: 0 };
+            } catch (error) {
+              console.log(`[Platform Analytics] Error for creator ${creator.id}: ${error.message}`);
+              return { commissionableConversions: 0, revenue: 0 };
+            }
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          
+          batchResults.forEach(result => {
+            totalCommissionableConversions += result.commissionableConversions;
+            totalCommissionableRevenue += result.revenue;
+          });
+          
+          // Small delay between batches
+          if (i + batchSize < creatorsWithSubIds.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+        
+        platformData = {
+          clicks: platformTotals.clicks,
+          conversions: totalCommissionableConversions, // Use commissionable only
+          revenue: totalCommissionableRevenue
+        };
+        
+        console.log(`[Platform Analytics] ✅ Real platform data:`, {
+          clicks: platformData.clicks,
+          commissionableConversions: platformData.conversions,
+          revenue: platformData.revenue.toFixed(2)
+        });
       }
-    };
+    } catch (impactError) {
+      console.log(`[Platform Analytics] Impact.com error, using database fallback: ${impactError.message}`);
+    }
+    
+    // Fallback to database if Impact.com fails
+    const hasRealData = platformData.clicks > 0 || platformData.conversions > 0 || platformData.revenue > 0;
+    
+    let combinedAgg;
+    if (hasRealData) {
+      combinedAgg = {
+        _sum: {
+          clicks: platformData.clicks,
+          conversions: platformData.conversions,
+          revenue: platformData.revenue
+        }
+      };
+      console.log('[Platform Analytics] ✅ Using real Impact.com platform data');
+    } else {
+      // Fallback to database aggregates
+      const [linkAgg, shortLinkAgg] = await Promise.all([
+        prisma.link.aggregate({ _sum: { conversions: true, revenue: true } }),
+        prisma.shortLink.aggregate({ _sum: { clicks: true } }),
+      ]);
+      
+      combinedAgg = {
+        _sum: {
+          clicks: shortLinkAgg._sum.clicks || 0,
+          conversions: linkAgg._sum.conversions || 0,
+          revenue: linkAgg._sum.revenue || 0
+        }
+      };
+      console.log('[Platform Analytics] ⚠️ Using database fallback');
+    }
     
     // Get all earnings for platform revenue calculation
     const allEarnings = await prisma.earning.findMany({

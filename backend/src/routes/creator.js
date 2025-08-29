@@ -1032,7 +1032,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     res.set('Expires', '0');
     res.set('Surrogate-Control', 'no-store');
     
-    // 1. Get Impact.com Data for Real Analytics
+    // 1. Get Real Impact.com Data (Real Clicks + Commissionable Sales Only)
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
     try {
       const ImpactWebService = require('../services/impactWebService');
@@ -1047,155 +1047,80 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
-        console.log(`[Analytics Enhanced] Fetching real Impact.com data for SubId1: ${correctSubId1}`);
+        console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
-        // Use the same approach as earnings-summary: get the proven working data
-        console.log(`[Analytics Enhanced] Using proven working method from earnings-summary`);
-        
-        // Get real conversion data using the EXACT same method that works for earnings
-        const pendingReport = await impact.getPendingFromActionListingReport({
-          subId1: correctSubId1,
+        // Step 1: Get REAL clicks from Performance by SubId report
+        const performanceData = await impact.getPerformanceBySubId({
           startDate,
-          endDate
-        });
-        
-        console.log(`[Analytics Enhanced] Pending report result:`, {
-          success: pendingReport.success,
-          count: pendingReport.count,
-          gross: pendingReport.gross
+          endDate,
+          subId1: correctSubId1
         });
         
         let realClicks = 0;
+        if (performanceData.success && performanceData.data) {
+          realClicks = performanceData.data.clicks || 0;
+          console.log(`[Analytics Enhanced] ✅ Real clicks from Performance report: ${realClicks}`);
+        }
+        
+        // Step 2: Get COMMISSIONABLE sales only from Actions API
         let realConversions = 0;
         let realRevenue = 0;
         
-        // Process the proven working data and filter for commissionable only
-        if (pendingReport.success) {
-          console.log(`[Analytics Enhanced] Raw pending data: ${pendingReport.count} total actions, $${pendingReport.gross} gross`);
+        const detailedActions = await impact.getActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE',
+          pageSize: 1000
+        });
+        
+        if (detailedActions.success && detailedActions.actions) {
+          // Filter for this creator's actions
+          const creatorActions = detailedActions.actions.filter(action => 
+            action.SubId1 === correctSubId1
+          );
           
-          // Get detailed actions to filter for commissionable only (same as sales-history)
-          const detailedActions = await impact.getActionsDetailed({
-            startDate,
-            endDate,
-            subId1: correctSubId1,
-            pageSize: 1000
+          // Filter for ONLY commissionable actions (commission > 0)
+          const commissionableActions = creatorActions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
           });
           
-          if (detailedActions.success && detailedActions.actions) {
-            // Filter for this creator's actions
-            const creatorActions = detailedActions.actions.filter(action => 
-              action.SubId1 === correctSubId1
-            );
-            
-            // Filter for ONLY commissionable actions (commission > 0) - same as sales-history
-            const commissionableActions = creatorActions.filter(action => {
-              const commission = parseFloat(action.Payout || action.Commission || 0);
-              return commission > 0;
-            });
-            
-            realConversions = commissionableActions.length;
-            
-            // Calculate revenue from commissionable actions only
-            const grossRevenue = commissionableActions.reduce((sum, action) => {
-              return sum + parseFloat(action.Payout || action.Commission || 0);
-            }, 0);
-            
-            const businessRate = creator?.commissionRate || 70;
-            realRevenue = (grossRevenue * businessRate) / 100;
-            
-            console.log(`[Analytics Enhanced] ✅ Filtered to COMMISSIONABLE ONLY:`);
-            console.log(`  - Total actions: ${creatorActions.length}`);
-            console.log(`  - Commissionable actions: ${realConversions}`);
-            console.log(`  - Gross commission: $${grossRevenue}`);
-            console.log(`  - Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
-          } else {
-            // Fallback to pending report data
-            realConversions = pendingReport.count || 0;
-            const businessRate = creator?.commissionRate || 70;
-            const grossRevenue = pendingReport.gross || 0;
-            realRevenue = (grossRevenue * businessRate) / 100;
-            
-            console.log(`[Analytics Enhanced] Using fallback pending data: ${realConversions} conversions`);
-          }
+          realConversions = commissionableActions.length;
           
-          // Calculate clicks using exact Impact.com dashboard conversion rate (198 ÷ 4,453 = 4.44%)
-          try {
-            console.log(`[Analytics Enhanced] Fetching real click data from Impact.com Reports API`);
-            
-            // Use the same Reports API that admin dashboard uses for real click data
-            const reportsApi = await impact.getImpactReportsData({
-              startDate,
-              endDate,
-              subId1: correctSubId1
-            });
-            
-            if (reportsApi.success && reportsApi.data) {
-              // Find this creator's data in the reports
-              const creatorData = reportsApi.data.find(row => row.SubId1 === correctSubId1);
-              
-              if (creatorData) {
-                realClicks = parseInt(creatorData.Clicks) || 0;
-                console.log(`[Analytics Enhanced] ✅ Real clicks from Impact.com Reports: ${realClicks}`);
-                
-                // Extract metrics from Impact.com dashboard format
-                const reportConversions = parseInt(creatorData['Sales - Net']) || 0;
-                const reportCommission = parseFloat(creatorData['Commission - Total']) || 0;
-                const reportConversionRate = parseFloat(creatorData['Conversion Rate']) || 0;
-                
-                console.log(`[Analytics Enhanced] ✅ Real Impact.com dashboard data:`);
-                console.log(`  - Clicks: ${realClicks}`);
-                console.log(`  - Sales (Net/Commissionable): ${reportConversions}`);
-                console.log(`  - Commission Total: $${reportCommission}`);
-                console.log(`  - Conversion Rate: ${reportConversionRate}%`);
-                
-                // Use commissionable conversions (Sales - Net) which is what we want (198 not 262)
-                if (reportConversions > 0) {
-                  realConversions = reportConversions;
-                  console.log(`[Analytics Enhanced] ✅ Using commissionable conversions: ${realConversions}`);
-                }
-                
-                // Apply business rate to commission for creator's share
-                if (reportCommission > 0) {
-                  const businessRate = creator?.commissionRate || 70;
-                  realRevenue = (reportCommission * businessRate) / 100;
-                  console.log(`[Analytics Enhanced] ✅ Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
-                }
-              } else {
-                console.log(`[Analytics Enhanced] Creator not found in Reports API, calculating clicks from commissionable conversions`);
-                // Use exact Impact.com dashboard conversion rate: 198 commissionable conversions ÷ 4,453 clicks = 4.44%
-                if (realConversions > 0) {
-                  realClicks = Math.round(realConversions / 0.0444); // Accurate rate based on commissionable conversions
-                  console.log(`[Analytics Enhanced] ✅ Calculated clicks from ${realConversions} commissionable conversions: ${realClicks}`);
-                }
-              }
-            } else {
-              console.log(`[Analytics Enhanced] Reports API not available, using commissionable conversion rate`);
-              // Calculate clicks from commissionable conversions using proven 4.44% rate
-              if (realConversions > 0) {
-                realClicks = Math.round(realConversions / 0.0444); // 198 commissionable ÷ 0.0444 = 4,459
-                console.log(`[Analytics Enhanced] ✅ Clicks from ${realConversions} commissionable conversions: ${realClicks}`);
-              }
-            }
-          } catch (reportsError) {
-            console.log(`[Analytics Enhanced] Error fetching Reports API: ${reportsError.message}`);
-            // Use commissionable conversions for click calculation
-            if (realConversions > 0) {
-              realClicks = Math.round(realConversions / 0.0444); // Based on commissionable conversions
-              console.log(`[Analytics Enhanced] Fallback clicks from ${realConversions} commissionable: ${realClicks}`);
-            }
-          }
+          // Calculate revenue from commissionable actions only
+          const grossRevenue = commissionableActions.reduce((sum, action) => {
+            return sum + parseFloat(action.Payout || action.Commission || 0);
+          }, 0);
+          
+          const businessRate = creator?.commissionRate || 70;
+          realRevenue = (grossRevenue * businessRate) / 100;
+          
+          console.log(`[Analytics Enhanced] ✅ COMMISSIONABLE ONLY filtering:`);
+          console.log(`  - Total actions: ${creatorActions.length}`);
+          console.log(`  - Commissionable actions: ${realConversions}`);
+          console.log(`  - Gross commission: $${grossRevenue.toFixed(2)}`);
+          console.log(`  - Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
+          console.log(`  - Real clicks: ${realClicks}`);
         }
         
-
+        // Calculate real conversion rate from real data
+        const realConversionRate = realClicks > 0 ? 
+          parseFloat(((realConversions / realClicks) * 100).toFixed(2)) : 0;
         
         impactData = {
           clicks: realClicks,
           conversions: realConversions,
           revenue: realRevenue,
-          conversionRate: realClicks > 0 ? parseFloat(((realConversions / realClicks) * 100).toFixed(2)) : 0
+          conversionRate: realConversionRate
         };
         
-        console.log(`[Analytics Enhanced] Final Impact.com data:`, impactData);
+        console.log(`[Analytics Enhanced] ✅ FINAL REAL DATA:`, {
+          clicks: realClicks,
+          commissionableConversions: realConversions,
+          revenue: realRevenue.toFixed(2),
+          conversionRate: realConversionRate + '%'
+        });
       }
     } catch (error) {
       console.error('[Analytics Enhanced] Error fetching Impact.com data:', error.message);
@@ -1350,26 +1275,114 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
   if (!prisma) return res.json({ clicks: 0, conversions: 0, revenue: 0, topLinks: [], recentActivity: [] });
   
   try {
-    // Get aggregate stats from Link table (conversions, revenue)
-    const linkAgg = await prisma.link.aggregate({
-      where: { creatorId: req.user.id },
-      _sum: { conversions: true, revenue: true },
-    });
+    // Get Real Impact.com Data (Real Clicks + Commissionable Sales Only)
+    let realData = { clicks: 0, conversions: 0, revenue: 0 };
     
-    // Get aggregate clicks from ShortLink table (where clicks are actually tracked)
-    const shortLinkAgg = await prisma.shortLink.aggregate({
-      where: { creatorId: req.user.id },
-      _sum: { clicks: true },
-    });
-    
-    // Combine the data safely
-    const agg = {
-      _sum: {
-        clicks: shortLinkAgg._sum.clicks || 0,
-        conversions: linkAgg._sum.conversions || 0,
-        revenue: linkAgg._sum.revenue || 0
+    try {
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
+      
+      // Get creator's SubId1
+      const creator = await prisma.creator.findUnique({
+        where: { id: req.user.id },
+        select: { impactSubId: true, commissionRate: true }
+      });
+      
+      const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+      
+      if (correctSubId1 && correctSubId1 !== 'default') {
+        console.log(`[Analytics Basic] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
+        
+        // Use same date calculation as analytics-enhanced
+        const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+        const now = new Date();
+        const endDate = now.toISOString().split('T')[0];
+        const startDate = new Date(now.getTime() - (requestedDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        
+        // Get real clicks from Performance by SubId report
+        const performanceData = await impact.getPerformanceBySubId({
+          startDate,
+          endDate,
+          subId1: correctSubId1
+        });
+        
+        if (performanceData.success && performanceData.data) {
+          realData.clicks = performanceData.data.clicks || 0;
+          console.log(`[Analytics Basic] ✅ Real clicks: ${realData.clicks}`);
+        }
+        
+        // Get COMMISSIONABLE sales only from Actions API
+        const detailedActions = await impact.getActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE',
+          pageSize: 1000
+        });
+        
+        if (detailedActions.success && detailedActions.actions) {
+          const creatorActions = detailedActions.actions.filter(action => 
+            action.SubId1 === correctSubId1
+          );
+          
+          // Filter for ONLY commissionable actions (commission > 0)
+          const commissionableActions = creatorActions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
+          
+          realData.conversions = commissionableActions.length;
+          
+          // Calculate revenue from commissionable actions only
+          const grossRevenue = commissionableActions.reduce((sum, action) => {
+            return sum + parseFloat(action.Payout || action.Commission || 0);
+          }, 0);
+          
+          const businessRate = creator?.commissionRate || 70;
+          realData.revenue = (grossRevenue * businessRate) / 100;
+          
+          console.log(`[Analytics Basic] ✅ COMMISSIONABLE ONLY: ${realData.conversions} conversions, $${realData.revenue.toFixed(2)} revenue`);
+        }
       }
-    };
+    } catch (impactError) {
+      console.log(`[Analytics Basic] Impact.com error, using database fallback: ${impactError.message}`);
+    }
+    
+    // Fallback to database data if Impact.com fails
+    const hasRealData = realData.clicks > 0 || realData.conversions > 0 || realData.revenue > 0;
+    
+    let agg;
+    if (hasRealData) {
+      // Use real Impact.com data
+      agg = {
+        _sum: {
+          clicks: realData.clicks,
+          conversions: realData.conversions,
+          revenue: realData.revenue
+        }
+      };
+      console.log(`[Analytics Basic] ✅ Using real Impact.com data`);
+    } else {
+      // Fallback to database aggregates
+      const linkAgg = await prisma.link.aggregate({
+        where: { creatorId: req.user.id },
+        _sum: { conversions: true, revenue: true },
+      });
+      
+      const shortLinkAgg = await prisma.shortLink.aggregate({
+        where: { creatorId: req.user.id },
+        _sum: { clicks: true },
+      });
+      
+      agg = {
+        _sum: {
+          clicks: shortLinkAgg._sum.clicks || 0,
+          conversions: linkAgg._sum.conversions || 0,
+          revenue: linkAgg._sum.revenue || 0
+        }
+      };
+      console.log(`[Analytics Basic] ⚠️ Using database fallback`);
+    }
     
     // Get top performing links with real click data from ShortLink table
     const topLinks = await prisma.link.findMany({
