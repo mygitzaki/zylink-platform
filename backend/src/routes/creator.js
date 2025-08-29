@@ -1557,20 +1557,17 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       return res.status(404).json({ message: 'Creator not found' });
     }
 
-    // Parse date parameters (same logic as earnings-summary)
+    // Parse date parameters
     const now = new Date();
     const fmt = (d) => d.toISOString().split('T')[0];
     const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
     
     let startDate, endDate, effectiveDays;
-    
-    // Check if custom date range is provided
     const customStart = req.query.startDate;
     const customEnd = req.query.endDate;
     let requestedDays;
     
     if (isYmd(customStart) && isYmd(customEnd)) {
-      // Use custom date range
       startDate = customStart;
       endDate = customEnd;
       const startDateObj = new Date(customStart);
@@ -1578,16 +1575,19 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       effectiveDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000)) + 1;
       requestedDays = effectiveDays;
     } else {
-      // Use days parameter for preset ranges
       requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
       effectiveDays = requestedDays;
       endDate = fmt(now);
       startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
     }
 
-    console.log(`[Sales History] Fetching commissionable sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
+    // Parse limit parameter
+    const limit = req.query.limit;
+    const limitNumber = limit === 'all' ? 'all' : Math.max(1, Math.min(100, parseInt(limit) || 10));
 
-    // Get commissionable sales from Impact.com (filter for commission > 0)
+    console.log(`[Sales History Enhanced] Fetching sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
+
+    // Get commissionable sales from Impact.com using enhanced method
     let totalSales = 0;
     let salesCount = 0;
     let recentSales = [];
@@ -1600,302 +1600,108 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
-        // Use the same Actions API that admin dashboard uses successfully
-        const actionsResponse = await impact.getActionsDetailed({
+        console.log(`[Sales History Enhanced] Using enhanced sales data for SubId1: ${correctSubId1}`);
+        
+        // Use the new enhanced sales data method
+        const enhancedSalesResponse = await impact.getEnhancedSalesData({
           subId1: correctSubId1,
           startDate,
           endDate,
-          pageSize: 1000 // Get more records to calculate totals
+          limit: limitNumber === 'all' ? 1000 : limitNumber
         });
         
-        if (actionsResponse.success) {
-          const actions = actionsResponse.actions || [];
+        if (enhancedSalesResponse.success && enhancedSalesResponse.sales.length > 0) {
+          const enhancedSales = enhancedSalesResponse.sales;
           
-          // First filter: Only actions for this specific creator (additional client-side filtering)
-          const creatorActions = actions.filter(action => {
-            const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
-            return actionSubId1.toString().trim() === correctSubId1.toString().trim();
+          // Calculate totals from enhanced sales data
+          totalSales = enhancedSalesResponse.totalSales || 0;
+          salesCount = enhancedSales.length;
+          
+          // Process enhanced sales for display with proper commission calculation
+          const processedSales = enhancedSales.map(sale => {
+            // Apply platform commission rate to get creator's actual share
+            const creatorCommission = parseFloat((sale.grossCommission * creator.commissionRate / 100).toFixed(2));
+            
+            return {
+              actionId: sale.actionId,
+              product: sale.product, // Already masked in enhanced method
+              productUrl: sale.productUrl, // Real product URLs extracted
+              productCategory: sale.productCategory,
+              productSku: sale.productSku,
+              orderValue: sale.orderValue,
+              commission: creatorCommission, // Creator's actual commission after platform rate
+              grossCommission: sale.grossCommission, // Original commission before platform rate
+              date: sale.date,
+              status: sale.status,
+              campaignName: sale.campaignName // Already masked in enhanced method
+            };
           });
           
-          // Second filter: Only commissionable actions (commission > 0)
-          const commissionableActions = creatorActions.filter(action => {
-            const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
+          // Sort by date and apply pagination
+          processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
+          recentSales = processedSales;
+          
+          console.log(`[Sales History Enhanced] Successfully processed ${salesCount} sales totaling $${totalSales.toFixed(2)}`);
+        } else {
+          console.log(`[Sales History Enhanced] Enhanced method failed, using fallback: ${enhancedSalesResponse.error || 'No sales found'}`);
+          
+          // Fallback to basic method with masking
+          const fallbackResponse = await impact.getActionsDetailed({
+            subId1: correctSubId1,
+            startDate: startDate + 'T00:00:00Z',
+            endDate: endDate + 'T23:59:59Z',
+            actionType: 'SALE',
+            pageSize: limitNumber === 'all' ? 1000 : limitNumber
           });
-
-          // Calculate totals using the same field names as admin dashboard
-          let calculatedSales = 0;
-          let calculatedCommission = 0;
-          const processedSales = [];
-
-          for (const action of commissionableActions) {
-            const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            const commission = parseFloat(action.Payout || action.Commission || 0);
+          
+          if (fallbackResponse.success && fallbackResponse.actions) {
+            const actions = fallbackResponse.actions.filter(action => {
+              const actionSubId1 = action.SubId1 || action.Subid1 || '';
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              return actionSubId1 === correctSubId1 && commission > 0;
+            });
             
-            calculatedSales += saleAmount;
-            calculatedCommission += commission;
-
-            // Apply business commission rate to individual sale commission (creator's actual share)
-            const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
+            let calculatedSales = 0;
+            const processedSales = [];
             
-            // Mask product/campaign names for cleaner display
-            let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
-            if (productName.toLowerCase().includes('walmartcreator')) {
-              productName = 'Walmart';
-            } else if (productName.toLowerCase().includes('walmart')) {
-              productName = 'Walmart';
-            }
-
-            // DEBUG: Log all available fields to see what URL data we have
-            if (calculatedSales <= saleAmount) { // Only log for first sale to avoid spam
-              console.log(`[Sales History DEBUG] Available action fields:`, Object.keys(action));
-              console.log(`[Sales History DEBUG] Action data sample:`, JSON.stringify(action, null, 2));
+            for (const action of actions) {
+              const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
               
-              // Look for any field containing URLs
-              Object.keys(action).forEach(key => {
-                const value = action[key];
-                if (typeof value === 'string' && (value.includes('http') || value.includes('walmart'))) {
-                  console.log(`[Sales History DEBUG] URL-like field '${key}': ${value}`);
-                }
+              calculatedSales += saleAmount;
+              
+              // Apply masking to product names
+              let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
+              productName = productName.replace(/walmartcreator\.com/gi, 'Walmart')
+                                     .replace(/walmart creator/gi, 'Walmart')
+                                     .replace(/impact\.com/gi, '')
+                                     .replace(/impact/gi, '')
+                                     .replace(/\s+/g, ' ').trim();
+              
+              processedSales.push({
+                date: action.EventDate || action.ActionDate || action.CreationDate || new Date().toISOString(),
+                orderValue: saleAmount,
+                commission: creatorCommission,
+                status: action.ActionStatus || action.Status || 'Pending',
+                actionId: action.Id || action.ActionId,
+                product: productName,
+                productUrl: null // No URL extraction in fallback
               });
             }
             
-            // Try to find the original product URL from our Link database or extract from Impact data
-            let productUrl = null;
+            processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
             
-            try {
-              // First, try to extract product URL directly from Impact.com action data
-              console.log(`[Sales History DEBUG] Checking action ${action.Id} for direct URL extraction`);
-              console.log(`[Sales History DEBUG] Available fields: ${Object.keys(action).join(', ')}`);
-              
-              // Check various Impact.com fields that might contain product URLs
-              const urlFields = [
-                'TargetUrl', 'ProductUrl', 'LandingPageUrl', 'DestinationUrl',
-                'Url', 'ProductLink', 'AffiliateUrl', 'TrackingUrl', 'ActionUrl'
-              ];
-              
-              for (const field of urlFields) {
-                if (action[field] && typeof action[field] === 'string') {
-                  let potentialUrl = action[field];
-                  console.log(`[Sales History DEBUG] Found ${field}: ${potentialUrl}`);
-                  
-                  // Check if it contains a Walmart product URL
-                  if (potentialUrl.includes('walmart.com/ip/')) {
-                    // Try to extract direct product URL
-                    if (potentialUrl.includes('u=')) {
-                      try {
-                        const urlObj = new URL(potentialUrl);
-                        const encodedUrl = urlObj.searchParams.get('u');
-                        if (encodedUrl) {
-                          const decodedUrl = decodeURIComponent(encodedUrl);
-                          if (decodedUrl.includes('walmart.com/ip/')) {
-                            productUrl = decodedUrl;
-                            console.log(`[Sales History DEBUG] Extracted product URL from ${field}: ${productUrl}`);
-                            break;
-                          }
-                        }
-                      } catch (error) {
-                        console.log(`[Sales History DEBUG] Failed to decode URL from ${field}: ${error.message}`);
-                      }
-                    } else if (potentialUrl.startsWith('https://www.walmart.com/ip/')) {
-                      productUrl = potentialUrl;
-                      console.log(`[Sales History DEBUG] Direct product URL from ${field}: ${productUrl}`);
-                      break;
-                    }
-                  }
-                }
-              }
-              
-              // Method 2: Look for links with matching Impact link containing this action ID
-              const actionId = action.Id;
-              if (!productUrl && actionId) {
-                const linkWithAction = await prisma.link.findFirst({
-                  where: {
-                    creatorId: req.user.id,
-                    impactLink: {
-                      contains: actionId
-                    }
-                  },
-                  select: {
-                    destinationUrl: true,
-                    impactLink: true
-                  }
-                });
-                
-                if (linkWithAction) {
-                  productUrl = linkWithAction.destinationUrl;
-                  console.log(`[Sales History DEBUG] Found original URL via action ID match: ${productUrl}`);
-                } else {
-                  // Try to find multiple links for this creator and match by timing/amount
-                  const creatorSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
-                  const allCreatorLinks = await prisma.link.findMany({
-                    where: {
-                      creatorId: req.user.id,
-                      impactLink: {
-                        contains: creatorSubId1
-                      }
-                    },
-                    select: {
-                      destinationUrl: true,
-                      impactLink: true,
-                      createdAt: true
-                    },
-                    orderBy: {
-                      createdAt: 'desc'
-                    }
-                  });
-                  
-                  console.log(`[Sales History DEBUG] Found ${allCreatorLinks.length} total links for creator`);
-                  
-                  if (allCreatorLinks.length > 0) {
-                    // For now, since we can't match specific products, try to provide some variety
-                    // by using different links for different sales (round-robin style)
-                    const linkIndex = Math.abs(action.Id.split('.').pop() || 0) % allCreatorLinks.length;
-                    const selectedLink = allCreatorLinks[linkIndex];
-                    
-                    console.log(`[Sales History DEBUG] Using link ${linkIndex + 1} of ${allCreatorLinks.length} for action ${action.Id}`);
-                    
-                    // Try to decode the tracking URL to get the original URL
-                    const impactUrl = selectedLink.impactLink;
-                    if (impactUrl.includes('u=')) {
-                      try {
-                        const urlObj = new URL(impactUrl);
-                        const encodedUrl = urlObj.searchParams.get('u');
-                        if (encodedUrl) {
-                          const decodedUrl = decodeURIComponent(encodedUrl);
-                          if (decodedUrl.includes('walmart.com/ip/')) {
-                            productUrl = decodedUrl;
-                            console.log(`[Sales History DEBUG] Decoded URL from stored tracking link: ${productUrl}`);
-                          }
-                        }
-                      } catch (error) {
-                        // If decoding fails, use the stored destinationUrl
-                        productUrl = selectedLink.destinationUrl;
-                        console.log(`[Sales History DEBUG] Using stored destination URL: ${productUrl}`);
-                      }
-                    } else {
-                      productUrl = selectedLink.destinationUrl;
-                      console.log(`[Sales History DEBUG] Using stored destination URL: ${productUrl}`);
-                    }
-                  }
-                }
-              }
-              
-              // Method 3: Look for earnings with matching Impact transaction ID
-              if (!productUrl && action.Id) {
-                const earningWithLink = await prisma.earning.findFirst({
-                  where: {
-                    creatorId: req.user.id,
-                    impactTransactionId: action.Id
-                  },
-                  include: {
-                    link: {
-                      select: {
-                        destinationUrl: true
-                      }
-                    }
-                  }
-                });
-                
-                if (earningWithLink?.link?.destinationUrl) {
-                  productUrl = earningWithLink.link.destinationUrl;
-                  console.log(`[Sales History DEBUG] Found original URL via earning link: ${productUrl}`);
-                }
-              }
-              
-              // Method 4: Try to match by sale amount and date proximity (more specific)
-              if (!productUrl) {
-                const saleDate = new Date(action.EventDate || action.ActionDate || action.CreationDate);
-                const saleDateWindow = 7 * 24 * 60 * 60 * 1000; // 7 days
-                
-                const proximateLinks = await prisma.link.findMany({
-                  where: {
-                    creatorId: req.user.id,
-                    createdAt: {
-                      gte: new Date(saleDate.getTime() - saleDateWindow),
-                      lte: new Date(saleDate.getTime() + saleDateWindow)
-                    }
-                  },
-                  select: {
-                    destinationUrl: true,
-                    createdAt: true,
-                    impactLink: true
-                  },
-                  orderBy: {
-                    createdAt: 'desc'
-                  }
-                });
-                
-                if (proximateLinks.length > 0) {
-                  // Try to find a link that might match this sale based on timing
-                  productUrl = proximateLinks[0].destinationUrl;
-                  console.log(`[Sales History DEBUG] Using time-proximate link for sale on ${saleDate.toISOString()}: ${productUrl}`);
-                } else {
-                  // Absolutely last resort - get a random recent link to show something useful
-                  const anyRecentLink = await prisma.link.findFirst({
-                    where: {
-                      creatorId: req.user.id,
-                      createdAt: {
-                        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-                      }
-                    },
-                    select: {
-                      destinationUrl: true
-                    },
-                    orderBy: {
-                      createdAt: 'desc'
-                    }
-                  });
-                  
-                  if (anyRecentLink) {
-                    productUrl = anyRecentLink.destinationUrl;
-                    console.log(`[Sales History DEBUG] Using any recent link as last resort: ${productUrl}`);
-                  }
-                }
-              }
-              
-            } catch (error) {
-              console.log(`[Sales History DEBUG] Error looking up original URL: ${error.message}`);
-            }
+            totalSales = calculatedSales;
+            salesCount = actions.length;
+            recentSales = processedSales;
             
-            // Final fallback to homepage
-            if (!productUrl) {
-              productUrl = 'https://www.walmart.com';
-              console.log(`[Sales History DEBUG] No original URL found, using homepage`);
-            }
-
-            // Collect recent sales data
-            processedSales.push({
-              date: action.EventDate || action.ActionDate || action.CreationDate,
-              orderValue: saleAmount,
-              commission: creatorCommission, // Show creator's actual share, not raw Impact.com amount
-              status: action.ActionStatus || action.Status || 'Pending',
-              actionId: action.Id || action.ActionId,
-              product: productName,
-              productUrl: productUrl
-            });
+            console.log(`[Sales History Fallback] Processed ${salesCount} sales totaling $${totalSales.toFixed(2)}`);
           }
-
-          // Sort by date and handle pagination
-          processedSales.sort((a, b) => new Date(b.date) - new Date(a.date));
-          
-          // Support pagination: ?limit=50 or ?limit=all
-          const limit = req.query.limit;
-          if (limit === 'all') {
-            recentSales = processedSales; // Show all sales
-          } else {
-            const limitNumber = parseInt(limit) || 10; // Default to 10, allow custom limit
-            recentSales = processedSales.slice(0, Math.min(limitNumber, 100)); // Cap at 100 for performance
-          }
-
-          totalSales = parseFloat(calculatedSales.toFixed(2));
-          salesCount = commissionableActions.length;
-
-          console.log(`[Sales History] Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
         }
       }
     } catch (error) {
-      console.error('[Sales History] Error fetching sales data:', error.message);
+      console.error('[Sales History Enhanced] Error fetching enhanced sales data:', error.message);
       // Continue with empty data rather than failing
     }
 
@@ -1914,11 +1720,11 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       }
     };
 
-    console.log(`[Sales History] Response summary: ${salesCount} sales, $${totalSales.toFixed(2)} total`);
+    console.log(`[Sales History Enhanced] Response summary: ${salesCount} sales, $${totalSales.toFixed(2)} total`);
     res.json(response);
 
   } catch (error) {
-    console.error('[Sales History] Error:', error.message);
+    console.error('[Sales History Enhanced] Error:', error.message);
     res.status(500).json({ 
       error: 'Unable to fetch sales history',
       totalSales: 0,
@@ -1929,5 +1735,3 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
 });
 
 module.exports = router;
-
-

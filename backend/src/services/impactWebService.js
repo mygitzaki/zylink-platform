@@ -777,6 +777,322 @@ class ImpactWebService {
       return { success: false, error: error.message };
     }
   }
+  // NEW: Enhanced method to get detailed product sales data with real product information
+  async getEnhancedSalesData(options = {}) {
+    try {
+      const { subId1, startDate, endDate, limit = 100 } = options;
+      console.log(`🛍️ Fetching enhanced sales data for SubId1: ${subId1}`);
+      
+      // Step 1: Try advanced action listing report for maximum detail
+      let salesData = [];
+      
+      try {
+        const advancedReport = await this.getAdvancedActionListing({
+          subId1,
+          startDate,
+          endDate,
+          includeProductDetails: true,
+          limit
+        });
+        
+        if (advancedReport.success && advancedReport.actions.length > 0) {
+          salesData = advancedReport.actions;
+          console.log(`🛍️ Got ${salesData.length} sales from advanced action listing`);
+        }
+      } catch (error) {
+        console.log(`🛍️ Advanced action listing failed: ${error.message}`);
+      }
+      
+      // Step 2: Fallback to detailed actions API if advanced report fails
+      if (salesData.length === 0) {
+        const detailedActions = await this.getActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1,
+          actionType: 'SALE',
+          pageSize: limit
+        });
+        
+        if (detailedActions.success && detailedActions.actions) {
+          salesData = detailedActions.actions.filter(action => {
+            const actionSubId1 = action.SubId1 || action.Subid1 || '';
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return actionSubId1 === subId1 && commission > 0;
+          });
+          console.log(`🛍️ Got ${salesData.length} sales from detailed actions API`);
+        }
+      }
+      
+      // Step 3: Process and enhance each sale with product information
+      const enhancedSales = [];
+      
+      for (const sale of salesData) {
+        const enhancedSale = await this.enhanceSaleWithProductData(sale);
+        if (enhancedSale) {
+          enhancedSales.push(enhancedSale);
+        }
+      }
+      
+      console.log(`🛍️ Enhanced ${enhancedSales.length} sales with product data`);
+      
+      return {
+        success: true,
+        sales: enhancedSales,
+        totalSales: enhancedSales.reduce((sum, sale) => sum + sale.orderValue, 0),
+        totalCommission: enhancedSales.reduce((sum, sale) => sum + sale.grossCommission, 0)
+      };
+      
+    } catch (error) {
+      console.error('❌ Enhanced sales data error:', error);
+      return {
+        success: false,
+        sales: [],
+        totalSales: 0,
+        totalCommission: 0,
+        error: error.message
+      };
+    }
+  }
+
+  // NEW: Get advanced action listing with detailed product information
+  async getAdvancedActionListing(options = {}) {
+    try {
+      const { subId1, startDate, endDate, includeProductDetails = true, limit = 100 } = options;
+      
+      // Use the comprehensive action listing report with all available fields
+      const query = {
+        START_DATE: startDate,
+        END_DATE: endDate,
+        Program: this.programId,
+        ResultFormat: 'JSON',
+        PageSize: limit.toString(),
+        // Include additional fields for product information
+        INCLUDE_PRODUCT_DETAILS: includeProductDetails ? '1' : '0',
+        INCLUDE_TRACKING_URLS: '1',
+        INCLUDE_CUSTOMER_INFO: '0', // Privacy compliance
+        ACTION_STATUS: 'APPROVED,PENDING' // Get both approved and pending
+      };
+      
+      // Add SubId1 filter if provided
+      if (subId1) {
+        query.SUBID1 = subId1;
+      }
+      
+      const reportId = await this.resolveActionListingReportId();
+      const result = await this.exportReportAndDownloadJson(reportId, query);
+      
+      if (!result.success) {
+        return { success: false, actions: [], error: result.error };
+      }
+      
+      const records = Array.isArray(result.json?.Records) ? result.json.Records : [];
+      console.log(`📊 Advanced action listing returned ${records.length} records`);
+      
+      // Filter for commissionable actions only
+      const commissionableActions = records.filter(record => {
+        const commission = parseFloat(record.Payout || record.Commission || 0);
+        return commission > 0;
+      });
+      
+      return {
+        success: true,
+        actions: commissionableActions,
+        totalRecords: records.length
+      };
+      
+    } catch (error) {
+      console.error('❌ Advanced action listing error:', error);
+      return {
+        success: false,
+        actions: [],
+        error: error.message
+      };
+    }
+  }
+
+  // NEW: Enhance individual sale with detailed product information
+  async enhanceSaleWithProductData(saleAction) {
+    try {
+      const actionId = saleAction.Id;
+      const grossCommission = parseFloat(saleAction.Payout || saleAction.Commission || 0);
+      const orderValue = parseFloat(saleAction.Amount || saleAction.SaleAmount || saleAction.IntendedAmount || 0);
+      
+      // Extract product information with enhanced logic
+      let productName = this.extractProductName(saleAction);
+      let productUrl = await this.extractProductUrl(saleAction);
+      let productCategory = this.extractProductCategory(saleAction);
+      let productSku = this.extractProductSku(saleAction);
+      
+      // Mask brand names as requested
+      productName = this.maskBrandNames(productName);
+      
+      // Get sale date
+      const saleDate = saleAction.EventDate || saleAction.CreationDate || saleAction.ClickDate || new Date().toISOString();
+      
+      return {
+        actionId,
+        product: productName,
+        productUrl,
+        productCategory,
+        productSku,
+        orderValue,
+        grossCommission,
+        date: saleDate,
+        status: saleAction.State || saleAction.Status || 'Pending',
+        campaignName: this.maskBrandNames(saleAction.CampaignName || 'Walmart'),
+        // Additional metadata for debugging
+        _debug: {
+          originalProductName: saleAction.ProductName || saleAction.Product,
+          availableFields: Object.keys(saleAction)
+        }
+      };
+      
+    } catch (error) {
+      console.error(`❌ Error enhancing sale ${saleAction.Id}:`, error);
+      return null;
+    }
+  }
+
+  // NEW: Extract product name with fallback logic
+  extractProductName(action) {
+    // Try multiple fields that might contain product names
+    const productFields = [
+      'ProductName', 'Product', 'ItemName', 'ItemDescription', 
+      'ProductTitle', 'ProductDescription', 'Sku', 'ProductSku'
+    ];
+    
+    for (const field of productFields) {
+      if (action[field] && typeof action[field] === 'string' && action[field].trim()) {
+        let productName = action[field].trim();
+        
+        // Clean up common prefixes/suffixes
+        productName = productName.replace(/^(Walmart\.com - |Walmart - |Product: )/i, '');
+        productName = productName.replace(/ - Walmart\.com$/i, '');
+        
+        // Truncate if too long
+        if (productName.length > 60) {
+          productName = productName.substring(0, 57) + '...';
+        }
+        
+        return productName;
+      }
+    }
+    
+    // Fallback to campaign or generic name
+    if (action.CampaignName && !action.CampaignName.toLowerCase().includes('walmart')) {
+      return action.CampaignName;
+    }
+    
+    return 'Product Sale';
+  }
+
+  // NEW: Extract product URL with advanced logic
+  async extractProductUrl(action) {
+    // Try multiple URL fields from Impact.com data
+    const urlFields = [
+      'TargetUrl', 'ProductUrl', 'LandingPageUrl', 'DestinationUrl',
+      'Url', 'ProductLink', 'AffiliateUrl', 'TrackingUrl', 'ActionUrl',
+      'ClickUrl', 'ReferrerUrl', 'OriginalUrl'
+    ];
+    
+    for (const field of urlFields) {
+      if (action[field] && typeof action[field] === 'string') {
+        let url = action[field];
+        
+        // Try to extract Walmart product URL
+        const extractedUrl = this.extractWalmartProductUrl(url);
+        if (extractedUrl) {
+          return extractedUrl;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  // NEW: Extract Walmart product URL from various tracking URLs
+  extractWalmartProductUrl(trackingUrl) {
+    try {
+      // Method 1: Look for 'u=' parameter (URL encoded destination)
+      if (trackingUrl.includes('u=')) {
+        const urlObj = new URL(trackingUrl);
+        const encodedUrl = urlObj.searchParams.get('u');
+        if (encodedUrl) {
+          const decodedUrl = decodeURIComponent(encodedUrl);
+          if (decodedUrl.includes('walmart.com/ip/')) {
+            return decodedUrl;
+          }
+        }
+      }
+      
+      // Method 2: Direct Walmart URL
+      if (trackingUrl.includes('walmart.com/ip/')) {
+        return trackingUrl;
+      }
+      
+      // Method 3: Look for other common URL parameters
+      const urlObj = new URL(trackingUrl);
+      const params = ['url', 'destination', 'target', 'redirect', 'link'];
+      
+      for (const param of params) {
+        const value = urlObj.searchParams.get(param);
+        if (value && value.includes('walmart.com/ip/')) {
+          return decodeURIComponent(value);
+        }
+      }
+      
+    } catch (error) {
+      // Invalid URL, return null
+    }
+    
+    return null;
+  }
+
+  // NEW: Extract product category
+  extractProductCategory(action) {
+    const categoryFields = ['Category', 'ProductCategory', 'ItemCategory', 'Department'];
+    
+    for (const field of categoryFields) {
+      if (action[field] && typeof action[field] === 'string') {
+        return action[field].trim();
+      }
+    }
+    
+    return null;
+  }
+
+  // NEW: Extract product SKU
+  extractProductSku(action) {
+    const skuFields = ['Sku', 'ProductSku', 'ItemSku', 'ProductId', 'ItemId'];
+    
+    for (const field of skuFields) {
+      if (action[field] && typeof action[field] === 'string') {
+        return action[field].trim();
+      }
+    }
+    
+    return null;
+  }
+
+  // NEW: Mask brand names as requested
+  maskBrandNames(text) {
+    if (!text || typeof text !== 'string') return text;
+    
+    let masked = text;
+    
+    // Replace WalmartCreator.com references
+    masked = masked.replace(/walmartcreator\.com/gi, 'Walmart');
+    masked = masked.replace(/walmart creator/gi, 'Walmart');
+    
+    // Remove Impact.com mentions
+    masked = masked.replace(/impact\.com/gi, '');
+    masked = masked.replace(/impact/gi, '');
+    
+    // Clean up extra spaces
+    masked = masked.replace(/\s+/g, ' ').trim();
+    
+    return masked;
+  }
 }
 
 module.exports = ImpactWebService;
