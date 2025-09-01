@@ -33,6 +33,7 @@ model Creator {
 
   links            Link[]
   earnings         Earning[]
+  earningsSnapshots EarningsSnapshot[] // NEW: Point-in-time earnings
   referralsGiven   ReferralEarning[] @relation("Referrer")
   referralsReceived ReferralEarning[] @relation("Referred")
   paymentAccount   PaymentAccount?
@@ -61,6 +62,7 @@ model Link {
 
   creator        Creator  @relation(fields: [creatorId], references: [id])
   earnings       Earning[]
+  earningsSnapshots EarningsSnapshot[] // NEW: Point-in-time earnings snapshots
 
   @@index([creatorId])
 }
@@ -85,6 +87,37 @@ model Earning {
 
   @@index([type, status])
   @@index([createdAt])
+}
+
+// NEW: Point-in-Time Earnings Snapshot System
+// ZERO RISK: This table doesn't affect existing functionality
+model EarningsSnapshot {
+  id                  String        @id @default(uuid())
+  creatorId           String
+  linkId              String?
+  
+  // Point-in-time data (locked forever)
+  originalAmount      Decimal       // Amount calculated at time of earning
+  commissionRate      Int           // Commission rate used at that specific time
+  grossAmount         Decimal       // Original Impact.com amount
+  
+  // Metadata
+  type                EarningType   // COMMISSION, SALES_BONUS, REFERRAL_BONUS
+  source              String        // 'IMPACT_API', 'WEBHOOK', 'MANUAL'
+  impactTransactionId String?       // Impact.com transaction ID
+  
+  // Timestamps
+  earnedAt            DateTime      // When the earning actually occurred
+  snapshotAt          DateTime      @default(now()) // When this snapshot was created
+  rateEffectiveDate   DateTime      // When this commission rate was effective
+  
+  // Relations
+  creator             Creator       @relation(fields: [creatorId], references: [id])
+  link                Link?         @relation(fields: [linkId], references: [id])
+
+  @@index([creatorId, earnedAt])
+  @@index([earnedAt])
+  @@index([source])
 }
 
 model ReferralEarning {
