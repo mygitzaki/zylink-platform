@@ -876,70 +876,16 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
     console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
     
-    // PHASE 2: Create snapshot of current pending earnings (ULTRA-SAFE)
-    // This preserves the current earnings state that creators see
-    if (allEarnings.length === 0 && pendingGross > 0) {
-      console.log(`[Earnings Snapshot] 📸 Creating snapshot of current pending earnings state`);
-      console.log(`[Earnings Snapshot] 💰 Impact.com gross: $${pendingGross}`);
-      console.log(`[Earnings Snapshot] 📊 Current commission rate: ${rate}%`);
-      console.log(`[Earnings Snapshot] 🎯 Calculated amount: $${parseFloat(((pendingGross * rate) / 100).toFixed(2))}`);
-      
-      // SAFETY: Only create snapshot, don't change any calculations yet
-      try {
-        const snapshotAmount = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-        
-        // Create snapshot record (this doesn't affect current calculations)
-        await prisma.earningsSnapshot.create({
-          data: {
-            creatorId: req.user.id,
-            originalAmount: snapshotAmount,
-            commissionRate: rate,
-            grossAmount: pendingGross,
-            type: 'COMMISSION',
-            source: 'IMPACT_API',
-            earnedAt: new Date(), // Current time as earning time
-            rateEffectiveDate: new Date()
-          }
-        });
-        
-        console.log(`[Earnings Snapshot] ✅ Snapshot created successfully: $${snapshotAmount} at ${rate}%`);
-        console.log(`[Earnings Snapshot] 🛡️ This preserves current earnings state for historical accuracy`);
-      } catch (snapshotError) {
-        console.log(`[Earnings Snapshot] ⚠️ Snapshot creation failed (non-critical):`, snapshotError.message);
-      }
-    }
+    // EMERGENCY DISABLE: Remove all snapshot logic that might be causing inflated earnings
+    console.log(`[Earnings Summary] 🚨 EMERGENCY MODE: All snapshot logic disabled`);
+    console.log(`[Earnings Summary] 🛡️ Using safe legacy calculation only`);
     
     console.log(`[Earnings Summary] 🔍 Database earnings analysis complete`);
     
-    // PHASE 4: Check if we should use snapshots for display (ULTRA-SAFE with fallbacks)
+    // EMERGENCY: Disable all snapshot logic - using only safe legacy calculation
     let useSnapshotSystem = false;
     let snapshotEarnings = 0;
-    
-    try {
-      // Check if we have any snapshots for this creator
-      const snapshots = await prisma.earningsSnapshot.findMany({
-        where: { 
-          creatorId: req.user.id,
-          earnedAt: {
-            gte: new Date(`${startDate}T00:00:00Z`),
-            lte: new Date(`${endDate}T23:59:59Z`)
-          }
-        }
-      });
-      
-      if (snapshots.length > 0) {
-        useSnapshotSystem = true;
-        snapshotEarnings = snapshots.reduce((sum, s) => sum + Number(s.originalAmount || 0), 0);
-        console.log(`[Earnings Summary] ✅ Using snapshot system: ${snapshots.length} snapshots, $${snapshotEarnings} total`);
-        console.log(`[Earnings Summary] 🛡️ Point-in-time earnings - immune to commission rate changes`);
-      } else {
-        console.log(`[Earnings Summary] ⚠️ No snapshots found, using legacy calculation`);
-      }
-    } catch (snapshotError) {
-      console.log(`[Earnings Summary] ❌ Snapshot check failed, using legacy calculation:`, snapshotError.message);
-    }
-    
-    console.log(`[Earnings Summary] 📊 Display system: ${useSnapshotSystem ? 'Point-in-time snapshots' : 'Legacy calculation'}`);
+    console.log(`[Earnings Summary] 🚨 EMERGENCY: Snapshot system completely disabled`);
     
     // IMPORTANT: We use existing 'amount' field which is already correctly calculated
     // This ensures no retroactive changes to historical earnings
