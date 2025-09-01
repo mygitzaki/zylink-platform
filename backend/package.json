@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "prisma generate && prisma db push --accept-data-loss && node server.js",
-    "start:production": "prisma generate && prisma db push --accept-data-loss && node railway-fix-payment-column.js && node server.js", 
+    "start": "prisma generate && node fix-database-schema.js && node server.js",
+    "start:production": "prisma generate && node fix-database-schema.js && node railway-fix-payment-column.js && node server.js", 
     "dev": "nodemon server.js",
     "build": "prisma generate",
     "postinstall": "prisma generate",

@@ -1,4 +1,4 @@
 RAILWAY DEPLOYMENT TRIGGER
 This file forces Railway to redeploy with the latest code
-Timestamp: 2025-09-01T02:38:30.000Z
-Reason: FORCE DATABASE MIGRATION - Update start script to ensure prisma db push runs on Railway deployment
+Timestamp: 2025-09-01T02:43:00.000Z
+Reason: BYPASS ENUM CONFLICT - Use manual schema fix script instead of prisma db push to avoid AdminRole_old dependency error
