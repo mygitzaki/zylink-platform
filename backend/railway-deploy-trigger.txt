@@ -1,4 +1,4 @@
 RAILWAY DEPLOYMENT TRIGGER
 This file forces Railway to redeploy with the latest code
-Timestamp: 2025-09-01T02:27:30.000Z
-Reason: CRITICAL - Migrate database schema to create EarningsSnapshot and EarningsReversal tables for point-in-time earnings system
+Timestamp: 2025-09-01T02:38:30.000Z
+Reason: FORCE DATABASE MIGRATION - Update start script to ensure prisma db push runs on Railway deployment
