@@ -164,19 +164,28 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
     console.log(`⚠️ Could not verify snapshot protection:`, snapshotCheckError.message);
   }
   
-  // EMERGENCY BLOCK: Database schema not migrated yet - tables don't exist in production
-  console.log(`🚨 BLOCKING COMMISSION CHANGE: Database schema not migrated`);
-  console.log(`❌ EarningsSnapshot table doesn't exist in production database`);
-  console.log(`❌ Point-in-time protection NOT ACTIVE`);
-  console.log(`⚠️ Commission changes would still cause retroactive calculation`);
+  // EMERGENCY: Immediately revert commission rate to prevent further damage
+  console.log(`🚨 EMERGENCY REVERT: Restoring commission rate to prevent inflated earnings`);
+  console.log(`❌ Point-in-time protection still not active`);
+  console.log(`💰 Creators seeing inflated earnings due to retroactive calculation`);
+  console.log(`🔧 Reverting ${currentCreator.name} from current rate back to 70%`);
   
-  return res.status(400).json({ 
-    message: 'Commission rate changes blocked - database schema not migrated',
-    reason: 'EarningsSnapshot table does not exist in production database',
-    details: 'Point-in-time protection system requires database migration to be completed first.',
-    currentRate: currentCreator?.commissionRate || 70,
-    requestedRate: newRate,
-    solution: 'Run database migration to create EarningsSnapshot and EarningsReversal tables'
+  // IMMEDIATELY revert to 70% to fix inflated earnings
+  const revertedCreator = await prisma.creator.update({ 
+    where: { id: creatorId }, 
+    data: { commissionRate: 70 } 
+  });
+  
+  console.log(`✅ Emergency revert completed: Commission rate restored to 70%`);
+  console.log(`🛡️ This should restore correct earnings display for creator`);
+  
+  return res.json({ 
+    reverted: true,
+    message: 'Commission rate emergency revert completed',
+    reason: 'Point-in-time protection not active - preventing inflated earnings',
+    revertedTo: 70,
+    wasAt: currentCreator?.commissionRate,
+    action: 'Earnings should return to normal amounts'
   });
 });
 
