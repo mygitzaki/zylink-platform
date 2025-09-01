@@ -1831,6 +1831,11 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
+      console.log(`[Sales History] 🔍 DEBUGGING: Creator ID: ${req.user.id}`);
+      console.log(`[Sales History] 🔍 DEBUGGING: Creator impactSubId: ${creator?.impactSubId}`);
+      console.log(`[Sales History] 🔍 DEBUGGING: Computed SubId1: ${correctSubId1}`);
+      console.log(`[Sales History] 🔍 DEBUGGING: SubId1 comparison - stored vs computed`);
+      
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
         console.log(`[Sales History] 🔍 DEBUGGING: Date range: ${startDate} to ${endDate}`);
@@ -1844,14 +1849,21 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           pageSize: 1000 // Get more records to calculate totals
         });
         
+        console.log(`[Sales History] 🔍 DEBUGGING: API Response success: ${actionsResponse.success}`);
+        console.log(`[Sales History] 🔍 DEBUGGING: Total actions received: ${actionsResponse.actions?.length || 0}`);
+        
         if (actionsResponse.success) {
           const actions = actionsResponse.actions || [];
+          
+          console.log(`[Sales History] 🔍 DEBUGGING: Processing ${actions.length} actions`);
           
           // Filter for this creator's actions
           const creatorActions = actions.filter(action => {
             const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
             return actionSubId1.toString().trim() === correctSubId1.toString().trim();
           });
+          
+          console.log(`[Sales History] 🔍 DEBUGGING: Creator actions found: ${creatorActions.length}`);
           
           // Filter for ONLY commissionable actions (commission > 0) - this was working before
           const commissionableActions = creatorActions.filter(action => {
