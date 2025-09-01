@@ -839,7 +839,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     }
 
     // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database
-    // NEW: Include commission rate fields for forward-only calculation
+    // URGENT FIX: Revert to original query structure (database doesn't have new columns yet)
     const approvedEarnings = await prisma.earning.findMany({
       where: { 
         creatorId: req.user.id,
@@ -851,11 +851,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       },
       select: { 
         amount: true, 
-        status: true,
-        // NEW: Include commission rate fields for forward-only system
-        appliedCommissionRate: true,
-        grossAmount: true,
-        rateEffectiveDate: true
+        status: true
       }
     });
     
@@ -880,9 +876,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
     console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
     
-    const earningsWithStoredRates = approvedEarnings.filter(e => e.appliedCommissionRate !== null).length;
-    const earningsWithLegacyRates = approvedEarnings.filter(e => e.appliedCommissionRate === null).length;
-    console.log(`[Earnings Summary] 📊 Earnings breakdown: ${earningsWithStoredRates} with stored rates, ${earningsWithLegacyRates} legacy`);
+    // REMOVED: appliedCommissionRate field check since column doesn't exist in production DB yet
+    console.log(`[Earnings Summary] 📊 Using legacy earnings calculation (schema not yet migrated)`);
     
     // IMPORTANT: We use existing 'amount' field which is already correctly calculated
     // This ensures no retroactive changes to historical earnings
