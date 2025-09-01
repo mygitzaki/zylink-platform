@@ -164,21 +164,19 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
     console.log(`⚠️ Could not verify snapshot protection:`, snapshotCheckError.message);
   }
   
-  // SAFELY UPDATE commission rate (protected by point-in-time system)
-  const updated = await prisma.creator.update({ 
-    where: { id: creatorId }, 
-    data: { commissionRate: newRate } 
-  });
+  // EMERGENCY BLOCK: Database schema not migrated yet - tables don't exist in production
+  console.log(`🚨 BLOCKING COMMISSION CHANGE: Database schema not migrated`);
+  console.log(`❌ EarningsSnapshot table doesn't exist in production database`);
+  console.log(`❌ Point-in-time protection NOT ACTIVE`);
+  console.log(`⚠️ Commission changes would still cause retroactive calculation`);
   
-  console.log(`✅ Commission rate updated successfully with forward-only protection`);
-  console.log(`📊 New rate (${newRate}%) will apply to future earnings only`);
-  
-  res.json({ 
-    updated,
-    message: 'Commission rate updated with forward-only protection',
-    oldRate: currentCreator?.commissionRate,
-    newRate: newRate,
-    protection: 'Historical earnings preserved by point-in-time system'
+  return res.status(400).json({ 
+    message: 'Commission rate changes blocked - database schema not migrated',
+    reason: 'EarningsSnapshot table does not exist in production database',
+    details: 'Point-in-time protection system requires database migration to be completed first.',
+    currentRate: currentCreator?.commissionRate || 70,
+    requestedRate: newRate,
+    solution: 'Run database migration to create EarningsSnapshot and EarningsReversal tables'
   });
 });
 
