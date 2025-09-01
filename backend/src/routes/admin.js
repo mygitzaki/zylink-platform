@@ -123,36 +123,35 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
   const newRate = Number(req.body.commissionRate || 70);
   const creatorId = req.params.id;
   
-  console.log(`🚨 COMMISSION RATE CHANGE ALERT:`);
+  console.log(`🚨 COMMISSION RATE CHANGE BLOCKED - RETROACTIVE CALCULATION PROTECTION:`);
   console.log(`👤 Creator ID: ${creatorId}`);
-  console.log(`📊 New rate: ${newRate}%`);
-  console.log(`👨‍💼 Changed by admin: ${req.user.id}`);
+  console.log(`📊 Requested rate: ${newRate}%`);
+  console.log(`👨‍💼 Requested by admin: ${req.user.id}`);
   console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+  console.log(`🛡️ REASON: Commission rate changes cause retroactive calculation of historical earnings`);
+  console.log(`🛡️ IMPACT: This would incorrectly alter creator's past earnings amounts`);
+  console.log(`🛡️ SOLUTION: Forward-only commission system must be implemented first`);
   
-  // Get current rate for comparison
+  // Get current rate for reference
   const currentCreator = await prisma.creator.findUnique({ 
     where: { id: creatorId },
     select: { commissionRate: true, name: true, email: true }
   });
   
   if (currentCreator) {
-    console.log(`📈 Rate change: ${currentCreator.commissionRate}% → ${newRate}%`);
+    console.log(`📊 Current rate: ${currentCreator.commissionRate}%`);
     console.log(`👤 Creator: ${currentCreator.name} (${currentCreator.email})`);
-    
-    if (currentCreator.commissionRate !== newRate) {
-      console.log(`⚠️ WARNING: This rate change affects future earnings only`);
-      console.log(`⚠️ Historical earnings should NOT be recalculated`);
-      console.log(`⚠️ If earnings display changes, this indicates retroactive calculation bug`);
-    }
   }
   
-  const updated = await prisma.creator.update({ 
-    where: { id: creatorId }, 
-    data: { commissionRate: newRate } 
+  // TEMPORARILY BLOCK commission rate changes to prevent retroactive calculation damage
+  return res.status(400).json({ 
+    message: 'Commission rate changes temporarily disabled',
+    reason: 'Retroactive calculation protection active',
+    details: 'Commission rate changes currently affect historical earnings retroactively. This feature is disabled until forward-only commission system is implemented.',
+    currentRate: currentCreator?.commissionRate || 70,
+    requestedRate: newRate,
+    contact: 'Contact system administrator to enable forward-only commission system'
   });
-  
-  console.log(`✅ Commission rate updated successfully`);
-  res.json({ updated });
 });
 
 // Get detailed creator profile for admin view
