@@ -34,6 +34,7 @@ model Creator {
   links            Link[]
   earnings         Earning[]
   earningsSnapshots EarningsSnapshot[] // NEW: Point-in-time earnings
+  earningsReversals EarningsReversal[] // NEW: Commission reversal tracking
   referralsGiven   ReferralEarning[] @relation("Referrer")
   referralsReceived ReferralEarning[] @relation("Referred")
   paymentAccount   PaymentAccount?
@@ -84,6 +85,7 @@ model Earning {
 
   creator             Creator       @relation(fields: [creatorId], references: [id])
   link                Link?         @relation(fields: [linkId], references: [id])
+  reversals           EarningsReversal[] // NEW: Track reversals of this earning
 
   @@index([type, status])
   @@index([createdAt])
@@ -118,6 +120,43 @@ model EarningsSnapshot {
   @@index([creatorId, earnedAt])
   @@index([earnedAt])
   @@index([source])
+}
+
+// NEW: Commission Reversal Tracking System
+// Handles Impact.com commission reversals (returns, chargebacks, fraud, etc.)
+model EarningsReversal {
+  id                  String        @id @default(uuid())
+  creatorId           String
+  
+  // Original earning reference (if available)
+  originalEarningId   String?
+  originalSnapshotId  String?       // Link to original snapshot
+  
+  // Reversal details
+  reversalAmount      Decimal       // Amount being reversed (always positive)
+  originalAmount      Decimal       // Original earning amount
+  netAdjustment       Decimal       // Final adjustment (negative for reversal)
+  
+  // Reversal metadata
+  reason              String        // 'RETURN', 'FRAUD', 'CHARGEBACK', 'CANCELLATION'
+  impactTransactionId String?       // Impact.com reversal transaction ID
+  originalImpactId    String?       // Original Impact.com transaction ID
+  
+  // Commission rate context
+  originalCommissionRate Int        // Commission rate when original earning occurred
+  reversalCommissionRate Int?       // Commission rate when reversal occurred (if different)
+  
+  // Timestamps
+  originalEarnedAt    DateTime      // When original earning occurred
+  reversedAt          DateTime      @default(now()) // When reversal was processed
+  
+  // Relations
+  creator             Creator       @relation(fields: [creatorId], references: [id])
+  originalEarning     Earning?      @relation(fields: [originalEarningId], references: [id])
+
+  @@index([creatorId, reversedAt])
+  @@index([originalImpactId])
+  @@index([reason])
 }
 
 model ReferralEarning {
