@@ -9,13 +9,6 @@ const { QRCodeService } = require('../services/qrcodeService');
 const { EmailService } = require('../services/emailService');
 const { requireAuth, requireApprovedCreator } = require('../middleware/auth');
 
-// SAFETY: Import all utilities at module level to prevent repeated loading
-const { calculateDateRange } = require('../utils/dateHelpers');
-const { validateAndGetSubId1, filterCreatorActions, filterCommissionableActions, validateEarningsOwnership } = require('../utils/creatorValidation');
-const { withCache } = require('../utils/smartCache');
-const { validateDataConsistency, generateRequestId } = require('../utils/dataConsistency');
-const { calculateTotalEarnings } = require('../utils/commissionCalculator');
-
 const router = express.Router();
 
 function signToken(payload) {
@@ -439,7 +432,7 @@ router.get('/earnings', requireAuth, requireApprovedCreator, async (req, res) =>
   if (!prisma) return res.json({ earnings: [], total: 0, byType: {}, byStatus: {}, summary: { total: 0, breakdown: { commissions: { gross: 0, net: 0, count: 0 }, salesBonuses: { total: 0, count: 0 }, referralBonuses: { total: 0, count: 0 } }, eligibleForPayout: false, count: 0 }, creator: { commissionRate: 0, salesBonus: 0 } });
 
   try {
-    // calculateTotalEarnings already imported at module level
+    const { calculateTotalEarnings } = require('../utils/commissionCalculator');
 
     // Fetch creator for commission rate
     const creator = await prisma.creator.findUnique({
@@ -719,11 +712,9 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
   }
 });
 
-// NEW: Professional Earnings Summary - Combines pending + approved + analytics (FIXED)
+// NEW: Professional Earnings Summary - Combines pending + approved + analytics
 router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req, res) => {
   try {
-    // All utilities already imported at module level for safety
-    
     const prisma = getPrisma();
     if (!prisma) return res.json({ 
       commissionEarned: 0, 
@@ -734,30 +725,47 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       analytics: { conversionRate: 0, averageOrderValue: 0, totalActions: 0 }
     });
 
-    // Generate request ID for tracking
-    const requestId = generateRequestId();
-    console.log(`[Earnings Summary] Processing request ${requestId} for creator ${req.user.id}`);
-
-    // Get creator info with validation
+    // Get creator info
     const creator = await prisma.creator.findUnique({
       where: { id: req.user.id },
-      select: { id: true, commissionRate: true, impactSubId: true }
+      select: { commissionRate: true, impactSubId: true }
     });
-    
-    if (!creator) {
-      return res.status(404).json({ error: 'Creator not found' });
-    }
-    
     const rate = creator?.commissionRate ?? 70;
 
-    // Use standardized date calculation
-    const dateRange = calculateDateRange({
-      days: req.query.days,
-      startDate: req.query.startDate,
-      endDate: req.query.endDate
-    });
+    // Proper date range logic with custom date support
+    const now = new Date();
+    
+    // Use ISO date format for consistency and avoid timezone issues
+    const fmt = (d) => d.toISOString().split('T')[0];
+    const isYmd = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    
+    let startDate, endDate, effectiveDays;
+    
+    // Check if custom date range is provided
+    const customStart = req.query.startDate;
+    const customEnd = req.query.endDate;
+    let requestedDays; // Define this for both branches
+    
+    if (isYmd(customStart) && isYmd(customEnd)) {
+      // Use custom date range
+      startDate = customStart;
+      endDate = customEnd;
+      const startDateObj = new Date(customStart);
+      const endDateObj = new Date(customEnd);
+      effectiveDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      requestedDays = effectiveDays; // Set to the same as effective days for custom ranges
+      console.log(`[Earnings Summary] Using CUSTOM date range: ${customStart} to ${customEnd} (${effectiveDays} days)`);
+      } else {
+      // Use days parameter for preset ranges
+      requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+        effectiveDays = requestedDays;
+      endDate = fmt(now);
+      startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+      console.log(`[Earnings Summary] Using PRESET range: ${requestedDays} days (${startDate} to ${endDate})`);
+    }
 
-    console.log(`[Earnings Summary] Using standardized date range:`, dateRange);
+    console.log(`[Earnings Summary] Final date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    console.log(`[Earnings Summary] Date calculation debug: now=${now.toISOString()}, effectiveDays=${effectiveDays}, strategy=custom_and_preset_support`);
 
     // Set cache control headers to prevent caching issues
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -765,127 +773,108 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     res.set('Expires', '0');
     res.set('Surrogate-Control', 'no-store');
 
-    // 1. Get Pending Earnings from Impact.com (COMMISSIONABLE ONLY - SECURE)
+    // 1. Get Pending Earnings from Impact.com (COMMISSIONABLE ONLY - same as analytics)
     let pendingGross = 0;
     let pendingActions = 0;
-    
-    // Use smart caching for pending earnings with safety wrapper
-    const pendingEarningsData = await withCache('earnings', creator.id, dateRange, async () => {
-      try {
-        const ImpactWebService = require('../services/impactWebService');
-        const impact = new ImpactWebService();
+    try {
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
+      
+      // Use stored SubId1 or compute it
+      const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+      
+      if (correctSubId1 && correctSubId1 !== 'default') {
+        console.log(`[Earnings Summary] Fetching commissionable actions for SubId1: ${correctSubId1}`);
         
-        // Validate and get secure SubId1
-        const subIdValidation = validateAndGetSubId1(creator, impact);
-        if (!subIdValidation.isValid) {
-          console.error(`[Earnings Summary] SubId1 validation failed: ${subIdValidation.error}`);
-          return { pendingGross: 0, pendingActions: 0, error: subIdValidation.error };
-        }
-        
-        const correctSubId1 = subIdValidation.subId1;
-        console.log(`[Earnings Summary] Using validated SubId1: ${correctSubId1} (source: ${subIdValidation.source})`);
-        
-        // Get detailed actions with secure filtering
+        // Get detailed actions to filter for commissionable only (same as analytics-enhanced)
         const detailedActions = await impact.getActionsDetailed({
-          startDate: dateRange.startDateISO,
-          endDate: dateRange.endDateISO,
+          startDate,
+          endDate,
           subId1: correctSubId1,
           pageSize: 1000
         });
         
         if (detailedActions.success && detailedActions.actions) {
-          // Use secure creator action filtering
-          const creatorActions = filterCreatorActions(detailedActions.actions, correctSubId1, creator.id);
+          // Filter for this creator's actions
+          const creatorActions = detailedActions.actions.filter(action => 
+            action.SubId1 === correctSubId1
+          );
           
-          // Filter for commissionable actions only
-          const commissionableActions = filterCommissionableActions(creatorActions, creator.id);
+          // Filter for ONLY commissionable actions (commission > 0) - same as analytics
+          const commissionableActions = creatorActions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
           
-          const gross = commissionableActions.reduce((sum, action) => {
+          pendingActions = commissionableActions.length;
+          
+          // Calculate gross revenue from commissionable actions only
+          pendingGross = commissionableActions.reduce((sum, action) => {
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
           
-          console.log(`[Earnings Summary] ✅ Secure filtering complete:`);
-          console.log(`  - Original actions: ${detailedActions.actions.length}`);
-          console.log(`  - Creator actions: ${creatorActions.length}`);
-          console.log(`  - Commissionable actions: ${commissionableActions.length}`);
-          console.log(`  - Gross commission: $${gross}`);
-          
-          return {
-            pendingGross: gross,
-            pendingActions: commissionableActions.length,
-            dataSource: 'impact_actions_secure',
-            subId1: correctSubId1
-          };
+          console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
+          console.log(`  - Total actions: ${creatorActions.length}`);
+          console.log(`  - Commissionable actions: ${pendingActions}`);
+          console.log(`  - Gross commission: $${pendingGross}`);
         } else {
-          console.log(`[Earnings Summary] ⚠️ Actions API failed, trying reports fallback`);
+          console.log(`[Earnings Summary] ⚠️ Could not get detailed actions, using fallback`);
           
-          // Secure fallback to reports
-          const reportsData = await impact.getPendingFromActionListingReport({
+          // Fallback to basic pending report
+          const allActionsReport = await impact.getPendingFromActionListingReport({
             subId1: correctSubId1,
-            startDate: dateRange.startDate,
-            endDate: dateRange.endDate
+            startDate,
+            endDate
           });
           
-          if (reportsData.success) {
-            return {
-              pendingGross: reportsData.gross || 0,
-              pendingActions: reportsData.count || 0,
-              dataSource: 'impact_reports_secure',
-              subId1: correctSubId1
-            };
+          if (allActionsReport.success) {
+            pendingGross = allActionsReport.gross || 0;
+            pendingActions = allActionsReport.count || 0;
+            console.log(`[Earnings Summary] Fallback - ALL Actions: $${pendingGross} from ${pendingActions} actions`);
           }
         }
-        
-        return { pendingGross: 0, pendingActions: 0, error: 'No Impact.com data available' };
-      } catch (error) {
-        console.error('[Earnings Summary] Error fetching pending earnings:', error.message);
-        return { pendingGross: 0, pendingActions: 0, error: error.message };
       }
-    });
-    
-    // SAFETY: Ensure safe numeric values
-    pendingGross = Number(pendingEarningsData.pendingGross) || 0;
-    pendingActions = Number(pendingEarningsData.pendingActions) || 0;
-    
-    // SAFETY: Validate ranges
-    if (pendingGross < 0) pendingGross = 0;
-    if (pendingActions < 0) pendingActions = 0;
+    } catch (error) {
+      console.error('[Earnings Summary] Error fetching pending earnings:', error.message);
+    }
 
-    // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database - SECURE
+    // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database
+    // URGENT FIX: Revert to original query structure (database doesn't have new columns yet)
     const approvedEarnings = await prisma.earning.findMany({
       where: { 
-        creatorId: req.user.id, // Already secure - uses req.user.id
-        status: { in: ['COMPLETED', 'PROCESSING'] },
+        creatorId: req.user.id,
+        status: { in: ['COMPLETED', 'PROCESSING'] }, // Include completed and processing earnings
         createdAt: {
-          gte: new Date(dateRange.startDateISO),
-          lte: new Date(dateRange.endDateISO)
+          gte: new Date(`${startDate}T00:00:00Z`),
+          lte: new Date(`${endDate}T23:59:59Z`)
         }
       },
       select: { 
-        id: true,
         amount: true, 
-        status: true,
-        createdAt: true,
-        creatorId: true // For validation
+        status: true
       }
     });
     
-    // validateEarningsOwnership already imported at module level
-    const validatedEarnings = validateEarningsOwnership(approvedEarnings, req.user.id);
-    
     // Separate approved earnings: ready for withdrawal vs total approved
-    const completedEarnings = validatedEarnings.filter(e => e.status === 'COMPLETED');
+    // SAFETY: Use existing amount field (already calculated correctly when created)
+    const completedEarnings = approvedEarnings.filter(e => e.status === 'COMPLETED');
     const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const totalApprovedAmount = validatedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
-    console.log(`[Earnings Summary] 📊 Database earnings (secure):`, {
-      totalFound: approvedEarnings.length,
-      validated: validatedEarnings.length,
-      completed: completedEarnings.length,
-      totalApprovedAmount,
-      availableForWithdraw,
-      dateRange: `${dateRange.startDate} to ${dateRange.endDate}`
+    // CRITICAL DEBUG: Show actual earnings data
+    console.log(`[Earnings Summary] 🔍 DEBUGGING EARNINGS:`)
+    console.log(`[Earnings Summary] 📊 Total approved earnings found: ${approvedEarnings.length}`);
+    console.log(`[Earnings Summary] 💰 Total approved amount: $${totalApprovedAmount}`);
+    console.log(`[Earnings Summary] 💰 Available for withdraw: $${availableForWithdraw}`);
+    console.log(`[Earnings Summary] 📅 Date range: ${startDate} to ${endDate}`);
+    
+    // Check if there are ANY earnings for this creator (not just in date range)
+    const allEarnings = await prisma.earning.findMany({
+      where: { creatorId: req.user.id },
+      select: { amount: true, status: true, createdAt: true }
     });
+    console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
+    console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
     
     // EMERGENCY DISABLE: Remove all snapshot logic that might be causing inflated earnings
     console.log(`[Earnings Summary] 🚨 EMERGENCY MODE: All snapshot logic disabled`);
@@ -953,69 +942,26 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       revenue: pendingGross
     };
 
-    // 5. Data Consistency Validation
-    const responses = {
-      pendingEarnings: pendingEarningsData,
-      approvedEarnings: { earnings: validatedEarnings, totalAmount: totalApprovedAmount },
-      payouts: { totalRequested: totalPayoutsRequested }
-    };
-    
-    const consistency = validateDataConsistency(responses, {
-      creatorId: creator.id,
-      requestId,
-      dateRanges: [dateRange],
-      expectedSubId1: pendingEarningsData.subId1
-    });
-    
-    // Build final summary with consistency metadata and safety checks
     const summary = {
-      commissionEarned: Math.max(0, parseFloat((commissionEarned || 0).toFixed(2))),
-      availableForWithdraw: Math.max(0, parseFloat((availableForWithdraw || 0).toFixed(2))),
-      pendingApproval: Math.max(0, parseFloat((pendingNet || 0).toFixed(2))),
-      totalEarnings: Math.max(0, parseFloat((totalEarnings || 0).toFixed(2))),
-      payoutsRequested: Math.max(0, parseFloat((totalPayoutsRequested || 0).toFixed(2))),
+      commissionEarned: parseFloat(commissionEarned.toFixed(2)), // Pending + All approved commissions (COMPLETED + PROCESSING)
+      availableForWithdraw: parseFloat(availableForWithdraw.toFixed(2)), // Only COMPLETED earnings ready for withdrawal
+      pendingApproval: parseFloat(pendingNet.toFixed(2)), // Pending commissions from Impact.com with business rate applied
+      totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+      payoutsRequested: parseFloat(totalPayoutsRequested.toFixed(2)),
       analytics,
       period: {
-        requestedDays: dateRange.requestedDays,
-        effectiveDays: dateRange.effectiveDays,
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        isCustomRange: dateRange.isCustomRange
+        requestedDays,
+        effectiveDays,
+        startDate,
+        endDate
       },
       creator: {
         commissionRate: rate,
         impactSubId: creator?.impactSubId
-      },
-      // Metadata for debugging and monitoring
-      _metadata: {
-        requestId,
-        dataConsistency: {
-          isConsistent: consistency.isConsistent,
-          warnings: consistency.warnings.length,
-          errors: consistency.errors.length
-        },
-        dataSource: pendingEarningsData.dataSource || 'database_only',
-        cached: pendingEarningsData._cached || false,
-        timestamp: new Date().toISOString()
       }
     };
-    
-    // Log consistency issues if any
-    if (!consistency.isConsistent) {
-      console.error(`[Earnings Summary] Data consistency errors for ${requestId}:`, consistency.errors);
-    }
-    
-    if (consistency.warnings.length > 0) {
-      console.warn(`[Earnings Summary] Data consistency warnings for ${requestId}:`, consistency.warnings);
-    }
 
-    console.log(`[Earnings Summary] Final summary for ${requestId}:`, {
-      commissionEarned,
-      availableForWithdraw,
-      pendingApproval: pendingNet,
-      dataConsistent: consistency.isConsistent,
-      cached: pendingEarningsData._cached
-    });
+    console.log(`[Earnings Summary] Final summary:`, summary);
 
     res.json(summary);
 
@@ -1285,11 +1231,9 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
   }
 });
 
-// NEW: Enhanced Analytics with Real Impact.com Data (FIXED)
+// NEW: Enhanced Analytics with Real Impact.com Data
 router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (req, res) => {
   try {
-    // All utilities already imported at module level for safety
-    
     const prisma = getPrisma();
     if (!prisma) return res.json({ 
       earningsTrend: [], 
@@ -1298,76 +1242,79 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       recentActivity: []
     });
     
-    // Generate request ID for tracking consistency with earnings-summary
-    const requestId = generateRequestId();
-    console.log(`[Analytics Enhanced] Processing request ${requestId} for creator ${req.user.id}`);
+    // Use the SAME date calculation method as earnings-summary (proven working)
+    const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+    const now = new Date();
     
-    // Use EXACT same date calculation as earnings-summary
-    const dateRange = calculateDateRange({
-      days: req.query.days,
-      startDate: req.query.startDate,
-      endDate: req.query.endDate
-    });
+    console.log(`[Analytics Enhanced] Using SAME method as earnings-summary for ${requestedDays} days`);
     
-    console.log(`[Analytics Enhanced] Using SAME date range as earnings-summary:`, dateRange);
+    // Use the same simple, proven date calculation as earnings-summary
+    const effectiveDays = requestedDays;
+    const endDate = now.toISOString().split('T')[0];
+    const startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    
+    console.log(`[Analytics Enhanced] Using proven date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    console.log(`[Analytics Enhanced] This matches earnings-summary date calculation`);
 
-    // Use smart caching instead of no-cache headers
-    // res.set('Cache-Control', 'public, max-age=300'); // 5 minute cache
+    // Set cache control headers to prevent caching issues
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
     
-    // 1. Get Real Impact.com Data (Real Clicks + Commissionable Sales Only) - SECURE
-    const analyticsData = await withCache('analytics', req.user.id, dateRange, async () => {
-      try {
-        const ImpactWebService = require('../services/impactWebService');
-        const impact = new ImpactWebService();
-        
-        // Get creator with validation
-        const creator = await prisma.creator.findUnique({
-          where: { id: req.user.id },
-          select: { id: true, impactSubId: true, commissionRate: true }
-        });
-        
-        // Validate and get secure SubId1
-        const subIdValidation = validateAndGetSubId1(creator, impact);
-        if (!subIdValidation.isValid) {
-          console.error(`[Analytics Enhanced] SubId1 validation failed: ${subIdValidation.error}`);
-          return { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0, error: subIdValidation.error };
-        }
-        
-        const correctSubId1 = subIdValidation.subId1;
-        const businessRate = creator?.commissionRate || 70;
-        console.log(`[Analytics Enhanced] Using validated SubId1: ${correctSubId1} (source: ${subIdValidation.source})`);
+    // 1. Get Real Impact.com Data (Real Clicks + Commissionable Sales Only)
+    let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
+    try {
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
+      
+      // Get creator's SubId1
+      const creator = await prisma.creator.findUnique({
+        where: { id: req.user.id },
+        select: { impactSubId: true, commissionRate: true }
+      });
+      
+      const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+      
+      if (correctSubId1 && correctSubId1 !== 'default') {
+        console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
         // Step 1: Get REAL clicks from Performance by SubId report
-        let realClicks = 0;
         const performanceData = await impact.getPerformanceBySubId({
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
+          startDate,
+          endDate,
           subId1: correctSubId1
         });
         
+        let realClicks = 0;
         if (performanceData.success && performanceData.data) {
           realClicks = performanceData.data.clicks || 0;
           console.log(`[Analytics Enhanced] ✅ Real clicks from Performance report: ${realClicks}`);
         }
         
-        // Step 2: Get COMMISSIONABLE sales with secure filtering
+        // Step 2: Get COMMISSIONABLE sales only from Actions API
         let realConversions = 0;
         let realRevenue = 0;
         
         const detailedActions = await impact.getActionsDetailed({
-          startDate: dateRange.startDateISO,
-          endDate: dateRange.endDateISO,
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
           subId1: correctSubId1,
           actionType: 'SALE',
           pageSize: 1000
         });
         
         if (detailedActions.success && detailedActions.actions) {
-          // Use secure creator action filtering
-          const creatorActions = filterCreatorActions(detailedActions.actions, correctSubId1, creator.id);
+          // Filter for this creator's actions
+          const creatorActions = detailedActions.actions.filter(action => 
+            action.SubId1 === correctSubId1
+          );
           
-          // Filter for commissionable actions only
-          const commissionableActions = filterCommissionableActions(creatorActions, creator.id);
+          // Filter for ONLY commissionable actions (commission > 0)
+          const commissionableActions = creatorActions.filter(action => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
           
           realConversions = commissionableActions.length;
           
@@ -1376,11 +1323,11 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
           
+          const businessRate = creator?.commissionRate || 70;
           realRevenue = (grossRevenue * businessRate) / 100;
           
-          console.log(`[Analytics Enhanced] ✅ Secure filtering complete:`);
-          console.log(`  - Original actions: ${detailedActions.actions.length}`);
-          console.log(`  - Creator actions: ${creatorActions.length}`);
+          console.log(`[Analytics Enhanced] ✅ COMMISSIONABLE ONLY filtering:`);
+          console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${realConversions}`);
           console.log(`  - Gross commission: $${grossRevenue.toFixed(2)}`);
           console.log(`  - Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
@@ -1391,26 +1338,23 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         const realConversionRate = realClicks > 0 ? 
           parseFloat(((realConversions / realClicks) * 100).toFixed(2)) : 0;
         
-        return {
+        impactData = {
           clicks: realClicks,
           conversions: realConversions,
           revenue: realRevenue,
-          conversionRate: realConversionRate,
-          dataSource: 'impact_secure',
-          subId1: correctSubId1
+          conversionRate: realConversionRate
         };
-      } catch (error) {
-        console.error('[Analytics Enhanced] Error fetching Impact.com data:', error.message);
-        return { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0, error: error.message };
+        
+        console.log(`[Analytics Enhanced] ✅ FINAL REAL DATA:`, {
+          clicks: realClicks,
+          commissionableConversions: realConversions,
+          revenue: realRevenue.toFixed(2),
+          conversionRate: realConversionRate + '%'
+        });
       }
-    });
-    
-    const impactData = {
-      clicks: analyticsData.clicks || 0,
-      conversions: analyticsData.conversions || 0,
-      revenue: analyticsData.revenue || 0,
-      conversionRate: analyticsData.conversionRate || 0
-    };
+    } catch (error) {
+      console.error('[Analytics Enhanced] Error fetching Impact.com data:', error.message);
+    }
     
     // 2. Get Database Data as Fallback
     const linkAgg = await prisma.link.aggregate({
@@ -1531,24 +1475,14 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         lastClick: activity.createdAt,
         createdAt: activity.createdAt
       })),
-      dataSource: hasImpactData ? analyticsData.dataSource : 'database_fallback',
-      // Metadata for consistency with earnings-summary
-      _metadata: {
-        requestId,
-        dateRange,
-        dataSource: hasImpactData ? analyticsData.dataSource : 'database_fallback',
-        cached: analyticsData._cached || false,
-        subId1: analyticsData.subId1,
-        timestamp: new Date().toISOString()
-      }
+      dataSource: impactData.conversions > 0 ? 'impact_com' : 'database_fallback'
     };
     
-    console.log(`[Analytics Enhanced] Response for ${requestId}:`, {
+    console.log(`[Analytics Enhanced] Response:`, {
       clicks: response.performanceMetrics.clicks,
       conversions: response.performanceMetrics.conversions,
       revenue: response.performanceMetrics.revenue,
-      dataSource: response.dataSource,
-      cached: analyticsData._cached
+      dataSource: response.dataSource
     });
     
     res.json(response);
