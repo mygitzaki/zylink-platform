@@ -1,4 +1,4 @@
 RAILWAY DEPLOYMENT TRIGGER
 This file forces Railway to redeploy with the latest code
-Timestamp: 2025-08-29T21:17:00.000Z
-Reason: Fix database schema mismatch - ensure CRYPTO_WALLET enum exists in production DB
+Timestamp: 2025-09-01T02:27:30.000Z
+Reason: CRITICAL - Migrate database schema to create EarningsSnapshot and EarningsReversal tables for point-in-time earnings system
