@@ -892,32 +892,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // NEW: Forward-only commission rate calculation with safety fallbacks
     let pendingNet = 0;
     
-    try {
-      // Check if we have any earnings with stored commission rates (new system)
-      const earningsWithStoredRates = await prisma.earning.findFirst({
-        where: { 
-          creatorId: req.user.id,
-          appliedCommissionRate: { not: null }
-        }
-      });
-      
-      if (earningsWithStoredRates) {
-        console.log(`[Earnings Summary] ✅ Forward-only system active - but pending earnings use current rate`);
-        // SAFETY: For pending earnings, always use current rate since they're not yet stored in DB
-        // This is correct behavior - pending earnings should use current rate
-        pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-        console.log(`[Earnings Summary] 📊 Pending calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
-      } else {
-        console.log(`[Earnings Summary] ⚠️ Legacy system active - using current rate for all calculations`);
-        // SAFETY: Exact same calculation as before - zero change to existing behavior
-        pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-        console.log(`[Earnings Summary] 📊 Legacy calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
-      }
-    } catch (rateCheckError) {
-      console.log(`[Earnings Summary] ❌ Rate check failed, using legacy calculation:`, rateCheckError.message);
-      // Ultimate fallback - use current system
-      pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-    }
+    // IMMEDIATE FIX: Use legacy calculation for now until we have earnings with stored rates
+    console.log(`[Earnings Summary] 🔄 Using safe legacy calculation (Phase 3 rollback)`);
+    pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+    console.log(`[Earnings Summary] 📊 Safe calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
     
     const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
     const totalEarnings = commissionEarned;
