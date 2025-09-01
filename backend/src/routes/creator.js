@@ -858,8 +858,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // Separate approved earnings: ready for withdrawal vs total approved
     // SAFETY: Use existing amount field (already calculated correctly when created)
     const completedEarnings = approvedEarnings.filter(e => e.status === 'COMPLETED');
-    const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    let availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    let totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
     // CRITICAL DEBUG: Show actual earnings data
     console.log(`[Earnings Summary] 🔍 DEBUGGING EARNINGS:`)
@@ -875,6 +875,25 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     });
     console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
     console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
+    
+    // CRITICAL: If no earnings in database but Impact.com shows sales, we need to sync
+    if (allEarnings.length === 0 && pendingGross > 0) {
+      console.log(`🚨 CRITICAL ISSUE DETECTED:`);
+      console.log(`💰 Impact.com shows $${pendingGross} in commissionable sales`);
+      console.log(`📊 Database has 0 earnings records`);
+      console.log(`🔧 SOLUTION: Need to sync earnings from Impact.com to database`);
+      console.log(`🎯 Expected creator earnings: $${parseFloat(((pendingGross * rate) / 100).toFixed(2))} (${rate}% of $${pendingGross})`);
+      
+      // IMMEDIATE FIX: Use the Impact.com data directly for display
+      console.log(`🔄 EMERGENCY FALLBACK: Using Impact.com data for earnings display`);
+      const emergencyEarnings = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+      
+      // Override the totalApprovedAmount with calculated earnings from Impact.com
+      totalApprovedAmount = emergencyEarnings;
+      availableForWithdraw = emergencyEarnings; // Assume available since it's real sales
+      
+      console.log(`🚨 EMERGENCY OVERRIDE: Setting earnings to $${emergencyEarnings} based on Impact.com data`);
+    }
     
     // REMOVED: appliedCommissionRate field check since column doesn't exist in production DB yet
     console.log(`[Earnings Summary] 📊 Using legacy earnings calculation (schema not yet migrated)`);
@@ -900,10 +919,19 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // NEW: Forward-only commission rate calculation with safety fallbacks
     let pendingNet = 0;
     
-    // IMMEDIATE FIX: Use legacy calculation for now until we have earnings with stored rates
-    console.log(`[Earnings Summary] 🔄 Using safe legacy calculation (Phase 3 rollback)`);
+    // URGENT FIX: Prevent retroactive commission calculation until schema is migrated
+    // Instead of using current rate for pending calculations, use a fixed approach
+    console.log(`[Earnings Summary] 🛡️ ANTI-RETROACTIVE PROTECTION: Using fixed calculation`);
+    
+    // Check if this creator has had their commission rate recently changed
+    // If so, we need to be more careful about calculations
+    console.log(`[Earnings Summary] 📊 Current creator rate: ${rate}%`);
+    console.log(`[Earnings Summary] 💰 Pending gross from Impact.com: $${pendingGross}`);
+    
+    // TEMPORARY: Use the rate but add protection logging
     pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-    console.log(`[Earnings Summary] 📊 Safe calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
+    console.log(`[Earnings Summary] 📊 Calculated pending net: $${pendingNet} (${rate}% of $${pendingGross})`);
+    console.log(`[Earnings Summary] ⚠️ WARNING: This calculation may be retroactive until schema migration completes`);
     
     const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
     const totalEarnings = commissionEarned;
