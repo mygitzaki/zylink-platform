@@ -865,11 +865,24 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
-    // SAFETY LOG: Show how many earnings have stored rates vs legacy
+    // CRITICAL DEBUG: Show actual earnings data
+    console.log(`[Earnings Summary] 🔍 DEBUGGING EARNINGS:`)
+    console.log(`[Earnings Summary] 📊 Total approved earnings found: ${approvedEarnings.length}`);
+    console.log(`[Earnings Summary] 💰 Total approved amount: $${totalApprovedAmount}`);
+    console.log(`[Earnings Summary] 💰 Available for withdraw: $${availableForWithdraw}`);
+    console.log(`[Earnings Summary] 📅 Date range: ${startDate} to ${endDate}`);
+    
+    // Check if there are ANY earnings for this creator (not just in date range)
+    const allEarnings = await prisma.earning.findMany({
+      where: { creatorId: req.user.id },
+      select: { amount: true, status: true, createdAt: true }
+    });
+    console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
+    console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
+    
     const earningsWithStoredRates = approvedEarnings.filter(e => e.appliedCommissionRate !== null).length;
     const earningsWithLegacyRates = approvedEarnings.filter(e => e.appliedCommissionRate === null).length;
     console.log(`[Earnings Summary] 📊 Earnings breakdown: ${earningsWithStoredRates} with stored rates, ${earningsWithLegacyRates} legacy`);
-    console.log(`[Earnings Summary] 💰 Total approved amount: $${totalApprovedAmount} (using existing calculated amounts)`);
     
     // IMPORTANT: We use existing 'amount' field which is already correctly calculated
     // This ensures no retroactive changes to historical earnings
