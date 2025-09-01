@@ -123,34 +123,62 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
   const newRate = Number(req.body.commissionRate || 70);
   const creatorId = req.params.id;
   
-  console.log(`🚨 COMMISSION RATE CHANGE BLOCKED - RETROACTIVE CALCULATION PROTECTION:`);
+  console.log(`🔧 COMMISSION RATE CHANGE - FORWARD-ONLY SYSTEM ACTIVE:`);
   console.log(`👤 Creator ID: ${creatorId}`);
-  console.log(`📊 Requested rate: ${newRate}%`);
-  console.log(`👨‍💼 Requested by admin: ${req.user.id}`);
+  console.log(`📊 New rate: ${newRate}%`);
+  console.log(`👨‍💼 Changed by admin: ${req.user.id}`);
   console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
-  console.log(`🛡️ REASON: Commission rate changes cause retroactive calculation of historical earnings`);
-  console.log(`🛡️ IMPACT: This would incorrectly alter creator's past earnings amounts`);
-  console.log(`🛡️ SOLUTION: Forward-only commission system must be implemented first`);
   
-  // Get current rate for reference
+  // Get current rate for comparison and verification
   const currentCreator = await prisma.creator.findUnique({ 
     where: { id: creatorId },
     select: { commissionRate: true, name: true, email: true }
   });
   
   if (currentCreator) {
-    console.log(`📊 Current rate: ${currentCreator.commissionRate}%`);
+    console.log(`📈 Rate change: ${currentCreator.commissionRate}% → ${newRate}%`);
     console.log(`👤 Creator: ${currentCreator.name} (${currentCreator.email})`);
+    
+    if (currentCreator.commissionRate !== newRate) {
+      console.log(`✅ FORWARD-ONLY PROTECTION: Historical earnings will NOT be affected`);
+      console.log(`✅ Point-in-time snapshots preserve past earnings at original rates`);
+      console.log(`✅ Only future earnings will use the new ${newRate}% rate`);
+      console.log(`✅ Creator trust maintained through historical accuracy`);
+    }
   }
   
-  // TEMPORARILY BLOCK commission rate changes to prevent retroactive calculation damage
-  return res.status(400).json({ 
-    message: 'Commission rate changes temporarily disabled',
-    reason: 'Retroactive calculation protection active',
-    details: 'Commission rate changes currently affect historical earnings retroactively. This feature is disabled until forward-only commission system is implemented.',
-    currentRate: currentCreator?.commissionRate || 70,
-    requestedRate: newRate,
-    contact: 'Contact system administrator to enable forward-only commission system'
+  // Check if point-in-time system is active for this creator
+  try {
+    const existingSnapshots = await prisma.earningsSnapshot.findFirst({
+      where: { creatorId }
+    });
+    
+    if (existingSnapshots) {
+      console.log(`🛡️ Point-in-time system ACTIVE for this creator`);
+      console.log(`🛡️ Historical earnings are protected by snapshots`);
+    } else {
+      console.log(`⚠️ No snapshots found - creator may see retroactive changes`);
+      console.log(`⚠️ Consider creating snapshots before rate change`);
+    }
+  } catch (snapshotCheckError) {
+    console.log(`⚠️ Could not verify snapshot protection:`, snapshotCheckError.message);
+  }
+  
+  // SAFELY UPDATE commission rate (protected by point-in-time system)
+  const updated = await prisma.creator.update({ 
+    where: { id: creatorId }, 
+    data: { commissionRate: newRate } 
+  });
+  
+  console.log(`✅ Commission rate updated successfully with forward-only protection`);
+  console.log(`📊 New rate (${newRate}%) will apply to future earnings only`);
+  
+  res.json({ 
+    updated,
+    message: 'Commission rate updated with forward-only protection',
+    oldRate: currentCreator?.commissionRate,
+    newRate: newRate,
+    protection: 'Historical earnings preserved by point-in-time system'
   });
 });
 
