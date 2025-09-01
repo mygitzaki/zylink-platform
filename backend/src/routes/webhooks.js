@@ -43,7 +43,7 @@ router.post('/impact-conversion', async (req, res) => {
     }
 
     // Record creator commission WITH commission rate data (forward-only system)
-    await prisma.earning.create({
+    const newEarning = await prisma.earning.create({
       data: {
         creatorId: resolvedCreatorId,
         linkId: link?.id || null,
@@ -58,6 +58,31 @@ router.post('/impact-conversion', async (req, res) => {
       },
     });
 
+    // PHASE 3: Create point-in-time earnings snapshot (ULTRA-SAFE)
+    // This preserves the earning amount with the commission rate at this moment
+    try {
+      await prisma.earningsSnapshot.create({
+        data: {
+          creatorId: resolvedCreatorId,
+          linkId: link?.id || null,
+          originalAmount: creatorAmount,
+          commissionRate: creator?.commissionRate ?? 70,
+          grossAmount: baseCommission,
+          type: 'COMMISSION',
+          source: 'WEBHOOK',
+          impactTransactionId: transactionId || null,
+          earnedAt: new Date(),
+          rateEffectiveDate: new Date()
+        }
+      });
+      
+      console.log(`[Webhook Snapshot] ✅ Created snapshot: $${creatorAmount} at ${creator?.commissionRate ?? 70}% rate`);
+      console.log(`[Webhook Snapshot] 🛡️ This earning is now locked at current rate forever`);
+    } catch (snapshotError) {
+      console.log(`[Webhook Snapshot] ⚠️ Snapshot creation failed (non-critical):`, snapshotError.message);
+      // Don't fail the webhook if snapshot fails - earning is still recorded normally
+    }
+
     // Referral bonus: 10% of creatorAmount within active window
     const now = new Date();
     const referral = await prisma.referralEarning.findFirst({
@@ -69,7 +94,7 @@ router.post('/impact-conversion', async (req, res) => {
     });
     if (referral) {
       const bonus = +(creatorAmount * 0.10).toFixed(2);
-      await prisma.earning.create({
+      const referralEarning = await prisma.earning.create({
         data: {
           creatorId: referral.referrerId,
           linkId: link?.id || null,
@@ -83,6 +108,28 @@ router.post('/impact-conversion', async (req, res) => {
           rateEffectiveDate: new Date()
         },
       });
+
+      // PHASE 3: Create snapshot for referral bonus too (ULTRA-SAFE)
+      try {
+        await prisma.earningsSnapshot.create({
+          data: {
+            creatorId: referral.referrerId,
+            linkId: link?.id || null,
+            originalAmount: bonus,
+            commissionRate: 10, // Referral bonus rate
+            grossAmount: creatorAmount,
+            type: 'REFERRAL_BONUS',
+            source: 'WEBHOOK',
+            impactTransactionId: transactionId || null,
+            earnedAt: new Date(),
+            rateEffectiveDate: new Date()
+          }
+        });
+        
+        console.log(`[Webhook Snapshot] ✅ Created referral snapshot: $${bonus} at 10% rate`);
+      } catch (snapshotError) {
+        console.log(`[Webhook Snapshot] ⚠️ Referral snapshot failed (non-critical):`, snapshotError.message);
+      }
       await prisma.referralEarning.update({ where: { id: referral.id }, data: { amount: { increment: bonus } } });
     }
 
