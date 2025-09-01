@@ -858,8 +858,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // Separate approved earnings: ready for withdrawal vs total approved
     // SAFETY: Use existing amount field (already calculated correctly when created)
     const completedEarnings = approvedEarnings.filter(e => e.status === 'COMPLETED');
-    let availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    let totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     
     // CRITICAL DEBUG: Show actual earnings data
     console.log(`[Earnings Summary] 🔍 DEBUGGING EARNINGS:`)
@@ -876,24 +876,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
     console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
     
-    // CRITICAL: If no earnings in database but Impact.com shows sales, we need to sync
-    if (allEarnings.length === 0 && pendingGross > 0) {
-      console.log(`🚨 CRITICAL ISSUE DETECTED:`);
-      console.log(`💰 Impact.com shows $${pendingGross} in commissionable sales`);
-      console.log(`📊 Database has 0 earnings records`);
-      console.log(`🔧 SOLUTION: Need to sync earnings from Impact.com to database`);
-      console.log(`🎯 Expected creator earnings: $${parseFloat(((pendingGross * rate) / 100).toFixed(2))} (${rate}% of $${pendingGross})`);
-      
-      // IMMEDIATE FIX: Use the Impact.com data directly for display
-      console.log(`🔄 EMERGENCY FALLBACK: Using Impact.com data for earnings display`);
-      const emergencyEarnings = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-      
-      // Override the totalApprovedAmount with calculated earnings from Impact.com
-      totalApprovedAmount = emergencyEarnings;
-      availableForWithdraw = emergencyEarnings; // Assume available since it's real sales
-      
-      console.log(`🚨 EMERGENCY OVERRIDE: Setting earnings to $${emergencyEarnings} based on Impact.com data`);
-    }
+    // REMOVED: Emergency override that was doubling earnings
+    console.log(`[Earnings Summary] 🔍 Database earnings analysis complete`);
     
     // REMOVED: appliedCommissionRate field check since column doesn't exist in production DB yet
     console.log(`[Earnings Summary] 📊 Using legacy earnings calculation (schema not yet migrated)`);
