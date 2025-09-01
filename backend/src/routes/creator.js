@@ -839,6 +839,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     }
 
     // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database
+    // NEW: Include commission rate fields for forward-only calculation
     const approvedEarnings = await prisma.earning.findMany({
       where: { 
         creatorId: req.user.id,
@@ -848,13 +849,30 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           lte: new Date(`${endDate}T23:59:59Z`)
         }
       },
-      select: { amount: true, status: true }
+      select: { 
+        amount: true, 
+        status: true,
+        // NEW: Include commission rate fields for forward-only system
+        appliedCommissionRate: true,
+        grossAmount: true,
+        rateEffectiveDate: true
+      }
     });
     
     // Separate approved earnings: ready for withdrawal vs total approved
+    // SAFETY: Use existing amount field (already calculated correctly when created)
     const completedEarnings = approvedEarnings.filter(e => e.status === 'COMPLETED');
     const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    
+    // SAFETY LOG: Show how many earnings have stored rates vs legacy
+    const earningsWithStoredRates = approvedEarnings.filter(e => e.appliedCommissionRate !== null).length;
+    const earningsWithLegacyRates = approvedEarnings.filter(e => e.appliedCommissionRate === null).length;
+    console.log(`[Earnings Summary] 📊 Earnings breakdown: ${earningsWithStoredRates} with stored rates, ${earningsWithLegacyRates} legacy`);
+    console.log(`[Earnings Summary] 💰 Total approved amount: $${totalApprovedAmount} (using existing calculated amounts)`);
+    
+    // IMPORTANT: We use existing 'amount' field which is already correctly calculated
+    // This ensures no retroactive changes to historical earnings
     
     console.log(`[Earnings Summary] Total approved earnings (COMPLETED + PROCESSING): $${totalApprovedAmount}`);
     console.log(`[Earnings Summary] Available for withdraw (COMPLETED only): $${availableForWithdraw}`);
@@ -871,7 +889,36 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     const totalPayoutsRequested = payoutsRequested.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
     // 4. Calculate Totals - Commission Earned should show Pending + ALL Approved (as stated in UI)
-    const pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+    // NEW: Forward-only commission rate calculation with safety fallbacks
+    let pendingNet = 0;
+    
+    try {
+      // Check if we have any earnings with stored commission rates (new system)
+      const earningsWithStoredRates = await prisma.earning.findFirst({
+        where: { 
+          creatorId: req.user.id,
+          appliedCommissionRate: { not: null }
+        }
+      });
+      
+      if (earningsWithStoredRates) {
+        console.log(`[Earnings Summary] ✅ Forward-only system active - but pending earnings use current rate`);
+        // SAFETY: For pending earnings, always use current rate since they're not yet stored in DB
+        // This is correct behavior - pending earnings should use current rate
+        pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+        console.log(`[Earnings Summary] 📊 Pending calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
+      } else {
+        console.log(`[Earnings Summary] ⚠️ Legacy system active - using current rate for all calculations`);
+        // SAFETY: Exact same calculation as before - zero change to existing behavior
+        pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+        console.log(`[Earnings Summary] 📊 Legacy calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
+      }
+    } catch (rateCheckError) {
+      console.log(`[Earnings Summary] ❌ Rate check failed, using legacy calculation:`, rateCheckError.message);
+      // Ultimate fallback - use current system
+      pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+    }
+    
     const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
     const totalEarnings = commissionEarned;
 
@@ -937,8 +984,8 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
     // Try to find in main table first
     try {
       paymentAccount = await prisma.paymentAccount.findUnique({
-        where: { creatorId: req.user.id }
-      });
+      where: { creatorId: req.user.id }
+    });
       console.log('✅ Main table query result:', paymentAccount ? 'Found' : 'Not found');
     } catch (mainTableError) {
       console.log('⚠️ Main table query failed:', mainTableError.message);
@@ -971,7 +1018,7 @@ router.get('/payment-setup', requireAuth, async (req, res) => {
     // Map schema enum values back to frontend values
     const frontendTypeMapping = {
       'BANK_ACCOUNT': 'BANK',
-      'PAYPAL': 'PAYPAL',
+      'PAYPAL': 'PAYPAL', 
       'CRYPTO_WALLET': 'CRYPTO'
     };
     
@@ -1013,7 +1060,7 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
     // Map frontend type to schema enum values
     const accountTypeMapping = {
       'BANK': 'BANK_ACCOUNT',
-      'PAYPAL': 'PAYPAL',
+      'PAYPAL': 'PAYPAL', 
       'CRYPTO': 'CRYPTO_WALLET'
     };
     
@@ -1052,7 +1099,7 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
         // Update existing record
         console.log('📝 Updating existing payment account:', existing.id);
         upserted = await prisma.paymentAccount.update({
-          where: { creatorId: req.user.id },
+      where: { creatorId: req.user.id },
           data: { accountType, accountDetails, updatedAt: new Date() }
         });
       } else {
