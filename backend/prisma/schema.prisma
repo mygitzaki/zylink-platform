@@ -74,6 +74,11 @@ model Earning {
   status              PaymentStatus @default(PENDING)
   impactTransactionId String?
   createdAt           DateTime      @default(now())
+  
+  // NEW: Forward-only commission rate fields (nullable for backwards compatibility)
+  appliedCommissionRate Int?        // Commission rate used when this earning was created
+  grossAmount          Decimal?     // Original Impact.com amount before commission calculation
+  rateEffectiveDate    DateTime?    // When this commission rate was effective
 
   creator             Creator       @relation(fields: [creatorId], references: [id])
   link                Link?         @relation(fields: [linkId], references: [id])
@@ -195,6 +200,7 @@ enum PayoutStatus {
 enum PaymentAccountType {
   BANK_ACCOUNT
   PAYPAL
+  CRYPTO_WALLET
 }
 
 enum AdminRole {
