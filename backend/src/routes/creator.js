@@ -911,8 +911,35 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     
     console.log(`[Earnings Summary] 🔍 Database earnings analysis complete`);
     
-    // REMOVED: appliedCommissionRate field check since column doesn't exist in production DB yet
-    console.log(`[Earnings Summary] 📊 Using legacy earnings calculation (schema not yet migrated)`);
+    // PHASE 4: Check if we should use snapshots for display (ULTRA-SAFE with fallbacks)
+    let useSnapshotSystem = false;
+    let snapshotEarnings = 0;
+    
+    try {
+      // Check if we have any snapshots for this creator
+      const snapshots = await prisma.earningsSnapshot.findMany({
+        where: { 
+          creatorId: req.user.id,
+          earnedAt: {
+            gte: new Date(`${startDate}T00:00:00Z`),
+            lte: new Date(`${endDate}T23:59:59Z`)
+          }
+        }
+      });
+      
+      if (snapshots.length > 0) {
+        useSnapshotSystem = true;
+        snapshotEarnings = snapshots.reduce((sum, s) => sum + Number(s.originalAmount || 0), 0);
+        console.log(`[Earnings Summary] ✅ Using snapshot system: ${snapshots.length} snapshots, $${snapshotEarnings} total`);
+        console.log(`[Earnings Summary] 🛡️ Point-in-time earnings - immune to commission rate changes`);
+      } else {
+        console.log(`[Earnings Summary] ⚠️ No snapshots found, using legacy calculation`);
+      }
+    } catch (snapshotError) {
+      console.log(`[Earnings Summary] ❌ Snapshot check failed, using legacy calculation:`, snapshotError.message);
+    }
+    
+    console.log(`[Earnings Summary] 📊 Display system: ${useSnapshotSystem ? 'Point-in-time snapshots' : 'Legacy calculation'}`);
     
     // IMPORTANT: We use existing 'amount' field which is already correctly calculated
     // This ensures no retroactive changes to historical earnings
@@ -944,10 +971,18 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     console.log(`[Earnings Summary] 📊 Current creator rate: ${rate}%`);
     console.log(`[Earnings Summary] 💰 Pending gross from Impact.com: $${pendingGross}`);
     
-    // TEMPORARY: Use the rate but add protection logging
-    pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-    console.log(`[Earnings Summary] 📊 Calculated pending net: $${pendingNet} (${rate}% of $${pendingGross})`);
-    console.log(`[Earnings Summary] ⚠️ WARNING: This calculation may be retroactive until schema migration completes`);
+    // PHASE 4: Use snapshots if available, with complete fallback protection
+    if (useSnapshotSystem && snapshotEarnings > 0) {
+      // Use point-in-time snapshots (immune to commission rate changes)
+      pendingNet = snapshotEarnings;
+      console.log(`[Earnings Summary] ✅ Using snapshot earnings: $${pendingNet} (point-in-time preserved)`);
+      console.log(`[Earnings Summary] 🛡️ These earnings are locked and immune to rate changes`);
+    } else {
+      // SAFETY FALLBACK: Use current calculation method
+      pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+      console.log(`[Earnings Summary] 🔄 Using legacy calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
+      console.log(`[Earnings Summary] ⚠️ This calculation may change if commission rate is modified`);
+    }
     
     const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
     const totalEarnings = commissionEarned;
