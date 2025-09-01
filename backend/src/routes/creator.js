@@ -876,7 +876,39 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     console.log(`[Earnings Summary] 🔍 Total earnings in database: ${allEarnings.length}`);
     console.log(`[Earnings Summary] 🔍 All earnings amounts:`, allEarnings.map(e => ({ amount: e.amount, status: e.status, date: e.createdAt })));
     
-    // REMOVED: Emergency override that was doubling earnings
+    // PHASE 2: Create snapshot of current pending earnings (ULTRA-SAFE)
+    // This preserves the current earnings state that creators see
+    if (allEarnings.length === 0 && pendingGross > 0) {
+      console.log(`[Earnings Snapshot] 📸 Creating snapshot of current pending earnings state`);
+      console.log(`[Earnings Snapshot] 💰 Impact.com gross: $${pendingGross}`);
+      console.log(`[Earnings Snapshot] 📊 Current commission rate: ${rate}%`);
+      console.log(`[Earnings Snapshot] 🎯 Calculated amount: $${parseFloat(((pendingGross * rate) / 100).toFixed(2))}`);
+      
+      // SAFETY: Only create snapshot, don't change any calculations yet
+      try {
+        const snapshotAmount = parseFloat(((pendingGross * rate) / 100).toFixed(2));
+        
+        // Create snapshot record (this doesn't affect current calculations)
+        await prisma.earningsSnapshot.create({
+          data: {
+            creatorId: req.user.id,
+            originalAmount: snapshotAmount,
+            commissionRate: rate,
+            grossAmount: pendingGross,
+            type: 'COMMISSION',
+            source: 'IMPACT_API',
+            earnedAt: new Date(), // Current time as earning time
+            rateEffectiveDate: new Date()
+          }
+        });
+        
+        console.log(`[Earnings Snapshot] ✅ Snapshot created successfully: $${snapshotAmount} at ${rate}%`);
+        console.log(`[Earnings Snapshot] 🛡️ This preserves current earnings state for historical accuracy`);
+      } catch (snapshotError) {
+        console.log(`[Earnings Snapshot] ⚠️ Snapshot creation failed (non-critical):`, snapshotError.message);
+      }
+    }
+    
     console.log(`[Earnings Summary] 🔍 Database earnings analysis complete`);
     
     // REMOVED: appliedCommissionRate field check since column doesn't exist in production DB yet
