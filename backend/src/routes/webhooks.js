@@ -42,7 +42,7 @@ router.post('/impact-conversion', async (req, res) => {
       await prisma.link.update({ where: { id: link.id }, data: { conversions: { increment: 1 }, revenue: { increment: baseCommission } } });
     }
 
-    // Record creator commission
+    // Record creator commission WITH commission rate data (forward-only system)
     await prisma.earning.create({
       data: {
         creatorId: resolvedCreatorId,
@@ -51,6 +51,10 @@ router.post('/impact-conversion', async (req, res) => {
         type: 'COMMISSION',
         status: 'PENDING',
         impactTransactionId: transactionId || null,
+        // NEW: Store commission rate data for forward-only system
+        appliedCommissionRate: creator?.commissionRate ?? 70,
+        grossAmount: baseCommission,
+        rateEffectiveDate: new Date()
       },
     });
 
@@ -73,6 +77,10 @@ router.post('/impact-conversion', async (req, res) => {
           type: 'REFERRAL_BONUS',
           status: 'PENDING',
           impactTransactionId: transactionId || null,
+          // NEW: Store commission rate data for referral bonuses too
+          appliedCommissionRate: 10, // Referral bonus is always 10%
+          grossAmount: creatorAmount, // Referral bonus is calculated from creator amount
+          rateEffectiveDate: new Date()
         },
       });
       await prisma.referralEarning.update({ where: { id: referral.id }, data: { amount: { increment: bonus } } });
