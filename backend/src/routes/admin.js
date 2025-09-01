@@ -119,7 +119,39 @@ router.put('/creators/:id/status', requireAuth, requireAdmin, async (req, res) =
 
 router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, res) => {
   if (!prisma) return res.status(503).json({ message: 'Database not configured' });
-  const updated = await prisma.creator.update({ where: { id: req.params.id }, data: { commissionRate: Number(req.body.commissionRate || 70) } });
+  
+  const newRate = Number(req.body.commissionRate || 70);
+  const creatorId = req.params.id;
+  
+  console.log(`🚨 COMMISSION RATE CHANGE ALERT:`);
+  console.log(`👤 Creator ID: ${creatorId}`);
+  console.log(`📊 New rate: ${newRate}%`);
+  console.log(`👨‍💼 Changed by admin: ${req.user.id}`);
+  console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+  
+  // Get current rate for comparison
+  const currentCreator = await prisma.creator.findUnique({ 
+    where: { id: creatorId },
+    select: { commissionRate: true, name: true, email: true }
+  });
+  
+  if (currentCreator) {
+    console.log(`📈 Rate change: ${currentCreator.commissionRate}% → ${newRate}%`);
+    console.log(`👤 Creator: ${currentCreator.name} (${currentCreator.email})`);
+    
+    if (currentCreator.commissionRate !== newRate) {
+      console.log(`⚠️ WARNING: This rate change affects future earnings only`);
+      console.log(`⚠️ Historical earnings should NOT be recalculated`);
+      console.log(`⚠️ If earnings display changes, this indicates retroactive calculation bug`);
+    }
+  }
+  
+  const updated = await prisma.creator.update({ 
+    where: { id: creatorId }, 
+    data: { commissionRate: newRate } 
+  });
+  
+  console.log(`✅ Commission rate updated successfully`);
   res.json({ updated });
 });
 
