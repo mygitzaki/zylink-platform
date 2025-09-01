@@ -1816,6 +1816,8 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
     const limitNumber = limit === 'all' ? 1000 : Math.max(1, Math.min(100, parseInt(limit) || 10));
 
     console.log(`[Sales History Simplified] Fetching sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
+    console.log(`[Sales History] 🔍 DEBUGGING: Creator ID: ${req.user.id}`);
+    console.log(`[Sales History] 🔍 DEBUGGING: Creator impactSubId: ${creator?.impactSubId}`);
 
     // Get commissionable sales from Impact.com (working approach - restored)
     let totalSales = 0;
@@ -1831,6 +1833,8 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
+        console.log(`[Sales History] 🔍 DEBUGGING: Date range: ${startDate} to ${endDate}`);
+        console.log(`[Sales History] 🔍 DEBUGGING: Impact.com API call starting...`);
         
         // Use the same Actions API that was working before
         const actionsResponse = await impact.getActionsDetailed({
