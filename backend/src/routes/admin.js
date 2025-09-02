@@ -847,16 +847,24 @@ router.post('/send-email', requireAuth, requireAdmin, async (req, res) => {
 
     if (sendToAll) {
       // Send to all active creators
-      const creators = await prisma.creator.findMany({
+      const allCreators = await prisma.creator.findMany({
         where: {
           isActive: true,
           applicationStatus: 'APPROVED',
-          email: { not: null },
           ...creatorFilter
         },
         select: { name: true, email: true, id: true }
       });
-      targetCreators = creators;
+      
+      // Filter for valid emails (post-query filtering to avoid Prisma issues)
+      const validCreators = allCreators.filter(creator => 
+        creator.email && 
+        creator.email.trim() !== '' && 
+        creator.email.includes('@')
+      );
+      
+      console.log(`📧 Send-email: Found ${allCreators.length} total, ${validCreators.length} with valid emails`);
+      targetCreators = validCreators;
     } else if (recipients && Array.isArray(recipients)) {
       // Send to specific recipients
       targetCreators = recipients.map(r => ({
