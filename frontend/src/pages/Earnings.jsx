@@ -592,13 +592,7 @@ export default function Earnings() {
                   <span className="font-mono text-xs text-gray-500">{selectedSale.actionId}</span>
                 </div>
 
-                {/* Creator Commission Rate */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Commission Rate</span>
-                  <span className="text-sm text-gray-700 font-medium">
-                    Standard Rate
-                  </span>
-                </div>
+
 
                 {/* Sale Date */}
                 <div className="flex justify-between items-center">
@@ -626,8 +620,10 @@ export default function Earnings() {
                     <span className="font-medium text-green-900">{formatCurrency(selectedSale.orderValue)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-green-700">Commission Type:</span>
-                    <span className="font-medium text-green-900">Affiliate Commission</span>
+                    <span className="text-green-700">Commission Rate:</span>
+                    <span className="font-medium text-green-900">
+                      {((selectedSale.commission / selectedSale.orderValue) * 100).toFixed(2)}%
+                    </span>
                   </div>
                   <div className="flex justify-between border-t border-green-200 pt-2">
                     <span className="text-green-700 font-medium">Your Earnings:</span>
