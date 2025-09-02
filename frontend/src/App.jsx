@@ -18,7 +18,7 @@ import CreatorApplication from './pages/CreatorApplication'
 import AdminOverview from './pages/admin/AdminOverview'
 import PendingApplications from './pages/admin/PendingApplications'
 import CreatorManagement from './pages/admin/CreatorManagement'
-import EmailManagement from './pages/admin/EmailManagement'
+import SimpleEmailSender from './pages/admin/SimpleEmailSender'
 import PerformanceAnalytics from './pages/admin/PerformanceAnalytics'
 import SystemSettings from './pages/admin/SystemSettings'
 import PayoutQueue from './pages/admin/PayoutQueue'
@@ -349,7 +349,7 @@ export default function App() {
             <Route path="/admin" element={<RequireAdmin><AdminOverview /></RequireAdmin>} />
             <Route path="/admin/pending-applications" element={<RequireAdmin><PendingApplications /></RequireAdmin>} />
             <Route path="/admin/creators" element={<RequireAdmin><CreatorManagement /></RequireAdmin>} />
-            <Route path="/admin/email-management" element={<RequireAdmin><EmailManagement /></RequireAdmin>} />
+            <Route path="/admin/email-management" element={<RequireAdmin><SimpleEmailSender /></RequireAdmin>} />
             <Route path="/admin/payout-queue" element={<RequireAdmin><PayoutQueue /></RequireAdmin>} />
             <Route path="/admin/performance-analytics" element={<RequireAdmin><PerformanceAnalytics /></RequireAdmin>} />
             <Route path="/admin/system-settings" element={<RequireAdmin><SystemSettings /></RequireAdmin>} />
