@@ -58,25 +58,22 @@ export default function SimpleEmailSender() {
     try {
       const emailData = {
         subject: customEmail.subject,
-        htmlContent: customEmail.useHtml ? customEmail.content : `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f4f4f4; padding: 20px;">
-            <div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px;">📢 Message from Zylike</h1>
-              </div>
-              
-              <div style="padding: 30px;">
-                <p>Dear {{CREATOR_NAME}},</p>
-                <div style="white-space: pre-line; line-height: 1.6;">${customEmail.content}</div>
-                <p style="margin-top: 30px;"><strong>Best regards,</strong><br>The Zylike Team</p>
-              </div>
-              
-              <div style="text-align: center; color: #666; font-size: 12px; padding: 20px; background: #f9f9f9;">
-                <p style="margin: 0;">© 2025 Zylike. All rights reserved.</p>
-              </div>
-            </div>
-          </div>
-        `,
+        htmlContent: customEmail.useHtml ? customEmail.content : 
+          '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f4f4f4; padding: 20px;">' +
+            '<div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">' +
+              '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">' +
+                '<h1 style="margin: 0; font-size: 24px;">📢 Message from Zylike</h1>' +
+              '</div>' +
+              '<div style="padding: 30px;">' +
+                '<p>Dear {{CREATOR_NAME}},</p>' +
+                '<div style="white-space: pre-line; line-height: 1.6;">' + customEmail.content + '</div>' +
+                '<p style="margin-top: 30px;"><strong>Best regards,</strong><br>The Zylike Team</p>' +
+              '</div>' +
+              '<div style="text-align: center; color: #666; font-size: 12px; padding: 20px; background: #f9f9f9;">' +
+                '<p style="margin: 0;">© 2025 Zylike. All rights reserved.</p>' +
+              '</div>' +
+            '</div>' +
+          '</div>',
         sendToAll: true
       }
 
@@ -514,7 +511,7 @@ export default function SimpleEmailSender() {
                     onClick={() => setCustomEmail({
                       ...customEmail,
                       subject: '🎉 New Feature Announcement',
-                      content: 'We\'re excited to announce a new feature that will help you earn more commissions!\n\n[Describe the new feature here]\n\nStart using it today in your dashboard.\n\nHappy earning!'
+                      content: 'We are excited to announce a new feature that will help you earn more commissions!\n\n[Describe the new feature here]\n\nStart using it today in your dashboard.\n\nHappy earning!'
                     })}
                     className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
@@ -526,7 +523,7 @@ export default function SimpleEmailSender() {
                     onClick={() => setCustomEmail({
                       ...customEmail,
                       subject: '💰 Commission Rate Update',
-                      content: 'Great news! We\'re updating commission rates to help you earn more.\n\n[Details about the rate change]\n\nThis change will take effect [date].\n\nKeep up the great work!'
+                      content: 'Great news! We are updating commission rates to help you earn more.\n\n[Details about the rate change]\n\nThis change will take effect [date].\n\nKeep up the great work!'
                     })}
                     className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
@@ -538,7 +535,7 @@ export default function SimpleEmailSender() {
                     onClick={() => setCustomEmail({
                       ...customEmail,
                       subject: '📊 Monthly Performance Report',
-                      content: 'Here\'s your monthly performance summary:\n\n• Total clicks: [number]\n• Total sales: [number]\n• Total earnings: $[amount]\n\nGreat job this month! Keep promoting your links.'
+                      content: 'Here is your monthly performance summary:\n\n• Total clicks: [number]\n• Total sales: [number]\n• Total earnings: $[amount]\n\nGreat job this month! Keep promoting your links.'
                     })}
                     className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                   >
