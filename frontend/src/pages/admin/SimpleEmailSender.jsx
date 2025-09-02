@@ -48,7 +48,7 @@ export default function SimpleEmailSender() {
       return
     }
 
-    if (!confirm(`Send custom email "${customEmail.subject}" to ${creators.length} creators?`)) {
+    if (!confirm('Send custom email "' + customEmail.subject + '" to ' + creators.length + ' creators?')) {
       return
     }
 
@@ -56,24 +56,33 @@ export default function SimpleEmailSender() {
     setSendResults(null)
 
     try {
+      // Build HTML content safely without template literals
+      let htmlContent = customEmail.content;
+      
+      if (!customEmail.useHtml) {
+        // Wrap in professional template
+        htmlContent = [
+          '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f4f4f4; padding: 20px;">',
+          '<div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">',
+          '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">',
+          '<h1 style="margin: 0; font-size: 24px;">📢 Message from Zylike</h1>',
+          '</div>',
+          '<div style="padding: 30px;">',
+          '<p>Dear {{CREATOR_NAME}},</p>',
+          '<div style="white-space: pre-line; line-height: 1.6;">' + customEmail.content + '</div>',
+          '<p style="margin-top: 30px;"><strong>Best regards,</strong><br>The Zylike Team</p>',
+          '</div>',
+          '<div style="text-align: center; color: #666; font-size: 12px; padding: 20px; background: #f9f9f9;">',
+          '<p style="margin: 0;">© 2025 Zylike. All rights reserved.</p>',
+          '</div>',
+          '</div>',
+          '</div>'
+        ].join('');
+      }
+
       const emailData = {
         subject: customEmail.subject,
-        htmlContent: customEmail.useHtml ? customEmail.content : 
-          '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f4f4f4; padding: 20px;">' +
-            '<div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">' +
-              '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">' +
-                '<h1 style="margin: 0; font-size: 24px;">📢 Message from Zylike</h1>' +
-              '</div>' +
-              '<div style="padding: 30px;">' +
-                '<p>Dear {{CREATOR_NAME}},</p>' +
-                '<div style="white-space: pre-line; line-height: 1.6;">' + customEmail.content + '</div>' +
-                '<p style="margin-top: 30px;"><strong>Best regards,</strong><br>The Zylike Team</p>' +
-              '</div>' +
-              '<div style="text-align: center; color: #666; font-size: 12px; padding: 20px; background: #f9f9f9;">' +
-                '<p style="margin: 0;">© 2025 Zylike. All rights reserved.</p>' +
-              '</div>' +
-            '</div>' +
-          '</div>',
+        htmlContent: htmlContent,
         sendToAll: true
       }
 
