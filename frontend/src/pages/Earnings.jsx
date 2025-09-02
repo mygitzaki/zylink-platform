@@ -170,16 +170,10 @@ export default function Earnings() {
   const handleSaleClick = (sale) => {
     console.log('🔍 Sale clicked:', { productUrl: sale.productUrl, product: sale.product });
     
-    // Redirect to product URL if available
-    if (sale.productUrl && sale.productUrl.trim() !== '') {
-      console.log('✅ Redirecting to product URL:', sale.productUrl);
-      window.open(sale.productUrl, '_blank')
-    } else {
-      console.log('⚠️ No product URL available, showing modal');
-      // Fallback: show modal if no URL available
-      setSelectedSale(sale)
-      setShowSaleModal(true)
-    }
+    // Always show product details modal instead of redirecting
+    console.log('📋 Showing product details modal');
+    setSelectedSale(sale)
+    setShowSaleModal(true)
   }
 
   const closeSaleModal = () => {
@@ -469,15 +463,13 @@ export default function Earnings() {
                     <div>
                       <p className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
                         {sale.product || 'Product Sale'}
-                        {sale.productUrl && (
-                          <svg className="w-3 h-3 inline ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        )}
+                        <svg className="w-3 h-3 inline ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                       </p>
                       <p className="text-xs text-gray-500">
                         {new Date(sale.date).toLocaleDateString()}
-                        {sale.productUrl && <span className="ml-2 text-indigo-500">• Click to view product</span>}
+                        <span className="ml-2 text-indigo-500">• Click for details</span>
                       </p>
                     </div>
                   </div>
@@ -599,16 +591,87 @@ export default function Earnings() {
                   <span className="text-gray-600">Action ID</span>
                   <span className="font-mono text-xs text-gray-500">{selectedSale.actionId}</span>
                 </div>
+
+                {/* Commission Rate */}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Commission Rate</span>
+                  <span className="text-sm text-gray-700">
+                    {((selectedSale.commission / selectedSale.orderValue) * 100).toFixed(1)}%
+                  </span>
+                </div>
+
+                {/* Sale Date */}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Sale Date</span>
+                  <span className="text-sm text-gray-700">
+                    {new Date(selectedSale.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
               </div>
 
+              {/* Product URL Section */}
+              {selectedSale.productUrl && selectedSale.productUrl.trim() !== '' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">📦 Product Information</h4>
+                  <p className="text-sm text-blue-700 mb-3">
+                    View the original product that generated this commission
+                  </p>
+                  <button
+                    onClick={() => window.open(selectedSale.productUrl, '_blank')}
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    View Product on Walmart
+                  </button>
+                </div>
+              )}
 
+              {/* Commission Details */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-medium text-green-900 mb-2">💰 Commission Breakdown</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-green-700">Customer Paid:</span>
+                    <span className="font-medium text-green-900">{formatCurrency(selectedSale.orderValue)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-green-700">Commission Rate:</span>
+                    <span className="font-medium text-green-900">
+                      {((selectedSale.commission / selectedSale.orderValue) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-green-200 pt-2">
+                    <span className="text-green-700 font-medium">Your Earnings:</span>
+                    <span className="font-bold text-green-900">{formatCurrency(selectedSale.commission)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Close Button */}
-            <div className="mt-6">
+            {/* Action Buttons */}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {selectedSale.productUrl && selectedSale.productUrl.trim() !== '' && (
+                <button
+                  onClick={() => window.open(selectedSale.productUrl, '_blank')}
+                  className="bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  View Product
+                </button>
+              )}
               <button
                 onClick={closeSaleModal}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
               >
                 Close
               </button>
