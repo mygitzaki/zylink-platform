@@ -968,26 +968,20 @@ router.get('/creator-emails', requireAuth, requireAdmin, async (req, res) => {
 
     const { status, isActive } = req.query;
     
-    // Build where clause step by step to avoid Prisma issues
-    const where = {
-      // Use NOT operator with empty string and null to exclude invalid emails
-      NOT: [
-        { email: null },
-        { email: '' }
-      ]
-    };
+    // Build where clause with simple approach to avoid Prisma issues
+    const where = {};
     
-    // Add status filter if provided
+    // Add status filter if provided (default to APPROVED)
     if (status) {
       where.applicationStatus = status;
     }
     
-    // Add active filter if provided  
+    // Add active filter if provided (default to true) 
     if (isActive !== undefined) {
       where.isActive = isActive === 'true';
     }
 
-    const creators = await prisma.creator.findMany({
+    const allCreators = await prisma.creator.findMany({
       where,
       select: {
         id: true,
@@ -1000,9 +994,19 @@ router.get('/creator-emails', requireAuth, requireAdmin, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Filter out creators with null or empty emails (post-query filtering)
+    const creators = allCreators.filter(creator => 
+      creator.email && 
+      creator.email.trim() !== '' && 
+      creator.email.includes('@')
+    );
+
+    console.log(`📧 Creator emails: Found ${allCreators.length} total, ${creators.length} with valid emails`);
+
     res.json({ 
       creators,
       total: creators.length,
+      totalInDatabase: allCreators.length,
       filters: { status, isActive }
     });
 
