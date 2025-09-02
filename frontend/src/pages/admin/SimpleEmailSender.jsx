@@ -8,6 +8,12 @@ export default function SimpleEmailSender() {
   const [sending, setSending] = useState(false)
   const [sendResults, setSendResults] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [emailMode, setEmailMode] = useState('maintenance') // 'maintenance' or 'custom'
+  const [customEmail, setCustomEmail] = useState({
+    subject: '',
+    content: '',
+    useHtml: false
+  })
 
   useEffect(() => {
     loadCreators()
@@ -33,6 +39,69 @@ export default function SimpleEmailSender() {
       console.error('❌ Failed to load creators:', error)
       setCreators([])
       setLoading(false)
+    }
+  }
+
+  const sendCustomEmail = async () => {
+    if (!customEmail.subject.trim() || !customEmail.content.trim()) {
+      alert('Please fill in both subject and content')
+      return
+    }
+
+    if (!confirm(`Send custom email "${customEmail.subject}" to ${creators.length} creators?`)) {
+      return
+    }
+
+    setSending(true)
+    setSendResults(null)
+
+    try {
+      const emailData = {
+        subject: customEmail.subject,
+        htmlContent: customEmail.useHtml ? customEmail.content : `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f4f4f4; padding: 20px;">
+            <div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">📢 Message from Zylike</h1>
+              </div>
+              
+              <div style="padding: 30px;">
+                <p>Dear {{CREATOR_NAME}},</p>
+                <div style="white-space: pre-line; line-height: 1.6;">${customEmail.content}</div>
+                <p style="margin-top: 30px;"><strong>Best regards,</strong><br>The Zylike Team</p>
+              </div>
+              
+              <div style="text-align: center; color: #666; font-size: 12px; padding: 20px; background: #f9f9f9;">
+                <p style="margin: 0;">© 2025 Zylike. All rights reserved.</p>
+              </div>
+            </div>
+          </div>
+        `,
+        sendToAll: true
+      }
+
+      console.log(`📧 Sending custom email to ${creators.length} creators...`)
+
+      const response = await apiFetch('/api/admin/send-email', {
+        method: 'POST',
+        token,
+        body: emailData
+      })
+
+      setSendResults(response)
+      
+      if (response.success) {
+        alert(`✅ Custom email "${customEmail.subject}" sent successfully!`)
+        // Reset form
+        setCustomEmail({ subject: '', content: '', useHtml: false })
+      } else {
+        alert(`❌ Failed to send emails: ${response.message}`)
+      }
+    } catch (error) {
+      console.error('❌ Failed to send custom email:', error)
+      alert(`❌ Failed to send custom email: ${error.message}`)
+    } finally {
+      setSending(false)
     }
   }
 
@@ -181,11 +250,37 @@ export default function SimpleEmailSender() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            📧 Send Maintenance Notice
+            📧 Email Center
           </h1>
           <p className="text-gray-600">
-            Send maintenance notice to all active creators about analytics issues
+            Send emails and announcements to all active creators
           </p>
+        </div>
+
+        {/* Email Mode Selector */}
+        <div className="mb-6">
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setEmailMode('maintenance')}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                emailMode === 'maintenance'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              🔧 Maintenance Notice
+            </button>
+            <button
+              onClick={() => setEmailMode('custom')}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                emailMode === 'custom'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              📝 Custom Email
+            </button>
+          </div>
         </div>
 
         {/* Send Results */}
@@ -209,9 +304,14 @@ export default function SimpleEmailSender() {
         {/* Main Card */}
         <div className="bg-white rounded-lg shadow-sm">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Maintenance Notice</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {emailMode === 'maintenance' ? '🔧 Maintenance Notice' : '📝 Custom Email'}
+            </h2>
             <p className="text-gray-600 mt-1">
-              Professional message to reassure creators about analytics issues
+              {emailMode === 'maintenance' 
+                ? 'Professional message to reassure creators about analytics issues'
+                : 'Compose and send custom messages to all creators'
+              }
             </p>
           </div>
           
@@ -232,62 +332,234 @@ export default function SimpleEmailSender() {
               </div>
             </div>
 
-            {/* Message Preview */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">📧 Email Preview</h3>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p><strong>Subject:</strong> 🔧 Important Notice: Temporary Analytics Display Issues (Your Earnings Are Safe!)</p>
-                <p><strong>Message:</strong> Professional maintenance notice explaining analytics issues and reassuring creators their earnings are 100% safe</p>
-                <p><strong>Features:</strong></p>
-                <ul className="list-disc list-inside text-xs text-gray-600 ml-4">
-                  <li>Explains what creators might see (unusual numbers, inconsistencies)</li>
-                  <li>Strong reassurance that earnings are completely protected</li>
-                  <li>Clear timeline for resolution (Friday, September 6th)</li>
-                  <li>Support contact information</li>
-                  <li>Professional HTML styling with Zylike branding</li>
-                </ul>
+            {/* Custom Email Composer */}
+            {emailMode === 'custom' && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-gray-900 mb-4">✍️ Compose Your Email</h3>
+                
+                {/* Subject */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Subject *
+                  </label>
+                  <input
+                    type="text"
+                    value={customEmail.subject}
+                    onChange={(e) => setCustomEmail({ ...customEmail, subject: e.target.value })}
+                    placeholder="Enter email subject..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Content */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Content *
+                  </label>
+                  <textarea
+                    value={customEmail.content}
+                    onChange={(e) => setCustomEmail({ ...customEmail, content: e.target.value })}
+                    placeholder="Enter your message... Use {{CREATOR_NAME}} to personalize with creator names"
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use {{CREATOR_NAME}} to personalize emails. Line breaks will be preserved.
+                  </p>
+                </div>
+
+                {/* HTML Mode Toggle */}
+                <div className="mb-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={customEmail.useHtml}
+                      onChange={(e) => setCustomEmail({ ...customEmail, useHtml: e.target.checked })}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Advanced: Use raw HTML (for developers)
+                    </span>
+                  </label>
+                </div>
+
+                {/* Preview */}
+                {customEmail.content && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Preview:</h4>
+                    <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                      <p><strong>To:</strong> All {creators.length} active creators</p>
+                      <p><strong>Subject:</strong> {customEmail.subject || '[No subject]'}</p>
+                      <div className="mt-2 p-2 bg-white rounded border">
+                        <p className="text-xs text-gray-500">Dear [Creator Name],</p>
+                        <div className="whitespace-pre-line text-xs">
+                          {customEmail.content.substring(0, 200)}
+                          {customEmail.content.length > 200 && '...'}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">Best regards,<br/>The Zylike Team</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {/* Maintenance Notice Preview */}
+            {emailMode === 'maintenance' && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-gray-900 mb-2">📧 Maintenance Notice Preview</h3>
+                <div className="text-sm text-gray-700 space-y-2">
+                  <p><strong>Subject:</strong> 🔧 Important Notice: Temporary Analytics Display Issues (Your Earnings Are Safe!)</p>
+                  <p><strong>Message:</strong> Professional maintenance notice explaining analytics issues and reassuring creators their earnings are 100% safe</p>
+                  <p><strong>Features:</strong></p>
+                  <ul className="list-disc list-inside text-xs text-gray-600 ml-4">
+                    <li>Explains what creators might see (unusual numbers, inconsistencies)</li>
+                    <li>Strong reassurance that earnings are completely protected</li>
+                    <li>Clear timeline for resolution (Friday, September 6th)</li>
+                    <li>Support contact information</li>
+                    <li>Professional HTML styling with Zylike branding</li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
             {/* Send Button */}
             <div className="text-center">
-              <button
-                onClick={sendMaintenanceNotice}
-                disabled={sending || creators.length === 0}
-                className="bg-orange-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
-              >
-                {sending ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Sending Maintenance Notice...
-                  </>
-                ) : (
-                  `🔧 Send Maintenance Notice to ${creators.length} Creators`
-                )}
-              </button>
+              {emailMode === 'maintenance' ? (
+                <button
+                  onClick={sendMaintenanceNotice}
+                  disabled={sending || creators.length === 0}
+                  className="bg-orange-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                >
+                  {sending ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending Maintenance Notice...
+                    </>
+                  ) : (
+                    `🔧 Send Maintenance Notice to ${creators.length} Creators`
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={sendCustomEmail}
+                  disabled={sending || creators.length === 0 || !customEmail.subject.trim() || !customEmail.content.trim()}
+                  className="bg-blue-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto"
+                >
+                  {sending ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending Custom Email...
+                    </>
+                  ) : (
+                    `📧 Send Custom Email to ${creators.length} Creators`
+                  )}
+                </button>
+              )}
               
               {creators.length === 0 && (
                 <p className="text-red-600 text-sm mt-2">
                   No active creators found. Please check creator status.
                 </p>
               )}
+
+              {emailMode === 'custom' && (!customEmail.subject.trim() || !customEmail.content.trim()) && (
+                <p className="text-amber-600 text-sm mt-2">
+                  Please fill in both subject and content to send custom email.
+                </p>
+              )}
             </div>
 
             {/* Instructions */}
             <div className="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">📋 What This Does</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                📋 {emailMode === 'maintenance' ? 'Maintenance Notice' : 'Custom Email'} Features
+              </h3>
               <div className="text-sm text-gray-700 space-y-1">
-                <p>• <strong>Sends professional email</strong> to all active, approved creators</p>
-                <p>• <strong>Explains analytics maintenance</strong> and what they might see</p>
-                <p>• <strong>Reassures creators</strong> their earnings are 100% safe and protected</p>
-                <p>• <strong>Provides support contact</strong> information for questions</p>
+                {emailMode === 'maintenance' ? (
+                  <>
+                    <p>• <strong>Sends professional email</strong> to all active, approved creators</p>
+                    <p>• <strong>Explains analytics maintenance</strong> and what they might see</p>
+                    <p>• <strong>Reassures creators</strong> their earnings are 100% safe and protected</p>
+                    <p>• <strong>Provides support contact</strong> information for questions</p>
+                    <p>• <strong>Uses professional styling</strong> with Zylike branding</p>
+                  </>
+                ) : (
+                  <>
+                    <p>• <strong>Send any custom message</strong> to all active, approved creators</p>
+                    <p>• <strong>Personalize with creator names</strong> using {{CREATOR_NAME}}</p>
+                    <p>• <strong>Choose plain text or HTML</strong> formatting</p>
+                    <p>• <strong>Professional email template</strong> wraps your content</p>
+                    <p>• <strong>Live preview</strong> shows how email will look</p>
+                  </>
+                )}
                 <p>• <strong>Uses your existing Mailgun</strong> integration for delivery</p>
+                <p>• <strong>Background processing</strong> for large batches (no timeouts)</p>
                 <p>• <strong>Rate limited</strong> to 1 email per second (respects Mailgun limits)</p>
               </div>
             </div>
+
+            {/* Quick Templates for Custom Mode */}
+            {emailMode === 'custom' && (
+              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-3">📝 Quick Templates</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setCustomEmail({
+                      ...customEmail,
+                      subject: '🎉 New Feature Announcement',
+                      content: 'We\'re excited to announce a new feature that will help you earn more commissions!\n\n[Describe the new feature here]\n\nStart using it today in your dashboard.\n\nHappy earning!'
+                    })}
+                    className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="font-medium text-blue-900">🎉 Feature Announcement</div>
+                    <div className="text-xs text-blue-700">Announce new platform features</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setCustomEmail({
+                      ...customEmail,
+                      subject: '💰 Commission Rate Update',
+                      content: 'Great news! We\'re updating commission rates to help you earn more.\n\n[Details about the rate change]\n\nThis change will take effect [date].\n\nKeep up the great work!'
+                    })}
+                    className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="font-medium text-blue-900">💰 Commission Update</div>
+                    <div className="text-xs text-blue-700">Notify about rate changes</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setCustomEmail({
+                      ...customEmail,
+                      subject: '📊 Monthly Performance Report',
+                      content: 'Here\'s your monthly performance summary:\n\n• Total clicks: [number]\n• Total sales: [number]\n• Total earnings: $[amount]\n\nGreat job this month! Keep promoting your links.'
+                    })}
+                    className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="font-medium text-blue-900">📊 Performance Report</div>
+                    <div className="text-xs text-blue-700">Monthly stats and updates</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setCustomEmail({
+                      ...customEmail,
+                      subject: '🎯 Marketing Tips & Best Practices',
+                      content: 'Here are some proven strategies to boost your affiliate earnings:\n\n1. [Marketing tip 1]\n2. [Marketing tip 2]\n3. [Marketing tip 3]\n\nImplement these tips to see better results!'
+                    })}
+                    className="text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="font-medium text-blue-900">🎯 Marketing Tips</div>
+                    <div className="text-xs text-blue-700">Share best practices</div>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
