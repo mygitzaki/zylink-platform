@@ -1081,6 +1081,173 @@ router.get('/creator-emails', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// NEW: Historical Analytics Endpoints
+router.get('/analytics/historical', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { DailyAnalyticsService } = require('../services/dailyAnalyticsService');
+    const analyticsService = new DailyAnalyticsService();
+
+    const { startDate, endDate, creatorId, dateRange } = req.query;
+
+    const analytics = await analyticsService.getHistoricalAnalytics({
+      startDate,
+      endDate,
+      creatorId,
+      dateRange
+    });
+
+    res.json(analytics);
+
+  } catch (error) {
+    console.error('❌ Historical analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch historical analytics',
+      error: error.message
+    });
+  }
+});
+
+// Trigger daily analytics collection (manual)
+router.post('/analytics/collect-daily', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { DailyAnalyticsService } = require('../services/dailyAnalyticsService');
+    const analyticsService = new DailyAnalyticsService();
+
+    const { targetDate } = req.body;
+    const date = targetDate ? new Date(targetDate) : null;
+
+    console.log('🔄 Admin triggered daily analytics collection...');
+    
+    const results = await analyticsService.collectDailyAnalytics(date);
+
+    res.json({
+      success: true,
+      message: 'Daily analytics collection completed',
+      results
+    });
+
+  } catch (error) {
+    console.error('❌ Daily analytics collection error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to collect daily analytics',
+      error: error.message
+    });
+  }
+});
+
+// Backfill historical data
+router.post('/analytics/backfill', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { DailyAnalyticsService } = require('../services/dailyAnalyticsService');
+    const analyticsService = new DailyAnalyticsService();
+
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'startDate and endDate are required'
+      });
+    }
+
+    console.log('🔄 Admin triggered historical data backfill...');
+    
+    // Start backfill in background for large date ranges
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil((end - start) / (24 * 60 * 60 * 1000));
+
+    if (daysDiff > 7) {
+      // Large backfill - run in background
+      setImmediate(async () => {
+        try {
+          const results = await analyticsService.backfillHistoricalData(start, end);
+          console.log('✅ Background backfill completed:', results);
+        } catch (error) {
+          console.error('❌ Background backfill failed:', error.message);
+        }
+      });
+
+      res.json({
+        success: true,
+        message: `Backfill started for ${daysDiff} days (running in background)`,
+        estimatedDuration: `${Math.ceil(daysDiff * 2)} minutes`
+      });
+    } else {
+      // Small backfill - run synchronously
+      const results = await analyticsService.backfillHistoricalData(start, end);
+      
+      res.json({
+        success: true,
+        message: 'Historical data backfill completed',
+        results
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Historical data backfill error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to backfill historical data',
+      error: error.message
+    });
+  }
+});
+
+// Get cron service status
+router.get('/cron/status', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { getCronService } = require('../services/cronService');
+    const cronService = getCronService();
+    
+    const status = cronService.getStatus();
+    res.json(status);
+    
+  } catch (error) {
+    console.error('❌ Cron status error:', error);
+    res.status(500).json({
+      error: 'Failed to get cron status',
+      message: error.message
+    });
+  }
+});
+
+// Manually trigger daily job
+router.post('/cron/trigger-daily', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { getCronService } = require('../services/cronService');
+    const cronService = getCronService();
+    
+    console.log('🔄 Admin manually triggered daily cron job...');
+    
+    // Run in background to avoid timeout
+    setImmediate(async () => {
+      try {
+        await cronService.triggerDailyJob();
+        console.log('✅ Manual daily job completed');
+      } catch (error) {
+        console.error('❌ Manual daily job failed:', error.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Daily job triggered (running in background)',
+      status: 'processing'
+    });
+    
+  } catch (error) {
+    console.error('❌ Manual cron trigger error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to trigger daily job',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
 
 

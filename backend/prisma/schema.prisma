@@ -35,6 +35,7 @@ model Creator {
   earnings         Earning[]
   earningsSnapshots EarningsSnapshot[] // NEW: Point-in-time earnings
   earningsReversals EarningsReversal[] // NEW: Commission reversal tracking
+  dailyAnalytics   DailyAnalytics[] // NEW: Daily aggregated analytics
   referralsGiven   ReferralEarning[] @relation("Referrer")
   referralsReceived ReferralEarning[] @relation("Referred")
   paymentAccount   PaymentAccount?
@@ -120,6 +121,39 @@ model EarningsSnapshot {
   @@index([creatorId, earnedAt])
   @@index([earnedAt])
   @@index([source])
+}
+
+// NEW: Daily Analytics Storage System
+// Stores daily aggregated metrics for historical analysis and charts
+model DailyAnalytics {
+  id                  String        @id @default(uuid())
+  creatorId           String
+  date                DateTime      // Date for this analytics record (YYYY-MM-DD)
+  
+  // Daily Metrics
+  commissionableSales Decimal       @default(0) // Total commissionable sales for the day
+  commissionEarned    Decimal       @default(0) // Total commission earned (after platform fees)
+  clicks              Int           @default(0) // Total clicks for the day
+  conversions         Int           @default(0) // Total conversions for the day
+  conversionRate      Decimal       @default(0) // Conversion rate for the day
+  
+  // Commission Rate Context (for forward-only rate changes)
+  appliedCommissionRate Int         @default(70) // Commission rate applied for this day
+  grossCommissionEarned Decimal     @default(0)  // Gross commission before platform fees
+  
+  // Data Source and Quality
+  dataSource          String        @default("IMPACT_API") // 'IMPACT_API', 'DATABASE_FALLBACK', 'MANUAL'
+  recordsProcessed    Int           @default(0) // Number of transactions processed
+  lastSyncAt          DateTime      @default(now()) // When this record was last updated
+  
+  // Relations
+  creator             Creator       @relation(fields: [creatorId], references: [id])
+  
+  // Indexes for efficient querying
+  @@unique([creatorId, date]) // Ensure one record per creator per day
+  @@index([date])
+  @@index([creatorId, date])
+  @@index([dataSource])
 }
 
 // NEW: Commission Reversal Tracking System
