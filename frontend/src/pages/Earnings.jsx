@@ -592,11 +592,11 @@ export default function Earnings() {
                   <span className="font-mono text-xs text-gray-500">{selectedSale.actionId}</span>
                 </div>
 
-                {/* Commission Rate */}
+                {/* Creator Commission Rate */}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Commission Rate</span>
-                  <span className="text-sm text-gray-700">
-                    {((selectedSale.commission / selectedSale.orderValue) * 100).toFixed(1)}%
+                  <span className="text-sm text-gray-700 font-medium">
+                    Standard Rate
                   </span>
                 </div>
 
@@ -619,21 +619,19 @@ export default function Earnings() {
 
               {/* Commission Details */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h4 className="font-medium text-green-900 mb-2">💰 Commission Breakdown</h4>
+                <h4 className="font-medium text-green-900 mb-2">💰 Commission Details</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-green-700">Customer Paid:</span>
+                    <span className="text-green-700">Customer Purchase:</span>
                     <span className="font-medium text-green-900">{formatCurrency(selectedSale.orderValue)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-green-700">Commission Rate:</span>
-                    <span className="font-medium text-green-900">
-                      {((selectedSale.commission / selectedSale.orderValue) * 100).toFixed(1)}%
-                    </span>
+                    <span className="text-green-700">Commission Type:</span>
+                    <span className="font-medium text-green-900">Affiliate Commission</span>
                   </div>
                   <div className="flex justify-between border-t border-green-200 pt-2">
                     <span className="text-green-700 font-medium">Your Earnings:</span>
-                    <span className="font-bold text-green-900">{formatCurrency(selectedSale.commission)}</span>
+                    <span className="font-bold text-green-900 text-lg">{formatCurrency(selectedSale.commission)}</span>
                   </div>
                 </div>
               </div>
