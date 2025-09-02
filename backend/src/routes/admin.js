@@ -934,6 +934,11 @@ router.post('/send-email', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Test endpoint to verify admin routes are working
+router.get('/test', requireAuth, requireAdmin, async (req, res) => {
+  res.json({ message: 'Admin routes working', timestamp: new Date().toISOString() });
+});
+
 // Get email templates for admin
 router.get('/email-templates', requireAuth, requireAdmin, async (req, res) => {
   const templates = [

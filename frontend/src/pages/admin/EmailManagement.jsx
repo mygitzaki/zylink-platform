@@ -33,24 +33,48 @@ export default function EmailManagement() {
 
   const loadTemplates = async () => {
     try {
+      console.log('🔄 Loading email templates...')
       const response = await apiFetch('/api/admin/email-templates', { token })
-      setTemplates(response.templates)
+      console.log('✅ Email templates loaded:', response)
+      setTemplates(response.templates || [])
     } catch (error) {
-      console.error('Failed to load email templates:', error)
+      console.error('❌ Failed to load email templates:', error)
+      // Set fallback templates if API fails
+      setTemplates([
+        {
+          id: 'maintenance_notice',
+          name: 'Maintenance Notice (Fallback)',
+          subject: '🔧 Important Notice: Temporary Analytics Display Issues (Your Earnings Are Safe!)',
+          description: 'Notify creators about temporary analytics issues during maintenance',
+          htmlContent: `<p>Dear {{CREATOR_NAME}},</p><p>We're experiencing temporary analytics display issues. Your earnings are 100% safe!</p><p>Best regards,<br>The Zylike Team</p>`
+        }
+      ])
     }
   }
 
   const loadCreators = async () => {
     try {
+      console.log('🔄 Loading creators...')
       const params = new URLSearchParams()
       if (creatorFilter.status) params.append('status', creatorFilter.status)
       if (creatorFilter.isActive) params.append('isActive', creatorFilter.isActive)
       
       const response = await apiFetch(`/api/admin/creator-emails?${params}`, { token })
-      setCreators(response.creators)
+      console.log('✅ Creators loaded:', response)
+      setCreators(response.creators || [])
       setLoading(false)
     } catch (error) {
-      console.error('Failed to load creators:', error)
+      console.error('❌ Failed to load creators:', error)
+      // Fallback: try to load from existing creators endpoint
+      try {
+        console.log('🔄 Trying fallback creators endpoint...')
+        const fallbackResponse = await apiFetch('/api/admin/creators', { token })
+        console.log('✅ Fallback creators loaded:', fallbackResponse)
+        setCreators(fallbackResponse.creators || [])
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError)
+        setCreators([])
+      }
       setLoading(false)
     }
   }
