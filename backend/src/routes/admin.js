@@ -876,61 +876,115 @@ router.post('/send-email', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ message: 'Either recipients array or sendToAll=true is required' });
     }
 
-    console.log(`📧 Admin email: Sending to ${targetCreators.length} creators`);
+    console.log(`📧 Admin email: Starting async send to ${targetCreators.length} creators`);
 
-    const results = {
-      successful: 0,
-      failed: 0,
-      errors: [],
-      messageIds: []
-    };
-
-    // Send emails with rate limiting
-    for (let i = 0; i < targetCreators.length; i++) {
-      const creator = targetCreators[i];
+    // For large batches, start async process and return immediately
+    if (targetCreators.length > 10) {
+      console.log(`📧 Large batch detected (${targetCreators.length} creators), starting background process`);
       
-      try {
-        // Replace {{CREATOR_NAME}} placeholder in content
-        const personalizedHtml = htmlContent.replace(/{{CREATOR_NAME}}/g, creator.name);
-        const personalizedText = textContent ? textContent.replace(/{{CREATOR_NAME}}/g, creator.name) : null;
-        
-        const result = await emailService.sendEmail(
-          creator.email, 
-          subject, 
-          personalizedHtml, 
-          personalizedText
-        );
+      // Start background email sending process
+      setImmediate(async () => {
+        const results = {
+          successful: 0,
+          failed: 0,
+          errors: [],
+          messageIds: []
+        };
 
-        if (result.success) {
-          results.successful++;
-          results.messageIds.push(result.messageId);
-          console.log(`✅ Email sent to ${creator.email} (${i + 1}/${targetCreators.length})`);
-        } else {
-          results.failed++;
-          results.errors.push({ email: creator.email, error: result.error });
-          console.error(`❌ Failed to send to ${creator.email}: ${result.error}`);
+        console.log(`📧 Background process: Starting email send to ${targetCreators.length} creators`);
+
+        for (let i = 0; i < targetCreators.length; i++) {
+          const creator = targetCreators[i];
+          
+          try {
+            // Replace {{CREATOR_NAME}} placeholder in content
+            const personalizedHtml = htmlContent.replace(/\{\{CREATOR_NAME\}\}/g, creator.name || 'Creator');
+            const personalizedText = textContent ? textContent.replace(/\{\{CREATOR_NAME\}\}/g, creator.name || 'Creator') : null;
+            
+            const result = await emailService.sendEmail(
+              creator.email, 
+              subject, 
+              personalizedHtml, 
+              personalizedText
+            );
+
+            if (result.success) {
+              results.successful++;
+              results.messageIds.push(result.messageId);
+              console.log(`✅ Email sent to ${creator.email} (${i + 1}/${targetCreators.length})`);
+            } else {
+              results.failed++;
+              results.errors.push({ email: creator.email, error: result.error });
+              console.error(`❌ Failed to send to ${creator.email}: ${result.error}`);
+            }
+          } catch (error) {
+            results.failed++;
+            results.errors.push({ email: creator.email, error: error.message });
+            console.error(`❌ Error sending to ${creator.email}:`, error.message);
+          }
+
+          // Rate limiting: 1 email per second
+          if (i < targetCreators.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
-      } catch (error) {
-        results.failed++;
-        results.errors.push({ email: creator.email, error: error.message });
-        console.error(`❌ Error sending to ${creator.email}:`, error.message);
+
+        console.log(`📊 Background email process complete: ${results.successful} successful, ${results.failed} failed`);
+      });
+
+      // Return immediate response
+      res.json({
+        success: true,
+        message: `Email sending started in background for ${targetCreators.length} creators`,
+        status: 'processing',
+        totalCreators: targetCreators.length,
+        estimatedDuration: `${Math.ceil(targetCreators.length / 60)} minutes`
+      });
+      
+    } else {
+      // For small batches, send synchronously
+      const results = {
+        successful: 0,
+        failed: 0,
+        errors: [],
+        messageIds: []
+      };
+
+      for (let i = 0; i < targetCreators.length; i++) {
+        const creator = targetCreators[i];
+        
+        try {
+          const personalizedHtml = htmlContent.replace(/\{\{CREATOR_NAME\}\}/g, creator.name || 'Creator');
+          const personalizedText = textContent ? textContent.replace(/\{\{CREATOR_NAME\}\}/g, creator.name || 'Creator') : null;
+          
+          const result = await emailService.sendEmail(
+            creator.email, 
+            subject, 
+            personalizedHtml, 
+            personalizedText
+          );
+
+          if (result.success) {
+            results.successful++;
+            results.messageIds.push(result.messageId);
+          } else {
+            results.failed++;
+            results.errors.push({ email: creator.email, error: result.error });
+          }
+        } catch (error) {
+          results.failed++;
+          results.errors.push({ email: creator.email, error: error.message });
+        }
       }
 
-      // Rate limiting: 1 email per second
-      if (i < targetCreators.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+      res.json({
+        success: true,
+        message: `Email sent to ${results.successful} creators`,
+        results,
+        totalSent: results.successful,
+        totalFailed: results.failed
+      });
     }
-
-    console.log(`📊 Admin email complete: ${results.successful} successful, ${results.failed} failed`);
-
-    res.json({
-      success: true,
-      message: `Email sent to ${results.successful} creators`,
-      results,
-      totalSent: results.successful,
-      totalFailed: results.failed
-    });
 
   } catch (error) {
     console.error('❌ Admin email sending error:', error);
