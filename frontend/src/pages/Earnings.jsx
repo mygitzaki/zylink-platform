@@ -615,24 +615,7 @@ export default function Earnings() {
                 </div>
               </div>
 
-              {/* Product URL Section */}
-              {selectedSale.productUrl && selectedSale.productUrl.trim() !== '' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-2">📦 Product Information</h4>
-                  <p className="text-sm text-blue-700 mb-3">
-                    View the original product that generated this commission
-                  </p>
-                  <button
-                    onClick={() => window.open(selectedSale.productUrl, '_blank')}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    View Product on Walmart
-                  </button>
-                </div>
-              )}
+
 
               {/* Commission Details */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -656,22 +639,11 @@ export default function Earnings() {
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              {selectedSale.productUrl && selectedSale.productUrl.trim() !== '' && (
-                <button
-                  onClick={() => window.open(selectedSale.productUrl, '_blank')}
-                  className="bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  View Product
-                </button>
-              )}
+            {/* Close Button */}
+            <div className="mt-6">
               <button
                 onClick={closeSaleModal}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
               >
                 Close
               </button>
