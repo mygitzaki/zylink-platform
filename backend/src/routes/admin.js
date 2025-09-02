@@ -1099,12 +1099,17 @@ router.get('/creator-emails', requireAuth, requireAdmin, async (req, res) => {
 
     const { status, isActive } = req.query;
     
-    const where = {
-      email: { not: null }
-    };
+    const whereConditions = [
+      { email: { not: null } },
+      { email: { not: '' } }
+    ];
 
-    if (status) where.applicationStatus = status;
-    if (isActive !== undefined) where.isActive = isActive === 'true';
+    if (status) whereConditions.push({ applicationStatus: status });
+    if (isActive !== undefined) whereConditions.push({ isActive: isActive === 'true' });
+
+    const where = {
+      AND: whereConditions
+    };
 
     const creators = await prisma.creator.findMany({
       where,

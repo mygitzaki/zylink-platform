@@ -46,7 +46,7 @@ export default function EmailManagement() {
           name: 'Maintenance Notice (Fallback)',
           subject: '🔧 Important Notice: Temporary Analytics Display Issues (Your Earnings Are Safe!)',
           description: 'Notify creators about temporary analytics issues during maintenance',
-          htmlContent: `<p>Dear {{CREATOR_NAME}},</p><p>We're experiencing temporary analytics display issues. Your earnings are 100% safe!</p><p>Best regards,<br>The Zylike Team</p>`
+          htmlContent: '<p>Dear {{CREATOR_NAME}},</p><p>We\'re experiencing temporary analytics display issues. Your earnings are 100% safe!</p><p>Best regards,<br>The Zylike Team</p>'
         }
       ])
     }
@@ -173,10 +173,20 @@ export default function EmailManagement() {
   }
 
   const previewEmail = () => {
-    const previewWindow = window.open('', '_blank')
-    const previewContent = emailForm.htmlContent.replace(/{{CREATOR_NAME}}/g, 'Preview User')
-    previewWindow.document.write(previewContent)
-    previewWindow.document.close()
+    try {
+      const previewWindow = window.open('', '_blank')
+      if (!previewWindow) {
+        alert('Please allow popups to preview emails')
+        return
+      }
+      
+      const previewContent = emailForm.htmlContent.replace(/\{\{CREATOR_NAME\}\}/g, 'Preview User')
+      previewWindow.document.write(previewContent)
+      previewWindow.document.close()
+    } catch (error) {
+      console.error('❌ Preview error:', error)
+      alert('Failed to open preview window')
+    }
   }
 
   if (loading) {
