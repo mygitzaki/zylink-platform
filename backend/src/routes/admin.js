@@ -969,11 +969,12 @@ router.get('/creator-emails', requireAuth, requireAdmin, async (req, res) => {
     const { status, isActive } = req.query;
     
     // Build where clause step by step to avoid Prisma issues
-    const where = {};
-    
-    // Only include creators with valid emails
-    where.email = {
-      not: null
+    const where = {
+      // Use NOT operator with empty string and null to exclude invalid emails
+      NOT: [
+        { email: null },
+        { email: '' }
+      ]
     };
     
     // Add status filter if provided
