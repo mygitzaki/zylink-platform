@@ -776,34 +776,94 @@ router.get('/impact-clicks', requireAuth, requireAdmin, async (req, res) => {
     console.log('🔍 Admin requesting Impact.com click data...');
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
+    
+    // Check if Impact.com service is properly configured
+    if (!impact.isConfigured()) {
+      console.log('⚠️ Impact.com service not configured - missing credentials');
+      return res.status(502).json({ 
+        success: false, 
+        message: 'Impact.com service not configured - missing API credentials',
+        fallback: true
+      });
+    }
+    
     // Optional ISO-Z date filters (e.g., 2025-08-01T00:00:00Z)
     const { startDate, endDate } = req.query || {};
+    
     // Try Clicks endpoint first; fallback to Actions
     const analytics = await impact.getClickAnalytics(startDate, endDate);
     if (!analytics.success) {
-      return res.status(502).json({ success: false, message: 'Impact analytics unavailable', data: analytics });
+      console.log('⚠️ Impact.com click analytics failed:', analytics);
+      return res.status(502).json({ 
+        success: false, 
+        message: 'Impact analytics unavailable - API connection failed', 
+        data: analytics,
+        fallback: true
+      });
     }
+    
+    console.log('✅ Impact.com click analytics successful');
     res.json({ success: true, data: analytics });
   } catch (error) {
     console.error('❌ Error fetching Impact.com click data:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch Impact.com click data', error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch Impact.com click data', 
+      error: error.message,
+      fallback: true
+    });
   }
 });
 
 // NEW: Admin endpoint to fetch detailed Actions with filters
 router.get('/impact-actions', requireAuth, requireAdmin, async (req, res) => {
   try {
+    console.log('🔍 Admin requesting Impact.com actions data...');
     const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
-    const { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId } = req.query || {};
-    const result = await impact.getActionsDetailed({ startDate, endDate, status, actionType, page: page ? parseInt(page) : undefined, pageSize: pageSize ? parseInt(pageSize) : undefined, subId1, campaignId });
-    if (!result.success) {
-      return res.status(502).json({ success: false, message: 'Impact Actions unavailable', data: result });
+    
+    // Check if Impact.com service is properly configured
+    if (!impact.isConfigured()) {
+      console.log('⚠️ Impact.com service not configured - missing credentials');
+      return res.status(502).json({ 
+        success: false, 
+        message: 'Impact.com service not configured - missing API credentials',
+        fallback: true
+      });
     }
+    
+    const { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId } = req.query || {};
+    const result = await impact.getActionsDetailed({ 
+      startDate, 
+      endDate, 
+      status, 
+      actionType, 
+      page: page ? parseInt(page) : undefined, 
+      pageSize: pageSize ? parseInt(pageSize) : undefined, 
+      subId1, 
+      campaignId 
+    });
+    
+    if (!result.success) {
+      console.log('⚠️ Impact.com actions failed:', result);
+      return res.status(502).json({ 
+        success: false, 
+        message: 'Impact Actions unavailable - API connection failed', 
+        data: result,
+        fallback: true
+      });
+    }
+    
+    console.log('✅ Impact.com actions successful');
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('❌ Error fetching Impact.com actions:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch Impact.com actions', error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch Impact.com actions', 
+      error: error.message,
+      fallback: true
+    });
   }
 });
 

@@ -112,6 +112,12 @@ class DailyAnalyticsService {
       const dateStr = this.formatDate(date);
       console.log(`📊 Collecting analytics for creator ${creator.email} on ${dateStr}`);
 
+      // Check if Impact.com service is configured
+      if (!this.impactService.isConfigured()) {
+        console.log(`⚠️ Impact.com service not configured - using database fallback for ${creator.email}`);
+        return this.collectCreatorFallbackAnalytics(creator, date);
+      }
+
       // Get creator's SubId1 for Impact.com queries
       const subId1 = creator.impactSubId || this.impactService.computeObfuscatedSubId(creator.id);
       
@@ -190,6 +196,130 @@ class DailyAnalyticsService {
       return {
         success: false,
         error: `${creator.email}: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Fallback method when Impact.com API is not available
+   * Uses existing database data to create analytics records
+   */
+  async collectCreatorFallbackAnalytics(creator, date) {
+    try {
+      const dateStr = this.formatDate(date);
+      console.log(`📊 Using database fallback for creator ${creator.email} on ${dateStr}`);
+
+      // Get existing data from Link and Earning tables for this date
+      const [linksData, earningsData] = await Promise.all([
+        this.prisma.link.findMany({
+          where: {
+            creatorId: creator.id,
+            createdAt: {
+              gte: new Date(dateStr + 'T00:00:00Z'),
+              lte: new Date(dateStr + 'T23:59:59Z')
+            }
+          }
+        }),
+        this.prisma.earning.findMany({
+          where: {
+            creatorId: creator.id,
+            createdAt: {
+              gte: new Date(dateStr + 'T00:00:00Z'),
+              lte: new Date(dateStr + 'T23:59:59Z')
+            }
+          }
+        })
+      ]);
+
+      // Aggregate the data
+      const metrics = {
+        commissionableSales: linksData.reduce((sum, link) => sum + Number(link.revenue || 0), 0),
+        commissionEarned: earningsData.reduce((sum, earning) => sum + Number(earning.amount || 0), 0),
+        grossCommissionEarned: earningsData.reduce((sum, earning) => sum + Number(earning.grossAmount || earning.amount || 0), 0),
+        clicks: linksData.reduce((sum, link) => sum + (link.clicks || 0), 0),
+        conversions: linksData.reduce((sum, link) => sum + (link.conversions || 0), 0),
+        conversionRate: 0,
+        dataSource: 'DATABASE_FALLBACK',
+        recordsProcessed: linksData.length + earningsData.length
+      };
+
+      // Calculate conversion rate
+      if (metrics.clicks > 0) {
+        metrics.conversionRate = (metrics.conversions / metrics.clicks) * 100;
+      }
+
+      // Store in DailyAnalytics table (or fallback)
+      try {
+        await this.prisma.dailyAnalytics.upsert({
+          where: {
+            creatorId_date: {
+              creatorId: creator.id,
+              date: date
+            }
+          },
+          update: {
+            commissionableSales: metrics.commissionableSales,
+            commissionEarned: metrics.commissionEarned,
+            clicks: metrics.clicks,
+            conversions: metrics.conversions,
+            conversionRate: metrics.conversionRate,
+            appliedCommissionRate: creator.commissionRate || 70,
+            grossCommissionEarned: metrics.grossCommissionEarned,
+            dataSource: 'DATABASE_FALLBACK',
+            recordsProcessed: metrics.recordsProcessed,
+            lastSyncAt: new Date()
+          },
+          create: {
+            creatorId: creator.id,
+            date: date,
+            commissionableSales: metrics.commissionableSales,
+            commissionEarned: metrics.commissionEarned,
+            clicks: metrics.clicks,
+            conversions: metrics.conversions,
+            conversionRate: metrics.conversionRate,
+            appliedCommissionRate: creator.commissionRate || 70,
+            grossCommissionEarned: metrics.grossCommissionEarned,
+            dataSource: 'DATABASE_FALLBACK',
+            recordsProcessed: metrics.recordsProcessed,
+            lastSyncAt: new Date()
+          }
+        });
+        console.log(`✅ Stored fallback analytics for ${creator.email} in DailyAnalytics table`);
+      } catch (dailyAnalyticsError) {
+        console.log(`⚠️ DailyAnalytics table not available, using EarningsSnapshot fallback for ${creator.email}`);
+        
+        // Fallback to EarningsSnapshot
+        try {
+          await this.prisma.earningsSnapshot.create({
+            data: {
+              creatorId: creator.id,
+              originalAmount: metrics.commissionEarned,
+              commissionRate: creator.commissionRate || 70,
+              grossAmount: metrics.grossCommissionEarned,
+              type: 'COMMISSION',
+              source: 'DATABASE_FALLBACK',
+              earnedAt: date,
+              rateEffectiveDate: date
+            }
+          });
+          console.log(`✅ Stored fallback analytics for ${creator.email} in EarningsSnapshot`);
+        } catch (storageError) {
+          console.log(`⚠️ Storage fallback failed for ${creator.email}: Using in-memory only`);
+        }
+      }
+
+      console.log(`✅ Collected fallback analytics for ${creator.email}: $${metrics.commissionEarned.toFixed(2)} earned from ${metrics.conversions} conversions`);
+
+      return {
+        success: true,
+        metrics
+      };
+
+    } catch (error) {
+      console.error(`❌ Failed to collect fallback analytics for creator ${creator.email}:`, error.message);
+      return {
+        success: false,
+        error: error.message
       };
     }
   }
