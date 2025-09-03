@@ -302,7 +302,7 @@ class DailyAnalyticsService {
         
         // Fallback to EarningsSnapshot
         const earningsWhereClause = {
-          createdAt: {
+          earnedAt: {
             gte: start,
             lte: end
           }
@@ -319,24 +319,24 @@ class DailyAnalyticsService {
               select: { id: true, name: true, email: true }
             }
           },
-          orderBy: { createdAt: 'asc' }
+          orderBy: { earnedAt: 'asc' }
         });
 
         // Convert EarningsSnapshot to DailyAnalytics format
         dailyRecords = earningsRecords.map(record => ({
           id: record.id,
           creatorId: record.creatorId,
-          date: record.createdAt,
-          commissionableSales: record.totalCommissionableSales || 0,
-          commissionEarned: record.totalCommissionEarned || 0,
-          clicks: record.totalClicks || 0,
-          conversions: record.totalConversions || 0,
-          conversionRate: record.conversionRate || 0,
-          appliedCommissionRate: 70,
-          grossCommissionEarned: record.totalCommissionEarned || 0,
+          date: record.earnedAt, // Use earnedAt instead of createdAt
+          commissionableSales: record.grossAmount || 0, // Use grossAmount as commissionable sales
+          commissionEarned: record.originalAmount || 0, // Use originalAmount as commission earned
+          clicks: 0, // EarningsSnapshot doesn't track clicks
+          conversions: 1, // Each record represents 1 conversion
+          conversionRate: 0, // Can't calculate without clicks
+          appliedCommissionRate: record.commissionRate || 70,
+          grossCommissionEarned: record.grossAmount || 0,
           dataSource: 'EARNINGS_SNAPSHOT_FALLBACK',
           recordsProcessed: 1,
-          lastSyncAt: record.createdAt,
+          lastSyncAt: record.snapshotAt,
           creator: record.creator
         }));
 
