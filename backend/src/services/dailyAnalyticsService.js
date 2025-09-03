@@ -297,50 +297,122 @@ class DailyAnalyticsService {
         });
         console.log(`📊 [Historical Analytics] Found ${dailyRecords.length} DailyAnalytics records`);
       } catch (dailyAnalyticsError) {
-        console.log('⚠️ [Historical Analytics] DailyAnalytics table not available, using EarningsSnapshot fallback');
+        console.log('⚠️ [Historical Analytics] DailyAnalytics table not available, using existing analytics system fallback');
         isFallback = true;
         
-        // Fallback to EarningsSnapshot
-        const earningsWhereClause = {
-          earnedAt: {
+        // Fallback to existing analytics system (Link + Earning tables)
+        const whereClause = {
+          createdAt: {
             gte: start,
             lte: end
           }
         };
 
         if (creatorId) {
-          earningsWhereClause.creatorId = creatorId;
+          whereClause.creatorId = creatorId;
         }
 
-        const earningsRecords = await this.prisma.earningsSnapshot.findMany({
-          where: earningsWhereClause,
+        // Get links data for clicks and conversions
+        const linksData = await this.prisma.link.findMany({
+          where: whereClause,
           include: {
             creator: {
               select: { id: true, name: true, email: true }
             }
           },
-          orderBy: { earnedAt: 'asc' }
+          orderBy: { createdAt: 'asc' }
         });
 
-        // Convert EarningsSnapshot to DailyAnalytics format
-        dailyRecords = earningsRecords.map(record => ({
-          id: record.id,
-          creatorId: record.creatorId,
-          date: record.earnedAt, // Use earnedAt instead of createdAt
-          commissionableSales: record.grossAmount || 0, // Use grossAmount as commissionable sales
-          commissionEarned: record.originalAmount || 0, // Use originalAmount as commission earned
-          clicks: 0, // EarningsSnapshot doesn't track clicks
-          conversions: 1, // Each record represents 1 conversion
-          conversionRate: 0, // Can't calculate without clicks
-          appliedCommissionRate: record.commissionRate || 70,
-          grossCommissionEarned: record.grossAmount || 0,
-          dataSource: 'EARNINGS_SNAPSHOT_FALLBACK',
-          recordsProcessed: 1,
-          lastSyncAt: record.snapshotAt,
-          creator: record.creator
+        // Get earnings data for commission information
+        const earningsData = await this.prisma.earning.findMany({
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end
+            },
+            ...(creatorId && { creatorId })
+          },
+          include: {
+            creator: {
+              select: { id: true, name: true, email: true }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        });
+
+        // Group data by date and creator
+        const dailyDataMap = new Map();
+
+        // Process links data
+        linksData.forEach(link => {
+          const dateKey = link.createdAt.toISOString().split('T')[0];
+          const creatorKey = link.creatorId;
+          const key = `${dateKey}-${creatorKey}`;
+
+          if (!dailyDataMap.has(key)) {
+            dailyDataMap.set(key, {
+              id: `fallback-${key}`,
+              creatorId: link.creatorId,
+              date: new Date(dateKey),
+              commissionableSales: 0,
+              commissionEarned: 0,
+              clicks: 0,
+              conversions: 0,
+              conversionRate: 0,
+              appliedCommissionRate: 70,
+              grossCommissionEarned: 0,
+              dataSource: 'EXISTING_ANALYTICS_FALLBACK',
+              recordsProcessed: 0,
+              lastSyncAt: link.createdAt,
+              creator: link.creator
+            });
+          }
+
+          const dayData = dailyDataMap.get(key);
+          dayData.clicks += link.clicks || 0;
+          dayData.conversions += link.conversions || 0;
+          dayData.commissionableSales += Number(link.revenue || 0);
+          dayData.recordsProcessed += 1;
+        });
+
+        // Process earnings data
+        earningsData.forEach(earning => {
+          const dateKey = earning.createdAt.toISOString().split('T')[0];
+          const creatorKey = earning.creatorId;
+          const key = `${dateKey}-${creatorKey}`;
+
+          if (!dailyDataMap.has(key)) {
+            dailyDataMap.set(key, {
+              id: `fallback-${key}`,
+              creatorId: earning.creatorId,
+              date: new Date(dateKey),
+              commissionableSales: 0,
+              commissionEarned: 0,
+              clicks: 0,
+              conversions: 0,
+              conversionRate: 0,
+              appliedCommissionRate: 70,
+              grossCommissionEarned: 0,
+              dataSource: 'EXISTING_ANALYTICS_FALLBACK',
+              recordsProcessed: 0,
+              lastSyncAt: earning.createdAt,
+              creator: earning.creator
+            });
+          }
+
+          const dayData = dailyDataMap.get(key);
+          dayData.commissionEarned += Number(earning.amount || 0);
+          dayData.grossCommissionEarned += Number(earning.grossAmount || earning.amount || 0);
+          dayData.appliedCommissionRate = earning.appliedCommissionRate || 70;
+        });
+
+        // Convert map to array and calculate conversion rates
+        dailyRecords = Array.from(dailyDataMap.values()).map(record => ({
+          ...record,
+          conversionRate: record.clicks > 0 ? (record.conversions / record.clicks) * 100 : 0
         }));
 
-        console.log(`📊 [Historical Analytics] Found ${dailyRecords.length} EarningsSnapshot records (fallback)`);
+        console.log(`📊 [Historical Analytics] Found ${dailyRecords.length} records from existing analytics system (fallback)`);
       }
 
       // Aggregate data by date for charts
