@@ -808,8 +808,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           
           pendingActions = commissionableActions.length;
           
-          // Calculate gross commission from Impact.com (already calculated by Impact.com)
-          // Note: action.Payout is the commission Impact.com pays us, not the sale amount
+          // Calculate gross revenue from commissionable actions only
           pendingGross = commissionableActions.reduce((sum, action) => {
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
@@ -818,13 +817,6 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${pendingActions}`);
           console.log(`  - Gross commission: $${pendingGross}`);
-          
-          // DEBUG: Show individual commissions for troubleshooting
-          console.log(`[Earnings Summary] 🔍 DEBUG - Individual commissions:`);
-          commissionableActions.forEach((action, index) => {
-            const commission = parseFloat(action.Payout || action.Commission || 0);
-            console.log(`  ${index + 1}. $${commission} - Status: ${action.State || action.Status} - Date: ${action.EventDate || action.CreatedDate}`);
-          });
         } else {
           console.log(`[Earnings Summary] ⚠️ Could not get detailed actions, using fallback`);
           
@@ -932,11 +924,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.log(`[Earnings Summary] ✅ Using snapshot earnings: $${pendingNet} (point-in-time preserved)`);
       console.log(`[Earnings Summary] 🛡️ These earnings are locked and immune to rate changes`);
     } else {
-      // CORRECT BUSINESS MODEL: Creator gets their commission rate % of Impact.com gross
-      // Impact.com pays $932 → Platform keeps 30% → Creator gets 70% = $652.40
+      // SAFETY FALLBACK: Use current calculation method
       pendingNet = parseFloat(((pendingGross * rate) / 100).toFixed(2));
-      console.log(`[Earnings Summary] 🔄 Business model calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
-      console.log(`[Earnings Summary] 💰 Impact.com commission: $${pendingGross}, Creator share (${rate}%): $${pendingNet}, Platform share: $${(pendingGross - pendingNet).toFixed(2)}`);
+      console.log(`[Earnings Summary] 🔄 Using legacy calculation: $${pendingGross} gross × ${rate}% = $${pendingNet} net`);
+      console.log(`[Earnings Summary] ⚠️ This calculation may change if commission rate is modified`);
     }
     
     const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
