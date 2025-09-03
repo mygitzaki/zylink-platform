@@ -728,9 +728,18 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // Get creator info
     const creator = await prisma.creator.findUnique({
       where: { id: req.user.id },
-      select: { commissionRate: true, impactSubId: true }
+      select: { commissionRate: true, impactSubId: true, email: true }
     });
     const rate = creator?.commissionRate ?? 70;
+    
+    // DEBUG: Special logging for sohailkhan521456@gmail.com
+    if (creator?.email === 'sohailkhan521456@gmail.com') {
+      console.log(`[Earnings Summary] 🔍 DEBUGGING Sohail's Account:`);
+      console.log(`[Earnings Summary] 👤 Creator ID: ${req.user.id}`);
+      console.log(`[Earnings Summary] 📧 Email: ${creator.email}`);
+      console.log(`[Earnings Summary] 💰 Commission Rate: ${rate}%`);
+      console.log(`[Earnings Summary] 🆔 Impact SubId: ${creator.impactSubId || 'NULL (will compute)'}`);
+    }
 
     // Proper date range logic with custom date support
     const now = new Date();
@@ -783,6 +792,14 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
+      // DEBUG: Special logging for sohailkhan521456@gmail.com
+      if (creator?.email === 'sohailkhan521456@gmail.com') {
+        console.log(`[Earnings Summary] 🔍 Sohail's SubId1 Analysis:`);
+        console.log(`[Earnings Summary] 📊 Stored SubId1: ${creator.impactSubId || 'NULL'}`);
+        console.log(`[Earnings Summary] 🧮 Computed SubId1: ${impact.computeObfuscatedSubId(req.user.id)}`);
+        console.log(`[Earnings Summary] ✅ Using SubId1: ${correctSubId1}`);
+      }
+      
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Earnings Summary] Fetching commissionable actions for SubId1: ${correctSubId1}`);
         
@@ -795,10 +812,31 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
         });
         
         if (detailedActions.success && detailedActions.actions) {
+          const actions = detailedActions.actions;
+          
+          // DEBUG: Special logging for sohailkhan521456@gmail.com
+          if (creator?.email === 'sohailkhan521456@gmail.com') {
+            console.log(`[Earnings Summary] 🔍 Sohail's API Response Analysis:`);
+            console.log(`[Earnings Summary] 📊 Total actions received: ${actions.length}`);
+            console.log(`[Earnings Summary] 🎯 Looking for SubId1: ${correctSubId1}`);
+          }
+          
           // Filter for this creator's actions
-          const creatorActions = detailedActions.actions.filter(action => 
+          const creatorActions = actions.filter(action => 
             action.SubId1 === correctSubId1
           );
+          
+          // DEBUG: Special logging for sohailkhan521456@gmail.com
+          if (creator?.email === 'sohailkhan521456@gmail.com') {
+            console.log(`[Earnings Summary] 🔍 Sohail's Action Filtering:`);
+            console.log(`[Earnings Summary] 📊 Creator actions found: ${creatorActions.length}`);
+            if (creatorActions.length === 0 && actions.length > 0) {
+              console.log(`[Earnings Summary] ⚠️ No actions match SubId1! Sample SubId1s from actions:`);
+              actions.slice(0, 5).forEach((action, i) => {
+                console.log(`[Earnings Summary] 📋 Action ${i+1}: SubId1="${action.SubId1}"`);
+              });
+            }
+          }
           
           // Filter for ONLY commissionable actions (commission > 0) - same as analytics
           const commissionableActions = creatorActions.filter(action => {
