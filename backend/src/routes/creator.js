@@ -715,6 +715,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
 // NEW: Professional Earnings Summary - Combines pending + approved + analytics
 router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req, res) => {
   console.log(`[Earnings Summary] 🚀 ENDPOINT CALLED - Creator ID: ${req.user.id}`);
+  console.log(`[Earnings Summary] 🔍 REQUEST DETAILS - User: ${JSON.stringify(req.user)}`);
   try {
     const prisma = getPrisma();
     if (!prisma) return res.json({ 
