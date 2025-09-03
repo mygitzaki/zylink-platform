@@ -51,6 +51,8 @@ export default function CreatorManagement(){
       console.log('🔍 Loading creator profile for:', creatorId)
       setLoadingProfile(true)
       setError('') // Clear any previous errors
+      setShowCreatorProfile(null) // Clear previous modal
+      setCreatorProfileData(null) // Clear previous data
       
       const data = await apiFetch(`/api/admin/creators/${creatorId}/profile`, { 
         method: 'GET',
@@ -66,11 +68,11 @@ export default function CreatorManagement(){
       setCreatorProfileData(data)
       setShowCreatorProfile(creatorId)
       console.log('🎯 Modal should now show for:', data.creator.name)
+      console.log('🎯 Modal state:', { showCreatorProfile: creatorId, hasData: !!data })
       
     } catch (error) {
       console.error('❌ Failed to load creator profile:', error)
       setError(`Failed to load creator profile: ${error.message}`)
-    } finally {
       setLoadingProfile(false)
     }
   }
@@ -152,6 +154,14 @@ export default function CreatorManagement(){
       </div>
     )
   }
+
+  // Debug current state
+  console.log('🎬 CreatorManagement render state:', {
+    showCreatorProfile,
+    hasCreatorProfileData: !!creatorProfileData,
+    loadingProfile,
+    error
+  })
 
   return (
     <div className="modern-admin-container">
@@ -322,14 +332,7 @@ export default function CreatorManagement(){
       )}
 
       {/* Comprehensive Creator Profile Modal */}
-      {(() => {
-        console.log('🎬 Modal render check:', {
-          showCreatorProfile,
-          hasCreatorProfileData: !!creatorProfileData,
-          creatorName: creatorProfileData?.creator?.name
-        })
-        return showCreatorProfile && creatorProfileData
-      })() && (
+      {showCreatorProfile && creatorProfileData && (
         <div className="modal-overlay" onClick={() => setShowCreatorProfile(null)}>
           <div className="modal-content creator-profile-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
