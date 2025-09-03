@@ -1889,63 +1889,63 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
         console.log(`[Sales History] 🔍 Creator ID: ${req.user.id}, SubId1: ${correctSubId1}`);
         
         if (correctSubId1 && correctSubId1 !== 'default') {
-        console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
-        console.log(`[Sales History] 🔍 DEBUGGING: Date range: ${startDate} to ${endDate}`);
-        console.log(`[Sales History] 🔍 DEBUGGING: Impact.com API call starting...`);
-        
-        // Use the same Actions API that was working before
-        const actionsResponse = await impact.getActionsDetailed({
-          subId1: correctSubId1,
-          startDate,
-          endDate,
-          pageSize: 1000 // Get more records to calculate totals
-        });
-        
-        console.log(`[Sales History] 🔍 DEBUGGING: API Response success: ${actionsResponse.success}`);
-        console.log(`[Sales History] 🔍 DEBUGGING: Total actions received: ${actionsResponse.actions?.length || 0}`);
-        
-        if (actionsResponse.success) {
-          const actions = actionsResponse.actions || [];
+          console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
+          console.log(`[Sales History] 🔍 DEBUGGING: Date range: ${startDate} to ${endDate}`);
+          console.log(`[Sales History] 🔍 DEBUGGING: Impact.com API call starting...`);
           
-          console.log(`[Sales History] 🔍 DEBUGGING: Processing ${actions.length} actions`);
-          
-          // Filter for this creator's actions
-          const creatorActions = actions.filter(action => {
-            const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
-            return actionSubId1.toString().trim() === correctSubId1.toString().trim();
+          // Use the same Actions API that was working before
+          const actionsResponse = await impact.getActionsDetailed({
+            subId1: correctSubId1,
+            startDate,
+            endDate,
+            pageSize: 1000 // Get more records to calculate totals
           });
           
-          console.log(`[Sales History] 🔍 DEBUGGING: Creator actions found: ${creatorActions.length}`);
+          console.log(`[Sales History] 🔍 DEBUGGING: API Response success: ${actionsResponse.success}`);
+          console.log(`[Sales History] 🔍 DEBUGGING: Total actions received: ${actionsResponse.actions?.length || 0}`);
           
-          // Filter for ONLY commissionable actions (commission > 0) - this was working before
-          const commissionableActions = creatorActions.filter(action => {
-            const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
-          });
-
-          // Calculate totals using the same field names that were working
-          let calculatedSales = 0;
-          let calculatedCommission = 0;
-          const processedSales = [];
-
-          for (const action of commissionableActions) {
-            const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            const commission = parseFloat(action.Payout || action.Commission || 0);
+          if (actionsResponse.success) {
+            const actions = actionsResponse.actions || [];
             
-            calculatedSales += saleAmount;
-            calculatedCommission += commission;
-
-            // Apply business commission rate to individual sale commission (creator's actual share)
-            const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
+            console.log(`[Sales History] 🔍 DEBUGGING: Processing ${actions.length} actions`);
             
-            // Mask product/campaign names for cleaner display
-            let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
-            if (productName.toLowerCase().includes('walmartcreator') || productName.toLowerCase().includes('walmart')) {
-              productName = 'Walmart';
-            }
+            // Filter for this creator's actions
+            const creatorActions = actions.filter(action => {
+              const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
+              return actionSubId1.toString().trim() === correctSubId1.toString().trim();
+            });
+            
+            console.log(`[Sales History] 🔍 DEBUGGING: Creator actions found: ${creatorActions.length}`);
+            
+            // Filter for ONLY commissionable actions (commission > 0) - this was working before
+            const commissionableActions = creatorActions.filter(action => {
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              return commission > 0;
+            });
 
-            // Try to get original product URL
-            let productUrl = 'https://www.walmart.com'; // Default fallback
+            // Calculate totals using the same field names that were working
+            let calculatedSales = 0;
+            let calculatedCommission = 0;
+            const processedSales = [];
+
+            for (const action of commissionableActions) {
+              const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              
+              calculatedSales += saleAmount;
+              calculatedCommission += commission;
+
+              // Apply business commission rate to individual sale commission (creator's actual share)
+              const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
+              
+              // Mask product/campaign names for cleaner display
+              let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
+              if (productName.toLowerCase().includes('walmartcreator') || productName.toLowerCase().includes('walmart')) {
+                productName = 'Walmart';
+              }
+
+              // Try to get original product URL
+              let productUrl = 'https://www.walmart.com'; // Default fallback
             
             try {
               // Look for URL fields in the action data
@@ -2041,9 +2041,10 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           });
 
           console.log(`[Sales History] ✅ Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
+          }
         }
-      }
-      } // Close the if (correctSubId1 && correctSubId1 !== 'default') block
+        } // Close the if (correctSubId1 && correctSubId1 !== 'default') block
+      } // Close the else block for no cached data
     } catch (error) {
       console.error('[Sales History] Error fetching sales data:', error.message);
       // Continue with empty data rather than failing

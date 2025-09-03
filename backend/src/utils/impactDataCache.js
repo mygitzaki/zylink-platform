@@ -1,29 +1,28 @@
-// Smart Impact.com Data Cache
-// Prevents duplicate API calls and rate limiting issues
+/**
+ * Impact.com Data Cache Utility
+ * 
+ * Caches Impact.com API responses to avoid duplicate calls
+ * between earnings-summary and sales-history endpoints
+ */
 
 class ImpactDataCache {
   constructor() {
     this.cache = new Map();
-    this.TTL = 5 * 60 * 1000; // 5 minutes
+    this.maxAge = 5 * 60 * 1000; // 5 minutes
   }
 
-  // Generate cache key for creator and date range
-  generateKey(creatorId, startDate, endDate) {
+  /**
+   * Generate cache key
+   */
+  getKey(creatorId, startDate, endDate) {
     return `${creatorId}:${startDate}:${endDate}`;
   }
 
-  // Store Impact.com data
-  set(creatorId, startDate, endDate, data) {
-    const key = this.generateKey(creatorId, startDate, endDate);
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
-    });
-  }
-
-  // Get cached Impact.com data
+  /**
+   * Get cached data
+   */
   get(creatorId, startDate, endDate) {
-    const key = this.generateKey(creatorId, startDate, endDate);
+    const key = this.getKey(creatorId, startDate, endDate);
     const cached = this.cache.get(key);
     
     if (!cached) {
@@ -32,7 +31,7 @@ class ImpactDataCache {
 
     // Check if data is still fresh
     const age = Date.now() - cached.timestamp;
-    if (age > this.TTL) {
+    if (age > this.maxAge) {
       this.cache.delete(key);
       return null;
     }
@@ -40,31 +39,41 @@ class ImpactDataCache {
     return cached.data;
   }
 
-  // Clean expired entries
+  /**
+   * Set cached data
+   */
+  set(creatorId, startDate, endDate, data) {
+    const key = this.getKey(creatorId, startDate, endDate);
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+
+    // Clean up old entries
+    this.cleanup();
+  }
+
+  /**
+   * Clean up expired entries
+   */
   cleanup() {
     const now = Date.now();
-    for (const [key, cached] of this.cache.entries()) {
-      if (now - cached.timestamp > this.TTL) {
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > this.maxAge) {
         this.cache.delete(key);
       }
     }
   }
 
-  // Get cache stats
-  getStats() {
-    return {
-      size: this.cache.size,
-      keys: Array.from(this.cache.keys())
-    };
+  /**
+   * Clear all cache
+   */
+  clear() {
+    this.cache.clear();
   }
 }
 
-// Global cache instance
-const impactCache = new ImpactDataCache();
-
-// Cleanup expired entries every 10 minutes
-setInterval(() => {
-  impactCache.cleanup();
-}, 10 * 60 * 1000);
-
-module.exports = { impactCache };
+// Export singleton instance
+module.exports = {
+  impactCache: new ImpactDataCache()
+};
