@@ -280,16 +280,68 @@ class DailyAnalyticsService {
         whereClause.creatorId = creatorId;
       }
 
-      // Get daily analytics records from DailyAnalytics table
-      const dailyRecords = await this.prisma.dailyAnalytics.findMany({
-        where: whereClause,
-        include: {
-          creator: {
-            select: { id: true, name: true, email: true }
+      // TEMPORARY FIX: Try DailyAnalytics first, fallback to EarningsSnapshot
+      let dailyRecords;
+      let isFallback = false;
+      
+      try {
+        // Try DailyAnalytics table first
+        dailyRecords = await this.prisma.dailyAnalytics.findMany({
+          where: whereClause,
+          include: {
+            creator: {
+              select: { id: true, name: true, email: true }
+            }
+          },
+          orderBy: { date: 'asc' }
+        });
+        console.log(`📊 [Historical Analytics] Found ${dailyRecords.length} DailyAnalytics records`);
+      } catch (dailyAnalyticsError) {
+        console.log('⚠️ [Historical Analytics] DailyAnalytics table not available, using EarningsSnapshot fallback');
+        isFallback = true;
+        
+        // Fallback to EarningsSnapshot
+        const earningsWhereClause = {
+          createdAt: {
+            gte: start,
+            lte: end
           }
-        },
-        orderBy: { date: 'asc' }
-      });
+        };
+
+        if (creatorId) {
+          earningsWhereClause.creatorId = creatorId;
+        }
+
+        const earningsRecords = await this.prisma.earningsSnapshot.findMany({
+          where: earningsWhereClause,
+          include: {
+            creator: {
+              select: { id: true, name: true, email: true }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        });
+
+        // Convert EarningsSnapshot to DailyAnalytics format
+        dailyRecords = earningsRecords.map(record => ({
+          id: record.id,
+          creatorId: record.creatorId,
+          date: record.createdAt,
+          commissionableSales: record.totalCommissionableSales || 0,
+          commissionEarned: record.totalCommissionEarned || 0,
+          clicks: record.totalClicks || 0,
+          conversions: record.totalConversions || 0,
+          conversionRate: record.conversionRate || 0,
+          appliedCommissionRate: 70,
+          grossCommissionEarned: record.totalCommissionEarned || 0,
+          dataSource: 'EARNINGS_SNAPSHOT_FALLBACK',
+          recordsProcessed: 1,
+          lastSyncAt: record.createdAt,
+          creator: record.creator
+        }));
+
+        console.log(`📊 [Historical Analytics] Found ${dailyRecords.length} EarningsSnapshot records (fallback)`);
+      }
 
       // Aggregate data by date for charts
       const chartData = this.aggregateByDate(dailyRecords);
@@ -306,7 +358,9 @@ class DailyAnalyticsService {
         summary,
         chartData,
         topCreators,
-        totalRecords: dailyRecords.length
+        totalRecords: dailyRecords.length,
+        fallback: isFallback,
+        fallbackMessage: isFallback ? 'Using EarningsSnapshot data until DailyAnalytics table is available' : null
       };
 
     } catch (error) {
