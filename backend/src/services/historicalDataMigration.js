@@ -11,15 +11,16 @@ class HistoricalDataMigration {
     this.dailyAnalyticsService = new DailyAnalyticsService();
     this.impactService = new ImpactWebService();
     
-    // Production safety configuration
+    // Production safety configuration - Optimized for Impact.com API limits
     this.config = {
-      batchSize: 5, // Process 5 creators at a time
+      batchSize: 2, // Process 2 creators at a time (reduced from 5)
       daysBatchSize: 7, // Process 7 days at a time
-      rateLimitDelay: 2000, // 2 second delay between batches
+      rateLimitDelay: 5000, // 5 second delay between batches (increased from 2s)
       maxRetries: 3, // Max retry attempts per operation
       safeMode: process.env.NODE_ENV === 'production', // Extra safety in production
       backupBeforeMigration: true, // Create backup before major operations
-      progressReporting: true // Report progress for long operations
+      progressReporting: true, // Report progress for long operations
+      apiCallDelay: 1000 // 1 second delay between individual API calls
     };
   }
 
@@ -183,9 +184,9 @@ class HistoricalDataMigration {
           }
         }
 
-        // Small delay between creators to avoid overwhelming the API
+        // Longer delay between creators to respect API limits
         if (creatorIndex < creators.length - 1) {
-          await this.sleep(500); // 0.5 second between creators
+          await this.sleep(this.config.apiCallDelay || 1000); // 1 second between creators
         }
 
       } catch (error) {
