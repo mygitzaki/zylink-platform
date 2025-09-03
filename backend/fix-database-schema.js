@@ -102,6 +102,69 @@ async function fixDatabaseSchema() {
       console.log('✅ EarningsReversal table created successfully');
     }
     
+    // Check and add missing columns to Earning table
+    console.log('🔧 Checking Earning table columns...');
+    
+    // Check if appliedCommissionRate column exists
+    const appliedRateColumnExists = await prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'Earning' 
+        AND column_name = 'appliedCommissionRate'
+      );
+    `;
+    
+    if (!appliedRateColumnExists[0]?.exists) {
+      console.log('🔧 Adding appliedCommissionRate column to Earning table...');
+      await prisma.$executeRaw`
+        ALTER TABLE "Earning" 
+        ADD COLUMN IF NOT EXISTS "appliedCommissionRate" INTEGER;
+      `;
+      console.log('✅ appliedCommissionRate column added');
+    } else {
+      console.log('✅ appliedCommissionRate column already exists');
+    }
+    
+    // Check if grossAmount column exists
+    const grossAmountColumnExists = await prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'Earning' 
+        AND column_name = 'grossAmount'
+      );
+    `;
+    
+    if (!grossAmountColumnExists[0]?.exists) {
+      console.log('🔧 Adding grossAmount column to Earning table...');
+      await prisma.$executeRaw`
+        ALTER TABLE "Earning" 
+        ADD COLUMN IF NOT EXISTS "grossAmount" DECIMAL(65,30);
+      `;
+      console.log('✅ grossAmount column added');
+    } else {
+      console.log('✅ grossAmount column already exists');
+    }
+    
+    // Check if rateEffectiveDate column exists
+    const rateEffectiveDateColumnExists = await prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_name = 'Earning' 
+        AND column_name = 'rateEffectiveDate'
+      );
+    `;
+    
+    if (!rateEffectiveDateColumnExists[0]?.exists) {
+      console.log('🔧 Adding rateEffectiveDate column to Earning table...');
+      await prisma.$executeRaw`
+        ALTER TABLE "Earning" 
+        ADD COLUMN IF NOT EXISTS "rateEffectiveDate" TIMESTAMP(3);
+      `;
+      console.log('✅ rateEffectiveDate column added');
+    } else {
+      console.log('✅ rateEffectiveDate column already exists');
+    }
+    
     console.log('🎉 Database schema fix completed successfully!');
     console.log('✅ Point-in-time earnings system now available');
     
