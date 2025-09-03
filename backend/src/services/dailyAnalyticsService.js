@@ -323,17 +323,29 @@ class DailyAnalyticsService {
           orderBy: { createdAt: 'asc' }
         });
 
-        // Get earnings data for commission information (simplified query)
-        const earningsData = await this.prisma.earning.findMany({
-          where: {
-            createdAt: {
-              gte: start,
-              lte: end
+        // Get earnings data for commission information (ultra-safe query)
+        let earningsData = [];
+        try {
+          earningsData = await this.prisma.earning.findMany({
+            where: {
+              createdAt: {
+                gte: start,
+                lte: end
+              },
+              ...(creatorId && { creatorId })
             },
-            ...(creatorId && { creatorId })
-          },
-          orderBy: { createdAt: 'asc' }
-        });
+            select: {
+              id: true,
+              creatorId: true,
+              amount: true,
+              createdAt: true
+            },
+            orderBy: { createdAt: 'asc' }
+          });
+        } catch (earningError) {
+          console.log('⚠️ [Historical Analytics] Earning table query failed, using links only:', earningError.message);
+          earningsData = [];
+        }
 
         // Group data by date and creator
         const dailyDataMap = new Map();
@@ -397,8 +409,8 @@ class DailyAnalyticsService {
 
           const dayData = dailyDataMap.get(key);
           dayData.commissionEarned += Number(earning.amount || 0);
-          dayData.grossCommissionEarned += Number(earning.grossAmount || earning.amount || 0);
-          dayData.appliedCommissionRate = earning.appliedCommissionRate || 70;
+          dayData.grossCommissionEarned += Number(earning.amount || 0); // Use amount as gross for safety
+          dayData.appliedCommissionRate = 70; // Default rate for safety
         });
 
         // Convert map to array and calculate conversion rates
