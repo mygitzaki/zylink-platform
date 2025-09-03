@@ -733,6 +733,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     const rate = creator?.commissionRate ?? 70;
     
     // DEBUG: Special logging for sohailkhan521456@gmail.com
+    console.log(`[Earnings Summary] 🔍 ALL CREATORS - Creator ID: ${req.user.id}, Email: ${creator?.email || 'UNKNOWN'}`);
     if (creator?.email === 'sohailkhan521456@gmail.com') {
       console.log(`[Earnings Summary] 🔍 DEBUGGING Sohail's Account:`);
       console.log(`[Earnings Summary] 👤 Creator ID: ${req.user.id}`);
@@ -1854,6 +1855,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
     const limitNumber = limit === 'all' ? 1000 : Math.max(1, Math.min(100, parseInt(limit) || 10));
 
     console.log(`[Sales History] Fetching sales for ${effectiveDays} days: ${startDate} to ${endDate}`);
+    console.log(`[Sales History] 🔍 ALL CREATORS - Creator ID: ${req.user.id}, Email: ${creator?.email || 'UNKNOWN'}`);
 
     // Get commissionable sales from Impact.com (original working approach)
     let totalSales = 0;
