@@ -826,16 +826,6 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           console.log(`  - Gross commission: $${pendingGross}`);
           console.log(`  - Total sales amount: $${totalSalesAmount}`);
           
-          // Store this data globally for other endpoints to use (avoid duplicate API calls)
-          global.lastCreatorData = global.lastCreatorData || {};
-          global.lastCreatorData[req.user.id] = {
-            commissionableActions,
-            totalSalesAmount,
-            pendingGross,
-            lastFetched: new Date(),
-            dateRange: { startDate, endDate }
-          };
-          
           // DEBUG: Show individual commissions and sales for troubleshooting
           console.log(`[Earnings Summary] 🔍 DEBUG - Individual transactions:`);
           commissionableActions.forEach((action, index) => {
@@ -1851,53 +1841,18 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
     let recentSales = [];
 
     try {
-      // OPTIMIZATION: Try to use cached data from earnings-summary first to avoid duplicate API calls
-      const cachedData = global.lastCreatorData?.[req.user.id];
-      const cacheAge = cachedData ? (new Date() - cachedData.lastFetched) / 1000 : Infinity;
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
       
-      console.log(`[Sales History] 🔍 Cache check: ${cachedData ? 'Found' : 'Not found'}, Age: ${cacheAge}s`);
+      // Use stored SubId1 or compute it
+      const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
-      if (cachedData && cacheAge < 300) { // Use cache if less than 5 minutes old
-        console.log(`[Sales History] ✅ Using cached data to avoid API rate limits`);
-        
-        const commissionableActions = cachedData.commissionableActions || [];
-        
-        // Calculate sales from cached data (use commissionable sales, not customer purchases)
-        totalSales = cachedData.pendingGross || 0; // Use commission amounts (commissionable sales)
-        salesCount = commissionableActions.length;
-        
-        // Build recent sales from cached actions
-        recentSales = commissionableActions.slice(0, 10).map(action => {
-          const commission = parseFloat(action.Payout || action.Commission || 0);
-          const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-          const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
-          
-          return {
-            date: (action.EventDate || action.CreatedDate || '').split('T')[0],
-            orderValue: saleAmount,
-            commission: creatorCommission,
-            status: action.State || action.Status || 'Pending',
-            actionId: action.Id || action.ActionId,
-            product: 'Walmart'
-          };
-        });
-        
-        console.log(`[Sales History] ✅ From cache: ${salesCount} sales, $${totalSales} total`);
-        
-      } else {
-        console.log(`[Sales History] 📡 Making fresh API call (cache ${cachedData ? 'expired' : 'missing'})`);
-        
-        const ImpactWebService = require('../services/impactWebService');
-        const impact = new ImpactWebService();
-        
-        // Use stored SubId1 or compute it
-        const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
-        
-        console.log(`[Sales History] 🔍 DEBUGGING: Creator ID: ${req.user.id}`);
-        console.log(`[Sales History] 🔍 DEBUGGING: Creator impactSubId: ${creator?.impactSubId}`);
-        console.log(`[Sales History] 🔍 DEBUGGING: Computed SubId1: ${correctSubId1}`);
-        
-        if (correctSubId1 && correctSubId1 !== 'default') {
+      console.log(`[Sales History] 🔍 DEBUGGING: Creator ID: ${req.user.id}`);
+      console.log(`[Sales History] 🔍 DEBUGGING: Creator impactSubId: ${creator?.impactSubId}`);
+      console.log(`[Sales History] 🔍 DEBUGGING: Computed SubId1: ${correctSubId1}`);
+      console.log(`[Sales History] 🔍 DEBUGGING: SubId1 comparison - stored vs computed`);
+      
+      if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
         console.log(`[Sales History] 🔍 DEBUGGING: Date range: ${startDate} to ${endDate}`);
         console.log(`[Sales History] 🔍 DEBUGGING: Impact.com API call starting...`);
