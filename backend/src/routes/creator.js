@@ -953,10 +953,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // 5. Get Analytics Data
     const analytics = {
       conversionRate: pendingActions > 0 ? ((pendingActions / (pendingActions * 10)) * 100).toFixed(1) : 0, // Estimate
-      averageOrderValue: pendingActions > 0 ? parseFloat((totalSalesAmount / pendingActions).toFixed(2)) : 0,
+      averageOrderValue: pendingActions > 0 ? parseFloat((pendingGross / pendingActions).toFixed(2)) : 0,
       totalActions: pendingActions,
       totalClicks: pendingActions * 10, // Estimate based on typical conversion rates
-      revenue: totalSalesAmount || 0 // Use sales amount, not commission amount
+      revenue: pendingGross // REVERTED: Use commissionable sales (Impact.com commission amounts)
     };
 
     const summary = {
@@ -1335,19 +1335,18 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           
           realConversions = commissionableActions.length;
           
-          // Calculate revenue from commissionable actions only
-          const grossRevenue = commissionableActions.reduce((sum, action) => {
+          // Calculate revenue from commissionable actions only (gross commissionable sales)
+          realRevenue = commissionableActions.reduce((sum, action) => {
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
           
-          const businessRate = creator?.commissionRate || 70;
-          realRevenue = (grossRevenue * businessRate) / 100;
+          // Note: realRevenue is the gross commissionable sales (what Impact.com pays)
+          // The creator's share is calculated separately in earnings
           
           console.log(`[Analytics Enhanced] ✅ COMMISSIONABLE ONLY filtering:`);
           console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${realConversions}`);
-          console.log(`  - Gross commission: $${grossRevenue.toFixed(2)}`);
-          console.log(`  - Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
+          console.log(`  - Gross commissionable sales: $${realRevenue.toFixed(2)}`);
           console.log(`  - Real clicks: ${realClicks}`);
         }
         
@@ -1580,13 +1579,13 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
           
           realData.conversions = commissionableActions.length;
           
-          // Calculate revenue from commissionable actions only
-          const grossRevenue = commissionableActions.reduce((sum, action) => {
+          // Calculate revenue from commissionable actions only (gross commissionable sales)
+          realData.revenue = commissionableActions.reduce((sum, action) => {
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
           
-          const businessRate = creator?.commissionRate || 70;
-          realData.revenue = (grossRevenue * businessRate) / 100;
+          // Note: revenue shows gross commissionable sales (what Impact.com pays)
+          // Creator's commission share is calculated separately
           
           console.log(`[Analytics Basic] ✅ COMMISSIONABLE ONLY: ${realData.conversions} conversions, $${realData.revenue.toFixed(2)} revenue`);
         }
