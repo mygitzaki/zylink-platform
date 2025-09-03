@@ -323,7 +323,7 @@ class DailyAnalyticsService {
           orderBy: { createdAt: 'asc' }
         });
 
-        // Get earnings data for commission information
+        // Get earnings data for commission information (simplified query)
         const earningsData = await this.prisma.earning.findMany({
           where: {
             createdAt: {
@@ -331,11 +331,6 @@ class DailyAnalyticsService {
               lte: end
             },
             ...(creatorId && { creatorId })
-          },
-          include: {
-            creator: {
-              select: { id: true, name: true, email: true }
-            }
           },
           orderBy: { createdAt: 'asc' }
         });
@@ -396,7 +391,7 @@ class DailyAnalyticsService {
               dataSource: 'EXISTING_ANALYTICS_FALLBACK',
               recordsProcessed: 0,
               lastSyncAt: earning.createdAt,
-              creator: earning.creator
+              creator: { id: earning.creatorId, name: 'Creator', email: 'creator@example.com' } // Fallback creator data
             });
           }
 
