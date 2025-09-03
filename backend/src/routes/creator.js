@@ -714,6 +714,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
 
 // NEW: Professional Earnings Summary - Combines pending + approved + analytics
 router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req, res) => {
+  console.log(`[Earnings Summary] 🚀 ENDPOINT CALLED - Creator ID: ${req.user.id}`);
   try {
     const prisma = getPrisma();
     if (!prisma) return res.json({ 
@@ -734,12 +735,18 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     
     // DEBUG: Special logging for sohailkhan521456@gmail.com
     console.log(`[Earnings Summary] 🔍 ALL CREATORS - Creator ID: ${req.user.id}, Email: ${creator?.email || 'UNKNOWN'}`);
-    if (creator?.email === 'sohailkhan521456@gmail.com') {
+    
+    // Check if this is Sohail's account by ID or email
+    const isSohail = req.user.id === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657' || creator?.email === 'sohailkhan521456@gmail.com';
+    
+    if (isSohail) {
       console.log(`[Earnings Summary] 🔍 DEBUGGING Sohail's Account:`);
       console.log(`[Earnings Summary] 👤 Creator ID: ${req.user.id}`);
-      console.log(`[Earnings Summary] 📧 Email: ${creator.email}`);
+      console.log(`[Earnings Summary] 📧 Email: ${creator?.email || 'UNKNOWN'}`);
       console.log(`[Earnings Summary] 💰 Commission Rate: ${rate}%`);
-      console.log(`[Earnings Summary] 🆔 Impact SubId: ${creator.impactSubId || 'NULL (will compute)'}`);
+      console.log(`[Earnings Summary] 🆔 Impact SubId: ${creator?.impactSubId || 'NULL (will compute)'}`);
+      console.log(`[Earnings Summary] 🎯 ID Match: ${req.user.id === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657'}`);
+      console.log(`[Earnings Summary] 🎯 Email Match: ${creator?.email === 'sohailkhan521456@gmail.com'}`);
     }
 
     // Proper date range logic with custom date support
