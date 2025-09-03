@@ -2043,6 +2043,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           console.log(`[Sales History] ✅ Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
         }
       }
+      } // Close the if (correctSubId1 && correctSubId1 !== 'default') block
     } catch (error) {
       console.error('[Sales History] Error fetching sales data:', error.message);
       // Continue with empty data rather than failing
