@@ -300,7 +300,7 @@ class DailyAnalyticsService {
         whereClause.creatorId = creatorId;
       }
 
-      // Get daily analytics records
+      // Get daily analytics records from DailyAnalytics table
       const dailyRecords = await this.prisma.dailyAnalytics.findMany({
         where: whereClause,
         include: {
