@@ -112,35 +112,73 @@ class DailyAnalyticsService {
       const dateStr = this.formatDate(date);
       console.log(`📊 Collecting analytics for creator ${creator.email} on ${dateStr}`);
 
-      // TEMPORARY: Skip duplicate check until table is properly created
-      console.log(`📊 Collecting fresh analytics for ${creator.email} on ${dateStr}`);
-
       // Get creator's SubId1 for Impact.com queries
       const subId1 = creator.impactSubId || this.impactService.computeObfuscatedSubId(creator.id);
       
       // Collect metrics for this creator and date
       const metrics = await this.getCreatorDayMetrics(creator, subId1, date);
 
-      // TEMPORARY: Store in EarningsSnapshot until DailyAnalytics table is available
+      // Try to store in DailyAnalytics table first
       try {
-        await this.prisma.earningsSnapshot.create({
-          data: {
+        await this.prisma.dailyAnalytics.upsert({
+          where: {
+            creatorId_date: {
+              creatorId: creator.id,
+              date: date
+            }
+          },
+          update: {
+            commissionableSales: metrics.commissionableSales,
+            commissionEarned: metrics.commissionEarned,
+            clicks: metrics.clicks,
+            conversions: metrics.conversions,
+            conversionRate: metrics.conversionRate,
+            appliedCommissionRate: creator.commissionRate || 70,
+            grossCommissionEarned: metrics.grossCommissionEarned,
+            dataSource: 'IMPACT_API',
+            recordsProcessed: metrics.recordsProcessed || 1,
+            lastSyncAt: new Date()
+          },
+          create: {
             creatorId: creator.id,
-            originalAmount: metrics.commissionEarned,
-            commissionRate: creator.commissionRate,
-            grossAmount: metrics.grossCommissionEarned,
-            type: 'COMMISSION',
-            source: 'DAILY_ANALYTICS_TEMP',
-            earnedAt: date,
-            rateEffectiveDate: date
+            date: date,
+            commissionableSales: metrics.commissionableSales,
+            commissionEarned: metrics.commissionEarned,
+            clicks: metrics.clicks,
+            conversions: metrics.conversions,
+            conversionRate: metrics.conversionRate,
+            appliedCommissionRate: creator.commissionRate || 70,
+            grossCommissionEarned: metrics.grossCommissionEarned,
+            dataSource: 'IMPACT_API',
+            recordsProcessed: metrics.recordsProcessed || 1,
+            lastSyncAt: new Date()
           }
         });
-        console.log(`✅ Stored temp analytics for ${creator.email} in EarningsSnapshot`);
-      } catch (storageError) {
-        console.log(`⚠️ Storage fallback for ${creator.email}: Using in-memory only`);
+        console.log(`✅ Stored analytics for ${creator.email} in DailyAnalytics table`);
+      } catch (dailyAnalyticsError) {
+        console.log(`⚠️ DailyAnalytics table not available, using EarningsSnapshot fallback for ${creator.email}`);
+        
+        // Fallback to EarningsSnapshot
+        try {
+          await this.prisma.earningsSnapshot.create({
+            data: {
+              creatorId: creator.id,
+              originalAmount: metrics.commissionEarned,
+              commissionRate: creator.commissionRate || 70,
+              grossAmount: metrics.grossCommissionEarned,
+              type: 'COMMISSION',
+              source: 'DAILY_ANALYTICS_FALLBACK',
+              earnedAt: date,
+              rateEffectiveDate: date
+            }
+          });
+          console.log(`✅ Stored fallback analytics for ${creator.email} in EarningsSnapshot`);
+        } catch (storageError) {
+          console.log(`⚠️ Storage fallback failed for ${creator.email}: Using in-memory only`);
+        }
       }
 
-      console.log(`✅ Stored analytics for ${creator.email}: $${metrics.commissionEarned.toFixed(2)} earned from ${metrics.conversions} conversions`);
+      console.log(`✅ Collected analytics for ${creator.email}: $${metrics.commissionEarned.toFixed(2)} earned from ${metrics.conversions} conversions`);
 
       return {
         success: true,

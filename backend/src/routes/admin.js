@@ -1121,7 +1121,13 @@ router.post('/analytics/collect-daily', requireAuth, requireAdmin, async (req, r
     
     // Start collection in background and return immediately
     analyticsService.collectDailyAnalytics(date).then(results => {
-      console.log('✅ Daily analytics collection completed:', results);
+      console.log('✅ Daily analytics collection completed:', {
+        date: results.date,
+        successful: results.successful,
+        failed: results.failed,
+        totalSales: results.metrics.totalSales.toFixed(2),
+        totalCommissions: results.metrics.totalCommissions.toFixed(2)
+      });
     }).catch(error => {
       console.error('❌ Background daily analytics collection error:', error);
     });
@@ -1129,8 +1135,9 @@ router.post('/analytics/collect-daily', requireAuth, requireAdmin, async (req, r
     // Return immediately to prevent timeout
     res.json({
       success: true,
-      message: 'Daily analytics collection started in background',
-      status: 'processing'
+      message: 'Daily analytics collection started in background - fetching fresh data from Impact.com API',
+      status: 'processing',
+      dataSource: 'IMPACT_API'
     });
 
   } catch (error) {

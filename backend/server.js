@@ -253,6 +253,16 @@ const server = app
   .listen(port, '0.0.0.0', () => {
     console.log(`Backend listening on http://0.0.0.0:${port}`);
     console.log('Docs available at /docs/ZYLINK_DOCUMENTATION_SIMPLE.html');
+    
+    // Start automated daily analytics collection
+    try {
+      const { CronService } = require('./src/services/cronService');
+      const cronService = new CronService();
+      cronService.start();
+      console.log('✅ Automated daily analytics collection started (runs daily at 2 AM)');
+    } catch (error) {
+      console.log('⚠️ Could not start cron service:', error.message);
+    }
   })
   .on('error', (err) => {
     if (err && err.code === 'EADDRINUSE') {
