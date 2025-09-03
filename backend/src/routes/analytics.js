@@ -102,7 +102,10 @@ router.get('/creator/:id', requireAuth, async (req, res) => {
     
   } catch (error) {
     console.error('Creator analytics error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    // Only send response if headers haven't been sent yet
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Internal server error' });
+    }
   }
 });
 
@@ -243,6 +246,8 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
     const hasRealData = platformData.clicks > 0 || platformData.conversions > 0 || platformData.revenue > 0;
     
     let combinedAgg;
+    let linkAgg;
+    
     if (hasRealData) {
       combinedAgg = {
         _sum: {
@@ -251,14 +256,21 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
           revenue: platformData.revenue
         }
       };
+      // Create linkAgg equivalent for consistency
+      linkAgg = {
+        _sum: {
+          revenue: platformData.revenue
+        }
+      };
       console.log('[Platform Analytics] ✅ Using real Impact.com platform data');
     } else {
       // Fallback to database aggregates
-      const [linkAgg, shortLinkAgg] = await Promise.all([
+      const [linkAggResult, shortLinkAgg] = await Promise.all([
         prisma.link.aggregate({ _sum: { conversions: true, revenue: true } }),
         prisma.shortLink.aggregate({ _sum: { clicks: true } }),
       ]);
       
+      linkAgg = linkAggResult;
       combinedAgg = {
         _sum: {
           clicks: shortLinkAgg._sum.clicks || 0,
@@ -361,7 +373,10 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('Platform analytics error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    // Only send response if headers haven't been sent yet
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Internal server error' });
+    }
   }
 });
 
@@ -435,7 +450,10 @@ router.get('/payments', requireAuth, requireAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('Payment analytics error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    // Only send response if headers haven't been sent yet
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Internal server error' });
+    }
   }
 });
 
