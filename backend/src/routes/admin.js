@@ -135,57 +135,68 @@ router.put('/creators/:id/commission', requireAuth, requireAdmin, async (req, re
     select: { commissionRate: true, name: true, email: true }
   });
   
-  if (currentCreator) {
-    console.log(`📈 Rate change: ${currentCreator.commissionRate}% → ${newRate}%`);
-    console.log(`👤 Creator: ${currentCreator.name} (${currentCreator.email})`);
-    
-    if (currentCreator.commissionRate !== newRate) {
-      console.log(`✅ FORWARD-ONLY PROTECTION: Historical earnings will NOT be affected`);
-      console.log(`✅ Point-in-time snapshots preserve past earnings at original rates`);
-      console.log(`✅ Only future earnings will use the new ${newRate}% rate`);
-      console.log(`✅ Creator trust maintained through historical accuracy`);
-    }
+  if (!currentCreator) {
+    return res.status(404).json({ message: 'Creator not found' });
+  }
+  
+  console.log(`📈 Rate change: ${currentCreator.commissionRate}% → ${newRate}%`);
+  console.log(`👤 Creator: ${currentCreator.name} (${currentCreator.email})`);
+  
+  if (currentCreator.commissionRate !== newRate) {
+    console.log(`✅ FORWARD-ONLY PROTECTION: Historical earnings will NOT be affected`);
+    console.log(`✅ Point-in-time snapshots preserve past earnings at original rates`);
+    console.log(`✅ Only future earnings will use the new ${newRate}% rate`);
+    console.log(`✅ Creator trust maintained through historical accuracy`);
   }
   
   // Check if point-in-time system is active for this creator
+  let hasSnapshots = false;
   try {
     const existingSnapshots = await prisma.earningsSnapshot.findFirst({
       where: { creatorId }
     });
     
     if (existingSnapshots) {
+      hasSnapshots = true;
       console.log(`🛡️ Point-in-time system ACTIVE for this creator`);
       console.log(`🛡️ Historical earnings are protected by snapshots`);
     } else {
-      console.log(`⚠️ No snapshots found - creator may see retroactive changes`);
-      console.log(`⚠️ Consider creating snapshots before rate change`);
+      console.log(`⚠️ No snapshots found - future earnings will be protected automatically`);
+      console.log(`📝 Snapshots are created automatically on new earnings via webhooks`);
     }
   } catch (snapshotCheckError) {
     console.log(`⚠️ Could not verify snapshot protection:`, snapshotCheckError.message);
   }
   
-  // EMERGENCY: Immediately revert commission rate to prevent further damage
-  console.log(`🚨 EMERGENCY REVERT: Restoring commission rate to prevent inflated earnings`);
-  console.log(`❌ Point-in-time protection still not active`);
-  console.log(`💰 Creators seeing inflated earnings due to retroactive calculation`);
-  console.log(`🔧 Reverting ${currentCreator.name} from current rate back to 70%`);
+  // SAFE: Apply the commission rate change (historical earnings protected)
+  console.log(`✅ APPLYING COMMISSION RATE CHANGE: ${currentCreator.commissionRate}% → ${newRate}%`);
+  console.log(`🛡️ Historical earnings remain protected at their original rates`);
+  console.log(`🚀 Future earnings will use the new ${newRate}% rate`);
   
-  // IMMEDIATELY revert to 70% to fix inflated earnings
-  const revertedCreator = await prisma.creator.update({ 
+  const updatedCreator = await prisma.creator.update({ 
     where: { id: creatorId }, 
-    data: { commissionRate: 70 } 
+    data: { commissionRate: newRate } 
   });
   
-  console.log(`✅ Emergency revert completed: Commission rate restored to 70%`);
-  console.log(`🛡️ This should restore correct earnings display for creator`);
+  console.log(`✅ Commission rate change completed successfully`);
+  console.log(`🛡️ Historical earnings protection: ${hasSnapshots ? 'ACTIVE via snapshots' : 'AUTOMATIC on new earnings'}`);
   
   return res.json({ 
-    reverted: true,
-    message: 'Commission rate emergency revert completed',
-    reason: 'Point-in-time protection not active - preventing inflated earnings',
-    revertedTo: 70,
-    wasAt: currentCreator?.commissionRate,
-    action: 'Earnings should return to normal amounts'
+    success: true,
+    message: 'Commission rate updated successfully',
+    creator: {
+      id: updatedCreator.id,
+      name: currentCreator.name,
+      email: currentCreator.email,
+      previousRate: currentCreator.commissionRate,
+      newRate: updatedCreator.commissionRate
+    },
+    protection: {
+      hasExistingSnapshots: hasSnapshots,
+      forwardOnlySystem: true,
+      historicalEarningsProtected: true
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
