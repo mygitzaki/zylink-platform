@@ -20,7 +20,7 @@ import PendingApplications from './pages/admin/PendingApplications'
 import CreatorManagement from './pages/admin/CreatorManagement'
 import EmailCenter from './pages/admin/EmailCenter'
 import PerformanceAnalytics from './pages/admin/PerformanceAnalytics'
-import HistoricalAnalytics from './pages/admin/HistoricalAnalytics'
+import QuickHistoricalAnalytics from './pages/admin/QuickHistoricalAnalytics'
 import SystemSettings from './pages/admin/SystemSettings'
 import PayoutQueue from './pages/admin/PayoutQueue'
 import Terms from './pages/Terms'
@@ -354,7 +354,7 @@ export default function App() {
             <Route path="/admin/email-management" element={<RequireAdmin><EmailCenter /></RequireAdmin>} />
             <Route path="/admin/payout-queue" element={<RequireAdmin><PayoutQueue /></RequireAdmin>} />
             <Route path="/admin/performance-analytics" element={<RequireAdmin><PerformanceAnalytics /></RequireAdmin>} />
-            <Route path="/admin/historical-analytics" element={<RequireAdmin><HistoricalAnalytics /></RequireAdmin>} />
+            <Route path="/admin/historical-analytics" element={<RequireAdmin><QuickHistoricalAnalytics /></RequireAdmin>} />
             <Route path="/admin/system-settings" element={<RequireAdmin><SystemSettings /></RequireAdmin>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
