@@ -48,7 +48,7 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
       
       return {
         ...creator,
-        commissionRate: 70, // Default commission rate for safety
+        commissionRate: creator.commissionRate || 70, // Use actual rate from database, fallback to 70
         performance: {
           totalClicks: shortLinkStats._sum.clicks || 0,
           totalLinks: linkStats._count.id || 0,
