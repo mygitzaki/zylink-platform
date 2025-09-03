@@ -11,7 +11,6 @@
     "deploy": "prisma migrate deploy",
     "create-admin": "node create-admin.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:migration": "node scripts/test-historical-migration.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",

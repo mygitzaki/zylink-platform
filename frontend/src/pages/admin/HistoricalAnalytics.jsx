@@ -13,13 +13,10 @@ export default function HistoricalAnalytics() {
   const [creators, setCreators] = useState([])
   const [collecting, setCollecting] = useState(false)
   const [backfilling, setBackfilling] = useState(false)
-  const [migrating, setMigrating] = useState(false)
-  const [migrationStatus, setMigrationStatus] = useState(null)
 
   useEffect(() => {
     loadCreators()
     loadAnalytics()
-    loadMigrationStatus()
   }, [])
 
   useEffect(() => {
@@ -124,154 +121,6 @@ export default function HistoricalAnalytics() {
       alert(`❌ Backfill failed: ${error.message}`)
     } finally {
       setBackfilling(false)
-    }
-  }
-
-  const triggerFullHistoricalBackfill = async () => {
-    const confirmMessage = `🗺️ MAP ALL HISTORICAL DATA
-
-This will:
-• Fetch historical data from Impact.com API for ALL ${creators.length} creators
-• Map earnings, clicks, and conversions for the last 90 days
-• Create point-in-time snapshots for historical protection
-• Set up automatic daily updates going forward
-
-⏱️ Estimated time: ${Math.ceil(creators.length * 2)} minutes
-🛡️ Safe for production - will not affect existing data
-
-Continue with full historical mapping?`
-
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
-    try {
-      setBackfilling(true)
-      
-      // Calculate 90 days back from today
-      const endDate = new Date()
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 90)
-      
-      console.log('🗺️ Starting full historical backfill for all creators...')
-      
-      const response = await apiFetch('/api/admin/analytics/full-historical-backfill', {
-        method: 'POST',
-        token,
-        body: {
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
-          allCreators: true,
-          setupAutoDailyCollection: true
-        }
-      })
-
-      if (response.success) {
-        alert(`✅ Historical mapping started successfully!
-
-📊 Processing: ${response.totalCreators} creators
-📅 Date range: ${response.dateRange.start} to ${response.dateRange.end}
-⏱️ Estimated completion: ${response.estimatedDuration}
-
-The system will now:
-• Map all historical data from Impact.com
-• Create protected earnings snapshots
-• Set up automatic daily updates
-
-You can monitor progress by refreshing this page.`)
-        
-        // Refresh data after a short delay
-        setTimeout(() => {
-          loadAnalytics()
-        }, 5000)
-      } else {
-        alert(`❌ Historical mapping failed: ${response.message}`)
-      }
-    } catch (error) {
-      console.error('Failed to trigger full historical backfill:', error)
-      alert(`❌ Historical mapping failed: ${error.message}`)
-    } finally {
-      setBackfilling(false)
-    }
-  }
-
-  const loadMigrationStatus = async () => {
-    try {
-      const response = await apiFetch('/api/admin/historical-migration/status', { token })
-      setMigrationStatus(response.status)
-    } catch (error) {
-      console.error('Failed to load migration status:', error)
-    }
-  }
-
-  const triggerHistoricalMigration = async (dryRun = false) => {
-    if (!customStart || !customEnd) {
-      alert('Please select start and end dates for migration')
-      return
-    }
-
-    const daysDiff = Math.ceil((new Date(customEnd) - new Date(customStart)) / (24 * 60 * 60 * 1000))
-    const mode = dryRun ? 'DRY RUN' : 'LIVE'
-    
-    const confirmMessage = `${mode} Historical Data Migration
-    
-Date Range: ${customStart} to ${customEnd} (${daysDiff} days)
-Target: ${selectedCreator ? 'Selected creator only' : 'All active creators'}
-Mode: ${dryRun ? 'Preview only (no data changes)' : 'Live migration (will create/update data)'}
-
-This will use the Impact.com API to map historical data for each creator safely.
-
-Continue?`
-    
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
-    try {
-      setMigrating(true)
-      
-      const response = await apiFetch('/api/admin/historical-migration/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          startDate: customStart,
-          endDate: customEnd,
-          specificCreatorIds: selectedCreator ? [selectedCreator] : null,
-          dryRun,
-          continueOnError: true
-        }),
-        token
-      })
-
-      if (response.success) {
-        const bgMessage = response.background ? ' (running in background)' : ''
-        alert(`${mode} Migration started: ${response.message}${bgMessage}`)
-        
-        if (!response.background && response.results) {
-          // Show results for small migrations
-          const results = response.results
-          console.log('Migration results:', results)
-          alert(`Migration completed!
-          
-Creators: ${results.creators.successful} successful, ${results.creators.failed} failed
-Records: ${results.data.totalRecords} created
-API Calls: ${results.data.impactApiCalls}
-Duration: ${(results.performance.totalDuration / 1000).toFixed(1)}s`)
-        }
-        
-        loadAnalytics() // Reload to show new data
-        loadMigrationStatus() // Update status
-      } else {
-        alert(`Migration failed: ${response.message}`)
-      }
-      
-    } catch (error) {
-      console.error('Migration error:', error)
-      alert('Migration failed: ' + error.message)
-    } finally {
-      setMigrating(false)
     }
   }
 
@@ -391,176 +240,53 @@ Duration: ${(results.performance.totalDuration / 1000).toFixed(1)}s`)
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-6 space-y-4">
-            {/* Primary Actions */}
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={triggerDailyCollection}
-                disabled={collecting}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
-              >
-                {collecting ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Collecting...
-                  </>
-                ) : (
-                  '🔄 Collect Yesterday'
-                )}
-              </button>
+          <div className="mt-6 flex space-x-4">
+            <button
+              onClick={triggerDailyCollection}
+              disabled={collecting}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center"
+            >
+              {collecting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Collecting...
+                </>
+              ) : (
+                '🔄 Collect Yesterday'
+              )}
+            </button>
 
+            {dateRange === 'custom' && (
               <button
-                onClick={loadAnalytics}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                🔄 Refresh Data
-              </button>
-
-              <button
-                onClick={() => triggerFullHistoricalBackfill()}
-                disabled={backfilling}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center"
+                onClick={triggerBackfill}
+                disabled={backfilling || !customStart || !customEnd}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center"
               >
                 {backfilling ? (
                   <>
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Mapping History...
+                    Backfilling...
                   </>
                 ) : (
-                  '🗺️ Map All Historical Data'
+                  '📈 Backfill Range'
                 )}
               </button>
-            </div>
-
-            {/* Custom Range Backfill */}
-            {dateRange === 'custom' && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={triggerBackfill}
-                  disabled={backfilling || !customStart || !customEnd}
-                  className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center"
-                >
-                  {backfilling ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Backfilling Range...
-                    </>
-                  ) : (
-                    '📈 Backfill Custom Range'
-                  )}
-                </button>
-
-                <button
-                  onClick={() => triggerHistoricalMigration(true)}
-                  disabled={migrating || !customStart || !customEnd}
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center"
-                >
-                  {migrating ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Migrating...
-                    </>
-                  ) : (
-                    '🔍 Preview Migration (Dry Run)'
-                  )}
-                </button>
-
-                <button
-                  onClick={() => triggerHistoricalMigration(false)}
-                  disabled={migrating || !customStart || !customEnd}
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center"
-                >
-                  {migrating ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Migrating...
-                    </>
-                  ) : (
-                    '🚀 Live Migration'
-                  )}
-                </button>
-              </div>
             )}
+
+            <button
+              onClick={loadAnalytics}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              🔄 Refresh Data
+            </button>
           </div>
         </div>
-
-        {/* Migration Status */}
-        {migrationStatus && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Historical Data Status</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-sm text-blue-600 font-medium">Total Records</div>
-                <div className="text-2xl font-bold text-blue-900">{migrationStatus.totalRecords.toLocaleString()}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="text-sm text-green-600 font-medium">Creators with Data</div>
-                <div className="text-2xl font-bold text-green-900">{migrationStatus.creatorsWithData}</div>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-4">
-                <div className="text-sm text-purple-600 font-medium">Oldest Record</div>
-                <div className="text-sm font-semibold text-purple-900">
-                  {migrationStatus.dateRange.oldest ? new Date(migrationStatus.dateRange.oldest).toLocaleDateString() : 'N/A'}
-                </div>
-              </div>
-              <div className="bg-indigo-50 rounded-lg p-4">
-                <div className="text-sm text-indigo-600 font-medium">Latest Record</div>
-                <div className="text-sm font-semibold text-indigo-900">
-                  {migrationStatus.dateRange.newest ? new Date(migrationStatus.dateRange.newest).toLocaleDateString() : 'N/A'}
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            {migrationStatus.recentActivity && migrationStatus.recentActivity.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-md font-medium text-gray-900 mb-3">Recent Data Sync Activity</h4>
-                <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
-                  <div className="space-y-2">
-                    {migrationStatus.recentActivity.slice(0, 5).map((activity, index) => (
-                      <div key={index} className="flex justify-between items-center text-sm">
-                        <div className="flex-1">
-                          <span className="font-medium text-gray-900">{activity.creatorName}</span>
-                          <span className="text-gray-500 ml-2">{new Date(activity.date).toLocaleDateString()}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-green-600 font-medium">${activity.metrics.commissions.toFixed(2)}</div>
-                          <div className="text-xs text-gray-500">
-                            {activity.metrics.clicks} clicks, {activity.metrics.conversions} conversions
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            activity.dataSource === 'IMPACT_API' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {activity.dataSource === 'IMPACT_API' ? '🔗 Impact API' : '📊 Fallback'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Summary Metrics */}
         {analytics && analytics.summary && (
