@@ -760,52 +760,84 @@ class DailyAnalyticsService {
    * Backfill historical data for a date range
    * @param {Date} startDate - Start date
    * @param {Date} endDate - End date
+   * @param {string} specificCreatorId - Optional: backfill for specific creator only
    * @returns {Object} Backfill results
    */
-  async backfillHistoricalData(startDate, endDate) {
-    try {
-      console.log(`🔄 [Backfill] Starting for ${this.formatDate(startDate)} to ${this.formatDate(endDate)}`);
-      
-      const results = {
-        totalDays: 0,
-        successful: 0,
-        failed: 0,
-        errors: []
-      };
-
-      const currentDate = new Date(startDate);
-      const end = new Date(endDate);
-
-      while (currentDate <= end) {
-        results.totalDays++;
+  async backfillHistoricalData(startDate, endDate, specificCreatorId = null) {
+          try {
+        const targetInfo = specificCreatorId ? `creator ${specificCreatorId}` : 'all creators';
+        console.log(`🔄 [Backfill] Starting for ${targetInfo} from ${this.formatDate(startDate)} to ${this.formatDate(endDate)}`);
         
-        try {
-          const dayResults = await this.collectDailyAnalytics(new Date(currentDate));
+        const results = {
+          totalDays: 0,
+          successful: 0,
+          failed: 0,
+          errors: []
+        };
+
+        const currentDate = new Date(startDate);
+        const end = new Date(endDate);
+
+        while (currentDate <= end) {
+          results.totalDays++;
           
-          if (dayResults.successful > 0) {
-            results.successful++;
-          } else {
+          try {
+            let dayResults;
+            
+            if (specificCreatorId) {
+              // Backfill for specific creator only
+              const creator = await this.prisma.creator.findUnique({
+                where: { id: specificCreatorId },
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  commissionRate: true,
+                  impactSubId: true
+                }
+              });
+              
+              if (creator) {
+                const creatorResult = await this.collectCreatorDailyAnalytics(creator, new Date(currentDate));
+                dayResults = {
+                  successful: creatorResult.success ? 1 : 0,
+                  failed: creatorResult.success ? 0 : 1,
+                  totalCreators: 1
+                };
+              } else {
+                throw new Error(`Creator ${specificCreatorId} not found`);
+              }
+            } else {
+              // Backfill for all creators (existing behavior)
+              dayResults = await this.collectDailyAnalytics(new Date(currentDate));
+            }
+            
+            if (dayResults.successful > 0) {
+              results.successful++;
+            } else {
+              results.failed++;
+              results.errors.push(`${this.formatDate(currentDate)}: No successful collections`);
+            }
+
+            const targetDesc = specificCreatorId ? '1 creator' : `${dayResults.successful || 0} creators`;
+            console.log(`📊 [Backfill] Completed ${this.formatDate(currentDate)}: ${targetDesc}`);
+
+          } catch (error) {
             results.failed++;
-            results.errors.push(`${this.formatDate(currentDate)}: No successful collections`);
+            results.errors.push(`${this.formatDate(currentDate)}: ${error.message}`);
+            console.error(`❌ [Backfill] Failed for ${this.formatDate(currentDate)}:`, error.message);
           }
 
-          console.log(`📊 [Backfill] Completed ${this.formatDate(currentDate)}: ${dayResults.successful} creators`);
-
-        } catch (error) {
-          results.failed++;
-          results.errors.push(`${this.formatDate(currentDate)}: ${error.message}`);
-          console.error(`❌ [Backfill] Failed for ${this.formatDate(currentDate)}:`, error.message);
+          // Move to next day
+          currentDate.setDate(currentDate.getDate() + 1);
+          
+          // Rate limiting between days (more conservative for single creator)
+          const delay = specificCreatorId ? 500 : 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
 
-        // Move to next day
-        currentDate.setDate(currentDate.getDate() + 1);
-        
-        // Rate limiting between days
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-
-      console.log('✅ [Backfill] Completed:', results);
-      return results;
+        console.log('✅ [Backfill] Completed:', results);
+        return results;
 
     } catch (error) {
       console.error('❌ [Backfill] Failed:', error.message);
