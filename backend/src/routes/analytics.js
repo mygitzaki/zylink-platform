@@ -152,13 +152,11 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
         let totalCommissionableConversions = 0;
         let totalCommissionableRevenue = 0;
         
-        // Get all creators with Impact SubId1s
+        // Get all creators with Impact SubId1s (simplified query to avoid Prisma issues)
         const creatorsWithSubIds = await prisma.creator.findMany({
           where: {
-            OR: [
-              { impactSubId: { not: null } },
-              { id: { not: null } } // All creators (we can compute SubId1)
-            ]
+            isActive: true,
+            applicationStatus: 'APPROVED'
           },
           select: { id: true, impactSubId: true, commissionRate: true }
         });
