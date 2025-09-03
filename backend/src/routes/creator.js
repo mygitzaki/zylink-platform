@@ -776,7 +776,6 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // 1. Get Pending Earnings from Impact.com (COMMISSIONABLE ONLY - same as analytics)
     let pendingGross = 0;
     let pendingActions = 0;
-    let totalSalesAmount = 0;
     try {
       const ImpactWebService = require('../services/impactWebService');
       const impact = new ImpactWebService();
@@ -815,23 +814,16 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
           
-          // ALSO calculate total sales amount for analytics.revenue
-          totalSalesAmount = commissionableActions.reduce((sum, action) => {
-            return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-          }, 0);
-          
           console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
           console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${pendingActions}`);
           console.log(`  - Gross commission: $${pendingGross}`);
-          console.log(`  - Total sales amount: $${totalSalesAmount}`);
           
-          // DEBUG: Show individual commissions and sales for troubleshooting
-          console.log(`[Earnings Summary] 🔍 DEBUG - Individual transactions:`);
+          // DEBUG: Show individual commissions for troubleshooting
+          console.log(`[Earnings Summary] 🔍 DEBUG - Individual commissions:`);
           commissionableActions.forEach((action, index) => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            console.log(`  ${index + 1}. Commission: $${commission}, Sale: $${saleAmount} - Status: ${action.State || action.Status} - Date: ${action.EventDate || action.CreatedDate}`);
+            console.log(`  ${index + 1}. $${commission} - Status: ${action.State || action.Status} - Date: ${action.EventDate || action.CreatedDate}`);
           });
         } else {
           console.log(`[Earnings Summary] ⚠️ Could not get detailed actions, using fallback`);
@@ -953,10 +945,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     // 5. Get Analytics Data
     const analytics = {
       conversionRate: pendingActions > 0 ? ((pendingActions / (pendingActions * 10)) * 100).toFixed(1) : 0, // Estimate
-      averageOrderValue: pendingActions > 0 ? parseFloat((totalSalesAmount / pendingActions).toFixed(2)) : 0,
+      averageOrderValue: pendingActions > 0 ? parseFloat((pendingGross / pendingActions).toFixed(2)) : 0,
       totalActions: pendingActions,
       totalClicks: pendingActions * 10, // Estimate based on typical conversion rates
-      revenue: totalSalesAmount || 0 // Use sales amount, not commission amount
+      revenue: pendingGross
     };
 
     const summary = {
