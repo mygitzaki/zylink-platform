@@ -17,7 +17,6 @@ export default function LinkGenerator() {
   const [urlValidation, setUrlValidation] = useState({ isValid: true, message: '' })
   const [dashboardData, setDashboardData] = useState({
     totalLinks: 0,
-    todayClicks: 0,
     recentLinks: []
   })
   const [dataLoading, setDataLoading] = useState(true)
@@ -67,7 +66,6 @@ export default function LinkGenerator() {
       
       setDashboardData({
         totalLinks: linksRes.links?.length || 0,
-        todayClicks: analyticsRes.todayClicks || 0,
         recentLinks: linksRes.links?.slice(0, 3) || []
       })
     } catch (err) {
@@ -303,22 +301,6 @@ export default function LinkGenerator() {
                 <div>
                   <p className="text-2xl font-bold text-white">{dashboardData.totalLinks}</p>
                   <p className="text-sm text-white/60">Active Links</p>
-                </div>
-              </div>
-            </Card>
-            
-
-            
-            <Card variant="glass" hover className="group">
-              <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 text-center sm:text-left">
-                <div className="w-12 h-12 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 mx-auto sm:mx-0">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">{dashboardData.todayClicks}</p>
-                  <p className="text-sm text-white/60">Today's Clicks</p>
                 </div>
               </div>
             </Card>
