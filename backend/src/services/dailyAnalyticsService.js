@@ -420,6 +420,7 @@ class DailyAnalyticsService {
         }));
 
         console.log(`📊 [Historical Analytics] Found ${dailyRecords.length} records from existing analytics system (fallback)`);
+        console.log(`📊 [Historical Analytics] Sample fallback data:`, dailyRecords.slice(0, 3));
       }
 
       // Aggregate data by date for charts
@@ -431,6 +432,14 @@ class DailyAnalyticsService {
       // Get top performing creators
       const topCreators = this.getTopCreators(dailyRecords);
 
+      // Debug logging
+      console.log(`📊 [Historical Analytics] Summary calculated:`, {
+        totalRecords: dailyRecords.length,
+        summary,
+        dateRange: { start, end },
+        isFallback
+      });
+
       return {
         success: true,
         dateRange: { start, end },
@@ -439,7 +448,7 @@ class DailyAnalyticsService {
         topCreators,
         totalRecords: dailyRecords.length,
         fallback: isFallback,
-        fallbackMessage: isFallback ? 'Using EarningsSnapshot data until DailyAnalytics table is available' : null
+        fallbackMessage: isFallback ? 'Using existing analytics system data' : null
       };
 
     } catch (error) {
