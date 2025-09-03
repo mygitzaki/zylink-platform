@@ -2042,7 +2042,6 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
 
           console.log(`[Sales History] ✅ Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
           }
-        }
         } // Close the if (correctSubId1 && correctSubId1 !== 'default') block
       } // Close the else block for no cached data
     } catch (error) {
