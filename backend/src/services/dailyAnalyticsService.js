@@ -56,29 +56,15 @@ class DailyAnalyticsService {
         }
       };
 
-      // Process creators in smaller batches to respect Impact.com API limits
-      const batchSize = 2; // Reduced from 5 to 2
+      // Process creators in batches to avoid overwhelming Impact.com API
+      const batchSize = 5;
       for (let i = 0; i < creators.length; i += batchSize) {
         const batch = creators.slice(i, i + batchSize);
         
-        console.log(`📊 [Daily Analytics] Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(creators.length/batchSize)} (${batch.length} creators)`);
+        console.log(`📊 [Daily Analytics] Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(creators.length/batchSize)}`);
 
-        // Process batch sequentially instead of parallel to avoid rate limits
-        const batchResults = [];
-        for (const creator of batch) {
-          try {
-            const result = await this.collectCreatorDailyAnalytics(creator, date);
-            batchResults.push(result);
-            
-            // Small delay between creators in same batch
-            if (creator !== batch[batch.length - 1]) {
-              await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
-            }
-          } catch (error) {
-            console.error(`❌ [Daily Analytics] Error processing ${creator.email}:`, error.message);
-            batchResults.push({ success: false, error: error.message });
-          }
-        }
+        const batchPromises = batch.map(creator => this.collectCreatorDailyAnalytics(creator, date));
+        const batchResults = await Promise.all(batchPromises);
 
         // Aggregate batch results
         batchResults.forEach(result => {
@@ -94,9 +80,9 @@ class DailyAnalyticsService {
           }
         });
 
-        // Longer rate limiting between batches to respect API limits
+        // Rate limiting between batches
         if (i + batchSize < creators.length) {
-          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay (increased from 2s)
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
         }
       }
 
