@@ -1119,19 +1119,25 @@ router.post('/analytics/collect-daily', requireAuth, requireAdmin, async (req, r
 
     console.log('🔄 Admin triggered daily analytics collection...');
     
-    const results = await analyticsService.collectDailyAnalytics(date);
+    // Start collection in background and return immediately
+    analyticsService.collectDailyAnalytics(date).then(results => {
+      console.log('✅ Daily analytics collection completed:', results);
+    }).catch(error => {
+      console.error('❌ Background daily analytics collection error:', error);
+    });
 
+    // Return immediately to prevent timeout
     res.json({
       success: true,
-      message: 'Daily analytics collection completed',
-      results
+      message: 'Daily analytics collection started in background',
+      status: 'processing'
     });
 
   } catch (error) {
     console.error('❌ Daily analytics collection error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to collect daily analytics',
+      message: 'Failed to start daily analytics collection',
       error: error.message
     });
   }
