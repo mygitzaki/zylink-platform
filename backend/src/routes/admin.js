@@ -597,10 +597,28 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
       include: {
         paymentAccount: true,
         links: {
+          select: {
+            id: true,
+            title: true,
+            destinationUrl: true,
+            clicks: true,
+            conversions: true,
+            revenue: true,
+            createdAt: true,
+            updatedAt: true
+          },
           orderBy: { createdAt: 'desc' },
           take: 10 // Latest 10 links
         },
         earnings: {
+          select: {
+            id: true,
+            amount: true,
+            type: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true
+          },
           orderBy: { createdAt: 'desc' },
           take: 20 // Latest 20 earnings
         },
@@ -612,6 +630,14 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
           }
         },
         payouts: {
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            requestedAt: true,
+            processedAt: true,
+            createdAt: true
+          },
           orderBy: { requestedAt: 'desc' }
         }
       }
