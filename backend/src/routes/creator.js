@@ -808,15 +808,30 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           
           pendingActions = commissionableActions.length;
           
-          // Calculate gross revenue from commissionable actions only
+          // Calculate gross commission from commissionable actions
           pendingGross = commissionableActions.reduce((sum, action) => {
             return sum + parseFloat(action.Payout || action.Commission || 0);
+          }, 0);
+          
+          // Calculate total sales amount (customer purchase amounts)
+          const totalSalesAmount = commissionableActions.reduce((sum, action) => {
+            return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
           }, 0);
           
           console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
           console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${pendingActions}`);
           console.log(`  - Gross commission: $${pendingGross}`);
+          
+          // Smart caching: Store Impact.com data for other endpoints to reuse
+          const { impactCache } = require('../utils/impactDataCache');
+          impactCache.set(req.user.id, startDate, endDate, {
+            commissionableActions,
+            pendingGross,
+            totalSalesAmount,
+            pendingActions,
+            fetchedAt: new Date()
+          });
         } else {
           console.log(`[Earnings Summary] ⚠️ Could not get detailed actions, using fallback`);
           
@@ -1819,24 +1834,61 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
     console.log(`[Sales History] 🔍 DEBUGGING: Creator ID: ${req.user.id}`);
     console.log(`[Sales History] 🔍 DEBUGGING: Creator impactSubId: ${creator?.impactSubId}`);
 
-    // Get commissionable sales from Impact.com (working approach - restored)
+    // Smart approach: Try cached data first, then fresh API call
     let totalSales = 0;
     let salesCount = 0;
     let recentSales = [];
 
     try {
-      const ImpactWebService = require('../services/impactWebService');
-      const impact = new ImpactWebService();
+      const { impactCache } = require('../utils/impactDataCache');
       
-      // Use stored SubId1 or compute it
-      const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+      // Check if we have fresh cached data from earnings-summary
+      const cachedData = impactCache.get(req.user.id, startDate, endDate);
       
-      console.log(`[Sales History] 🔍 DEBUGGING: Creator ID: ${req.user.id}`);
-      console.log(`[Sales History] 🔍 DEBUGGING: Creator impactSubId: ${creator?.impactSubId}`);
-      console.log(`[Sales History] 🔍 DEBUGGING: Computed SubId1: ${correctSubId1}`);
-      console.log(`[Sales History] 🔍 DEBUGGING: SubId1 comparison - stored vs computed`);
-      
-      if (correctSubId1 && correctSubId1 !== 'default') {
+      if (cachedData) {
+        console.log(`[Sales History] ✅ Using cached Impact.com data (avoiding duplicate API call)`);
+        
+        const { commissionableActions, totalSalesAmount } = cachedData;
+        
+        totalSales = totalSalesAmount || 0;
+        salesCount = commissionableActions?.length || 0;
+        
+        // Build recent sales from cached actions
+        recentSales = (commissionableActions || []).slice(0, 10).map(action => {
+          const commission = parseFloat(action.Payout || action.Commission || 0);
+          const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+          const creatorCommission = parseFloat((commission * creator.commissionRate / 100).toFixed(2));
+          
+          let productName = action.ProductName || action.Product || action.CampaignName || 'Product Sale';
+          if (productName.toLowerCase().includes('walmartcreator') || productName.toLowerCase().includes('walmart')) {
+            productName = 'Walmart';
+          }
+          
+          return {
+            date: (action.EventDate || action.ActionDate || action.CreationDate || '').split('T')[0],
+            orderValue: saleAmount,
+            commission: creatorCommission,
+            status: action.State || action.Status || 'Pending',
+            actionId: action.Id || action.ActionId,
+            product: productName,
+            productUrl: 'https://www.walmart.com'
+          };
+        });
+        
+        console.log(`[Sales History] ✅ From cache: ${salesCount} sales, $${totalSales.toFixed(2)} total sales`);
+        
+      } else {
+        console.log(`[Sales History] 📡 No cached data, making fresh API call`);
+        
+        const ImpactWebService = require('../services/impactWebService');
+        const impact = new ImpactWebService();
+        
+        // Use stored SubId1 or compute it
+        const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+        
+        console.log(`[Sales History] 🔍 Creator ID: ${req.user.id}, SubId1: ${correctSubId1}`);
+        
+        if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
         console.log(`[Sales History] 🔍 DEBUGGING: Date range: ${startDate} to ${endDate}`);
         console.log(`[Sales History] 🔍 DEBUGGING: Impact.com API call starting...`);
@@ -1977,6 +2029,16 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
 
           totalSales = parseFloat(calculatedSales.toFixed(2));
           salesCount = commissionableActions.length;
+
+          // Cache this data for other endpoints
+          const { impactCache } = require('../utils/impactDataCache');
+          impactCache.set(req.user.id, startDate, endDate, {
+            commissionableActions,
+            pendingGross: calculatedCommission,
+            totalSalesAmount: totalSales,
+            pendingActions: salesCount,
+            fetchedAt: new Date()
+          });
 
           console.log(`[Sales History] ✅ Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
         }
