@@ -19,7 +19,6 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
         name: true,
         email: true,
         isActive: true,
-        commissionRate: true,
         applicationStatus: true,
         createdAt: true
       }
@@ -49,6 +48,7 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
       
       return {
         ...creator,
+        commissionRate: 70, // Default commission rate for safety
         performance: {
           totalClicks: shortLinkStats._sum.clicks || 0,
           totalLinks: linkStats._count.id || 0,
