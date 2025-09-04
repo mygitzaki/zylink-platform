@@ -775,15 +775,28 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.log(`[Earnings Summary] Using CUSTOM date range: ${customStart} to ${customEnd} (${effectiveDays} days)`);
       } else {
       // Use days parameter for preset ranges
-      requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
-        effectiveDays = requestedDays;
+      const rawDays = Number(req.query.days) || 30;
+      requestedDays = Math.max(1, Math.min(90, rawDays));
+      effectiveDays = requestedDays;
       endDate = fmt(now);
+      
       // FIXED: Subtract (days - 1) to include the current day in the range
       // 30 days = today + 29 previous days = 30 days total
       // 90 days = today + 89 previous days = 90 days total
-      startDate = fmt(new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)));
+      const startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
+      startDate = fmt(startDateObj);
+      
       console.log(`[Earnings Summary] Using PRESET range: ${requestedDays} days (${startDate} to ${endDate})`);
-      console.log(`[Earnings Summary] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
+      console.log(`[Earnings Summary] DEBUG: rawDays=${rawDays}, requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
+      
+      // Special debugging for 90 days
+      if (rawDays === 90) {
+        console.log(`[Earnings Summary] 🔍 90 DAYS DEBUG:`);
+        console.log(`[Earnings Summary] 📅 Now: ${now.toISOString()}`);
+        console.log(`[Earnings Summary] 📅 Start date object: ${startDateObj.toISOString()}`);
+        console.log(`[Earnings Summary] 📅 Days difference: ${Math.ceil((now.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000))} days`);
+        console.log(`[Earnings Summary] 📅 Expected: 90 days, Actual: ${Math.ceil((now.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000))} days`);
+      }
     }
 
     console.log(`[Earnings Summary] Final date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
@@ -1392,11 +1405,20 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     const effectiveDays = requestedDays;
     const endDate = now.toISOString().split('T')[0];
     // FIXED: Subtract (days - 1) to include the current day in the range
-    const startDate = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    const startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
+    const startDate = startDateObj.toISOString().split('T')[0];
     
     console.log(`[Analytics Enhanced] Using proven date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
     console.log(`[Analytics Enhanced] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
     console.log(`[Analytics Enhanced] This matches earnings-summary date calculation`);
+    
+    // Special debugging for 90 days
+    if (requestedDays === 90) {
+      console.log(`[Analytics Enhanced] 🔍 90 DAYS DEBUG:`);
+      console.log(`[Analytics Enhanced] 📅 Now: ${now.toISOString()}`);
+      console.log(`[Analytics Enhanced] 📅 Start date object: ${startDateObj.toISOString()}`);
+      console.log(`[Analytics Enhanced] 📅 Days difference: ${Math.ceil((now.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000))} days`);
+    }
 
     // Set cache control headers to prevent caching issues
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -1951,8 +1973,17 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       effectiveDays = requestedDays;
       endDate = fmt(now);
       // FIXED: Subtract (days - 1) to include the current day in the range
-      startDate = fmt(new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)));
+      const startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
+      startDate = fmt(startDateObj);
       console.log(`[Sales History] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
+      
+      // Special debugging for 90 days
+      if (requestedDays === 90) {
+        console.log(`[Sales History] 🔍 90 DAYS DEBUG:`);
+        console.log(`[Sales History] 📅 Now: ${now.toISOString()}`);
+        console.log(`[Sales History] 📅 Start date object: ${startDateObj.toISOString()}`);
+        console.log(`[Sales History] 📅 Days difference: ${Math.ceil((now.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000))} days`);
+      }
     }
 
     // Parse limit parameter
