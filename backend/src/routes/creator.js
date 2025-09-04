@@ -812,6 +812,15 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Earnings Summary] Fetching commissionable actions for SubId1: ${correctSubId1}`);
         
+        // DEBUG: Special logging for sohailkhan521456@gmail.com
+        if (creator?.email === 'sohailkhan521456@gmail.com') {
+          console.log(`[Earnings Summary] 🔍 Sohail's API Call Details:`);
+          console.log(`[Earnings Summary] 📅 Date range: ${startDate} to ${endDate}`);
+          console.log(`[Earnings Summary] 🆔 SubId1: ${correctSubId1}`);
+          console.log(`[Earnings Summary] 📊 Page size: 1000`);
+          console.log(`[Earnings Summary] 🔍 API endpoint: getActionsDetailed`);
+        }
+        
         // Get detailed actions to filter for commissionable only (same as analytics-enhanced)
         const detailedActions = await impact.getActionsDetailed({
           startDate,
@@ -828,6 +837,53 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             console.log(`[Earnings Summary] 🔍 Sohail's API Response Analysis:`);
             console.log(`[Earnings Summary] 📊 Total actions received: ${actions.length}`);
             console.log(`[Earnings Summary] 🎯 Looking for SubId1: ${correctSubId1}`);
+            
+            // If we're getting significantly less data than expected, try Reports API
+            if (actions.length < 500) { // Expected around 600+ based on Impact.com dashboard
+              console.log(`[Earnings Summary] ⚠️ Low action count detected, trying Reports API as fallback`);
+              try {
+                const reportsData = await impact.getImpactReportsData({
+                  startDate,
+                  endDate,
+                  subId1: correctSubId1
+                });
+                
+                if (reportsData.success && reportsData.data) {
+                  console.log(`[Earnings Summary] 📊 Reports API returned ${reportsData.data.length} records`);
+                  // Use Reports API data if it has more records
+                  if (reportsData.data.length > actions.length) {
+                    console.log(`[Earnings Summary] ✅ Using Reports API data (${reportsData.data.length} vs ${actions.length})`);
+                    // Convert Reports API format to Actions format for compatibility
+                    const convertedActions = reportsData.data.map(record => ({
+                      SubId1: record.SubId1,
+                      Payout: record.Commission || record.Payout,
+                      Commission: record.Commission || record.Payout,
+                      Amount: record.Sales || record.Amount,
+                      SaleAmount: record.Sales || record.Amount,
+                      IntendedAmount: record.Sales || record.Amount,
+                      EventDate: record.Date || record.EventDate,
+                      ActionDate: record.Date || record.ActionDate,
+                      CreationDate: record.Date || record.CreationDate,
+                      Id: record.Id || record.ActionId,
+                      ActionId: record.Id || record.ActionId,
+                      State: record.Status || record.State,
+                      Status: record.Status || record.State,
+                      ActionStatus: record.Status || record.ActionStatus,
+                      ProductName: record.Product || record.ProductName,
+                      Product: record.Product || record.ProductName,
+                      CampaignName: record.Campaign || record.CampaignName
+                    }));
+                    
+                    // Replace actions with converted Reports API data
+                    actions.length = 0;
+                    actions.push(...convertedActions);
+                    console.log(`[Earnings Summary] ✅ Converted ${convertedActions.length} Reports API records to Actions format`);
+                  }
+                }
+              } catch (reportsError) {
+                console.log(`[Earnings Summary] ⚠️ Reports API fallback failed: ${reportsError.message}`);
+              }
+            }
           }
           
           // Filter for this creator's actions
