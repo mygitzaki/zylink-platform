@@ -860,6 +860,21 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             return sum + parseFloat(action.Payout || action.Commission || 0);
           }, 0);
           
+          // DEBUG: Special logging for sohailkhan521456@gmail.com
+          if (creator?.email === 'sohailkhan521456@gmail.com') {
+            console.log(`[Earnings Summary] 🔍 Sohail's Commission Analysis:`);
+            console.log(`[Earnings Summary] 📊 Total actions: ${creatorActions.length}`);
+            console.log(`[Earnings Summary] 📊 Commissionable actions: ${pendingActions}`);
+            console.log(`[Earnings Summary] 💰 Gross commission from Impact.com: $${pendingGross}`);
+            console.log(`[Earnings Summary] 💰 Expected from Impact.com dashboard: $954.18`);
+            console.log(`[Earnings Summary] 🔍 Sample commissionable actions:`);
+            commissionableActions.slice(0, 5).forEach((action, i) => {
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+              console.log(`[Earnings Summary] 📋 Action ${i+1}: Commission=$${commission}, Sale=$${saleAmount}, SubId1=${action.SubId1}`);
+            });
+          }
+          
           console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
           console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${pendingActions}`);
@@ -979,6 +994,18 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     
     const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
     const totalEarnings = commissionEarned;
+
+    // DEBUG: Special logging for sohailkhan521456@gmail.com
+    if (creator?.email === 'sohailkhan521456@gmail.com') {
+      console.log(`[Earnings Summary] 🔍 Sohail's Final Calculation:`);
+      console.log(`[Earnings Summary] 💰 Pending gross from Impact.com: $${pendingGross}`);
+      console.log(`[Earnings Summary] 💰 Commission rate: ${rate}%`);
+      console.log(`[Earnings Summary] 💰 Pending net (after rate): $${pendingNet}`);
+      console.log(`[Earnings Summary] 💰 Total approved amount: $${totalApprovedAmount}`);
+      console.log(`[Earnings Summary] 💰 Final commission earned: $${commissionEarned}`);
+      console.log(`[Earnings Summary] 💰 Expected from Impact.com: $954.18`);
+      console.log(`[Earnings Summary] 🔍 Calculation: $${pendingGross} × ${rate}% = $${pendingNet}`);
+    }
 
     // 5. Get Analytics Data
     const analytics = {
