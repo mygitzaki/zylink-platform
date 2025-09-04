@@ -604,6 +604,11 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     const creatorId = req.params.id;
     
+    // Add specific debugging for problematic creator
+    if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
+      console.log('🚨 DEBUGGING: Loading profile for Ijaz ahmed (problematic creator)');
+    }
+    
     // Get creator with basic data first (simplified to avoid Prisma issues)
     const creator = await prisma.creator.findUnique({
       where: { id: creatorId },
@@ -618,6 +623,11 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     }
     
     console.log('✅ Admin: Creator found:', creator.name, creator.email);
+    
+    // Add specific debugging for problematic creator
+    if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
+      console.log('🚨 DEBUGGING: Creator data for Ijaz ahmed:', JSON.stringify(creator, null, 2));
+    }
     
     // Get performance data separately to avoid Prisma issues
     const [earnings, shortLinks, referrals] = await Promise.all([
@@ -727,6 +737,12 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     };
     
     console.log('✅ Admin: Sending profile response for:', creator.name);
+    
+    // Add specific debugging for problematic creator
+    if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
+      console.log('🚨 DEBUGGING: Response data for Ijaz ahmed:', JSON.stringify(responseData, null, 2));
+    }
+    
     res.json(responseData);
   } catch (error) {
     console.error('Failed to fetch creator profile:', error);

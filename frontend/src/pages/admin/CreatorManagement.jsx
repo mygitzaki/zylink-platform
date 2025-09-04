@@ -82,19 +82,36 @@ export default function CreatorManagement(){
   const loadCreatorProfile = async (creatorId) => {
     try {
       console.log('🔍 Loading creator profile for:', creatorId)
+      
+      // Add specific debugging for problematic creator
+      if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
+        console.log('🚨 DEBUGGING: Loading profile for Ijaz ahmed (problematic creator)');
+      }
+      
       setLoadingProfile(true)
       setError('') // Clear any previous errors
       setShowCreatorProfile(null) // Clear previous modal
       setCreatorProfileData(null) // Clear previous data
       
-      const data = await apiFetch(`/api/admin/creators/${creatorId}/profile`, { 
+      // Add cache-busting for problematic creator
+      const url = creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128' 
+        ? `/api/admin/creators/${creatorId}/profile?t=${Date.now()}`
+        : `/api/admin/creators/${creatorId}/profile`;
+      
+      const data = await apiFetch(url, { 
         method: 'GET',
         token 
       })
       
       console.log('✅ Profile data received:', data)
       
+      // Add specific debugging for problematic creator
+      if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
+        console.log('🚨 DEBUGGING: Profile data for Ijaz ahmed:', JSON.stringify(data, null, 2));
+      }
+      
       if (!data || !data.creator) {
+        console.error('❌ Invalid profile data received:', data);
         throw new Error('Invalid profile data received')
       }
       
