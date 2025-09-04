@@ -783,6 +783,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       // 90 days = today + 89 previous days = 90 days total
       startDate = fmt(new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)));
       console.log(`[Earnings Summary] Using PRESET range: ${requestedDays} days (${startDate} to ${endDate})`);
+      console.log(`[Earnings Summary] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
     }
 
     console.log(`[Earnings Summary] Final date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
@@ -1404,6 +1405,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     const startDate = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
     console.log(`[Analytics Enhanced] Using proven date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    console.log(`[Analytics Enhanced] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
     console.log(`[Analytics Enhanced] This matches earnings-summary date calculation`);
 
     // Set cache control headers to prevent caching issues
@@ -1960,6 +1962,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       endDate = fmt(now);
       // FIXED: Subtract (days - 1) to include the current day in the range
       startDate = fmt(new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)));
+      console.log(`[Sales History] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
     }
 
     // Parse limit parameter
