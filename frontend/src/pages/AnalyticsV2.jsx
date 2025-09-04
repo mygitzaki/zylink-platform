@@ -399,7 +399,15 @@ export default function AnalyticsV2() {
         displayColors: true,
         callbacks: {
           label: function(context) {
-            return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
+            const label = context.dataset.label
+            const value = context.parsed.y
+            
+            // Format clicks as count, others as currency
+            if (label === 'Clicks') {
+              return `${label}: ${Math.round(value)}`
+            } else {
+              return `${label}: ${formatCurrency(value)}`
+            }
           }
         }
       }
