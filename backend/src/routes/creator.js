@@ -1692,10 +1692,26 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             
             const dailyConversions = commissionableActions.length;
             
+            // Try to get daily clicks from Performance API
+            let dailyClicks = 0;
+            try {
+              const dailyPerformance = await impact.getPerformanceBySubId({
+                startDate: dateStr,
+                endDate: dateStr,
+                subId1: correctSubId1
+              });
+              
+              if (dailyPerformance.success && dailyPerformance.data) {
+                dailyClicks = dailyPerformance.data.clicks || 0;
+              }
+            } catch (error) {
+              console.log(`[Analytics Enhanced] ⚠️ Could not fetch daily clicks for ${dateStr}:`, error.message);
+            }
+            
             dailyData[dateStr] = {
               sales: dailyGrossRevenue,
               commission: dailyCommission, // This is already the creator's commission from Impact.com
-              clicks: 0, // We don't have daily click data from Impact.com
+              clicks: dailyClicks,
               conversions: dailyConversions
             };
             

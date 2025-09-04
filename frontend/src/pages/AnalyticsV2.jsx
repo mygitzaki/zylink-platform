@@ -150,9 +150,11 @@ export default function AnalyticsV2() {
 
         const revenueData = analyticsRes.earningsTrend.map(item => item.revenue || 0)
         const commissionData = analyticsRes.earningsTrend.map(item => item.commission || 0)
+        const clicksData = analyticsRes.earningsTrend.map(item => item.clicks || 0)
         
         console.log('🔍 [AnalyticsV2] Extracted revenue data:', revenueData)
         console.log('🔍 [AnalyticsV2] Extracted commission data:', commissionData)
+        console.log('🔍 [AnalyticsV2] Extracted clicks data:', clicksData)
         
         const chartData = {
           labels,
@@ -189,6 +191,23 @@ export default function AnalyticsV2() {
               pointHoverBackgroundColor: '#3b82f6',
               pointHoverBorderColor: '#ffffff',
               pointHoverBorderWidth: 3
+            },
+            {
+              label: 'Clicks',
+              data: clicksData,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              fill: false,
+              tension: 0.4,
+              borderWidth: 2,
+              pointBackgroundColor: '#10b981',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              pointHoverBackgroundColor: '#10b981',
+              pointHoverBorderColor: '#ffffff',
+              pointHoverBorderWidth: 3
             }
           ]
         }
@@ -216,6 +235,7 @@ export default function AnalyticsV2() {
         const labels = []
         const revenueData = []
         const commissionData = []
+        const clicksData = []
         
         for (let i = 0; i < days; i++) {
           const date = new Date(startDate)
@@ -230,8 +250,10 @@ export default function AnalyticsV2() {
           // Generate sample data with some variation
           const baseRevenue = 50 + Math.random() * 100
           const baseCommission = baseRevenue * 0.7
+          const baseClicks = Math.floor(20 + Math.random() * 80) // Random clicks between 20-100
           revenueData.push(Math.round(baseRevenue * 100) / 100)
           commissionData.push(Math.round(baseCommission * 100) / 100)
+          clicksData.push(baseClicks)
         }
         
         const sampleChartData = {
@@ -263,6 +285,20 @@ export default function AnalyticsV2() {
               pointBorderWidth: 2,
               pointRadius: 5,
               pointHoverRadius: 7
+            },
+            {
+              label: 'Clicks',
+              data: clicksData,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              fill: false,
+              tension: 0.4,
+              borderWidth: 2,
+              pointBackgroundColor: '#10b981',
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6
             }
           ]
         }
