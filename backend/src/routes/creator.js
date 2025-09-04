@@ -1403,22 +1403,38 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       recentActivity: []
     });
     
-    // Use the SAME date calculation method as earnings-summary (proven working)
-    const requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
-    const now = new Date();
+    // Handle both preset days and custom date ranges
+    let startDate, endDate, requestedDays, effectiveDays;
     
-    console.log(`[Analytics Enhanced] Using SAME method as earnings-summary for ${requestedDays} days`);
+    if (req.query.startDate && req.query.endDate) {
+      // Custom date range from frontend
+      startDate = req.query.startDate;
+      endDate = req.query.endDate;
+      
+      // Calculate days between dates
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
+      const timeDiff = endDateObj.getTime() - startDateObj.getTime();
+      requestedDays = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end dates
+      effectiveDays = requestedDays;
+      
+      console.log(`[Analytics Enhanced] Using CUSTOM date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    } else {
+      // Preset days (7, 30, 90)
+      requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
+      const now = new Date();
+      
+      // Use the same simple, proven date calculation as earnings-summary
+      effectiveDays = requestedDays;
+      endDate = now.toISOString().split('T')[0];
+      // FIXED: Subtract (days - 1) to include the current day in the range
+      const startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
+      startDate = startDateObj.toISOString().split('T')[0];
+      
+      console.log(`[Analytics Enhanced] Using PRESET date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+    }
     
-    // Use the same simple, proven date calculation as earnings-summary
-    const effectiveDays = requestedDays;
-    const endDate = now.toISOString().split('T')[0];
-    // FIXED: Subtract (days - 1) to include the current day in the range
-    const startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
-    const startDate = startDateObj.toISOString().split('T')[0];
-    
-    console.log(`[Analytics Enhanced] Using proven date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
     console.log(`[Analytics Enhanced] DEBUG: requestedDays=${requestedDays}, effectiveDays=${effectiveDays}, startDate=${startDate}, endDate=${endDate}`);
-    console.log(`[Analytics Enhanced] This matches earnings-summary date calculation`);
     
     // Special debugging for 90 days
     if (requestedDays === 90) {
