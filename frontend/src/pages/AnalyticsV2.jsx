@@ -177,14 +177,15 @@ export default function AnalyticsV2() {
               label: 'Commission ($)',
               data: commissionData,
               borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: false,
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              fill: true,
               tension: 0.4,
+              borderWidth: 3,
               pointBackgroundColor: '#3b82f6',
               pointBorderColor: '#ffffff',
               pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6,
+              pointRadius: 5,
+              pointHoverRadius: 7,
               pointHoverBackgroundColor: '#3b82f6',
               pointHoverBorderColor: '#ffffff',
               pointHoverBorderWidth: 3
@@ -253,14 +254,15 @@ export default function AnalyticsV2() {
               label: 'Commission ($)',
               data: commissionData,
               borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: false,
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              fill: true,
               tension: 0.4,
+              borderWidth: 3,
               pointBackgroundColor: '#3b82f6',
               pointBorderColor: '#ffffff',
               pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
+              pointRadius: 5,
+              pointHoverRadius: 7
             }
           ]
         }
