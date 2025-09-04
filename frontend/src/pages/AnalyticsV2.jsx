@@ -63,14 +63,17 @@ export default function AnalyticsV2() {
     loadEarningsSummary()
     loadAnalytics()
     loadSalesData()
-  }, [timeRange])
+  }, [timeRange, customStart, customEnd])
 
   const loadEarningsSummary = async () => {
     try {
       setLoading(true)
       let path = '/api/creator/earnings-summary'
       if (timeRange === 'custom' && customStart && customEnd) {
-        path += `?startDate=${customStart}&endDate=${customEnd}`
+        // Convert date format from MM/DD/YYYY to YYYY-MM-DD for API
+        const startDate = new Date(customStart).toISOString().split('T')[0]
+        const endDate = new Date(customEnd).toISOString().split('T')[0]
+        path += `?startDate=${startDate}&endDate=${endDate}`
       } else {
         const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}`
@@ -98,7 +101,10 @@ export default function AnalyticsV2() {
     try {
       let path = '/api/creator/analytics-enhanced'
       if (timeRange === 'custom' && customStart && customEnd) {
-        path += `?startDate=${customStart}&endDate=${customEnd}`
+        // Convert date format from MM/DD/YYYY to YYYY-MM-DD for API
+        const startDate = new Date(customStart).toISOString().split('T')[0]
+        const endDate = new Date(customEnd).toISOString().split('T')[0]
+        path += `?startDate=${startDate}&endDate=${endDate}`
       } else {
         const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}`
@@ -114,6 +120,8 @@ export default function AnalyticsV2() {
           if (timeRange === '7d') {
             return date.toLocaleDateString('en-US', { weekday: 'short' })
           } else if (timeRange === '30d') {
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          } else if (timeRange === 'custom') {
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           } else {
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -160,14 +168,26 @@ export default function AnalyticsV2() {
         setChartData(chartData)
       } else {
         // Generate sample data if no real data
-        const days = timeRange === '7d' ? 7 : 30
+        let days, startDate, endDate
+        
+        if (timeRange === 'custom' && customStart && customEnd) {
+          startDate = new Date(customStart)
+          endDate = new Date(customEnd)
+          days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+        } else {
+          days = timeRange === '7d' ? 7 : 30
+          endDate = new Date()
+          startDate = new Date()
+          startDate.setDate(endDate.getDate() - (days - 1))
+        }
+        
         const labels = []
         const revenueData = []
         const commissionData = []
         
-        for (let i = days - 1; i >= 0; i--) {
-          const date = new Date()
-          date.setDate(date.getDate() - i)
+        for (let i = 0; i < days; i++) {
+          const date = new Date(startDate)
+          date.setDate(startDate.getDate() + i)
           
           if (timeRange === '7d') {
             labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }))
@@ -230,7 +250,10 @@ export default function AnalyticsV2() {
     try {
       let path = '/api/creator/sales-history'
       if (timeRange === 'custom' && customStart && customEnd) {
-        path += `?startDate=${customStart}&endDate=${customEnd}&limit=10`
+        // Convert date format from MM/DD/YYYY to YYYY-MM-DD for API
+        const startDate = new Date(customStart).toISOString().split('T')[0]
+        const endDate = new Date(customEnd).toISOString().split('T')[0]
+        path += `?startDate=${startDate}&endDate=${endDate}&limit=10`
       } else {
         const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}&limit=10`
@@ -392,18 +415,6 @@ export default function AnalyticsV2() {
                   onChange={(e) => setCustomEnd(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 />
-                <button
-                  onClick={() => {
-                    if (customStart && customEnd) {
-                      loadEarningsSummary()
-                      loadAnalytics()
-                      loadSalesData()
-                    }
-                  }}
-                  className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-800"
-                >
-                  Apply
-                </button>
               </div>
             )}
           </div>
