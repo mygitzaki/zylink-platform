@@ -20,6 +20,7 @@ router.get('/creators', requireAuth, requireAdmin, async (req, res) => {
         email: true,
         isActive: true,
         applicationStatus: true,
+        commissionRate: true,
         createdAt: true
       }
     };

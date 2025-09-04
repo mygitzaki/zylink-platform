@@ -16,9 +16,15 @@ export default function CreatorManagement(){
 
   const load = useCallback(async () => {
     try{ 
+      console.log('🔄 Loading creators data...');
       const d = await apiFetch('/api/admin/creators',{ token }); 
+      console.log('✅ Creators data received:', d);
+      console.log('📊 Sample creator data:', d.creators?.[0]);
       setRows(d.creators||[]) 
-    }catch(e){ setError(e.message) }
+    }catch(e){ 
+      console.error('❌ Failed to load creators:', e);
+      setError(e.message) 
+    }
   }, [token])
 
   const loadPaymentAccounts = useCallback(async () => {
@@ -54,7 +60,9 @@ export default function CreatorManagement(){
       
       if (response.success) {
         console.log('✅ Commission updated successfully');
+        console.log('🔄 Refreshing creator list...');
         await load(); // Refresh the creator list
+        console.log('✅ Creator list refreshed');
         setError(''); // Clear any errors
       } else {
         throw new Error(response.message || 'Failed to update commission');
