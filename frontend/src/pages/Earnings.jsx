@@ -52,7 +52,9 @@ export default function Earnings() {
         path += `?days=${days}`
       }
       
+      console.log(`🔄 [Frontend] Loading earnings summary for ${timeRange}: ${path}`)
       const summaryRes = await apiFetch(path, { token })
+      console.log(`✅ [Frontend] Earnings summary response for ${timeRange}:`, summaryRes)
       setEarningsSummary(summaryRes)
       
     } catch (err) {
@@ -81,7 +83,9 @@ export default function Earnings() {
         path += `?days=${days}`
       }
       
+      console.log(`🔄 [Frontend] Loading analytics for ${timeRange}: ${path}`)
       const analyticsRes = await apiFetch(path, { token })
+      console.log(`✅ [Frontend] Analytics response for ${timeRange}:`, analyticsRes)
       setAnalytics(analyticsRes)
       
     } catch (err) {
@@ -106,9 +110,9 @@ export default function Earnings() {
         path += `?days=${days}&limit=${limit}`
       }
       
-      console.log(`🔄 Loading sales data from: ${path}`)
+      console.log(`🔄 [Frontend] Loading sales data for ${timeRange}: ${path}`)
       const salesRes = await apiFetch(path, { token })
-      console.log(`✅ Sales data loaded:`, {
+      console.log(`✅ [Frontend] Sales data response for ${timeRange}:`, {
         totalSales: salesRes.totalSales,
         salesCount: salesRes.salesCount,
         dataSource: salesRes.dataSource
@@ -129,6 +133,7 @@ export default function Earnings() {
   }
 
   const handleDateRangeChange = (range) => {
+    console.log(`🔄 [Frontend] Time range changed from ${timeRange} to ${range}`)
     setTimeRange(range)
     if (range !== 'custom') {
       setCustomStart('')
