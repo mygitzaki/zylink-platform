@@ -1612,16 +1612,16 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           const actionsByDate = {};
           let matchingActions = 0;
           allActions.actions.forEach(action => {
-            if (action.SubId1 === correctSubId1) {
-              matchingActions++;
-              const actionDate = action.ActionDate ? action.ActionDate.split('T')[0] : null;
-              console.log(`[Analytics Enhanced] 🔍 Action date: ${action.ActionDate} -> ${actionDate}`);
-              if (actionDate) {
-                if (!actionsByDate[actionDate]) {
-                  actionsByDate[actionDate] = [];
-                }
-                actionsByDate[actionDate].push(action);
+            // Actions API doesn't return SubId1 in response - it's filtered by the API call
+            // So all returned actions are already for the correct SubId1
+            matchingActions++;
+            const actionDate = action.EventDate ? action.EventDate.split('T')[0] : null;
+            console.log(`[Analytics Enhanced] 🔍 Action date: ${action.EventDate} -> ${actionDate}`);
+            if (actionDate) {
+              if (!actionsByDate[actionDate]) {
+                actionsByDate[actionDate] = [];
               }
+              actionsByDate[actionDate].push(action);
             }
           });
           
