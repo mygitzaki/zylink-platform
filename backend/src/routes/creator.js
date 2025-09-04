@@ -1471,6 +1471,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       
       correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
+      console.log(`[Analytics Enhanced] 🔍 CREATOR DATA ISOLATION DEBUG:`);
+      console.log(`[Analytics Enhanced] 👤 Creator ID: ${req.user.id}`);
+      console.log(`[Analytics Enhanced] 👤 Creator email: ${req.user.email}`);
+      console.log(`[Analytics Enhanced] 🎯 Stored impactSubId: ${creator?.impactSubId || 'NOT SET'}`);
+      console.log(`[Analytics Enhanced] 🎯 Computed SubId1: ${impact.computeObfuscatedSubId(req.user.id)}`);
+      console.log(`[Analytics Enhanced] 🎯 Final SubId1 being used: ${correctSubId1}`);
+      
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
@@ -1625,6 +1632,12 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             // Show all available fields in the first action
             console.log(`[Analytics Enhanced] 🔍 All fields in first action:`, Object.keys(allActions.actions[0]));
             console.log(`[Analytics Enhanced] 🔍 Full first action:`, allActions.actions[0]);
+            
+            // Check SubId1 values in returned actions
+            const uniqueSubIds = [...new Set(allActions.actions.map(action => action.SubId1))];
+            console.log(`[Analytics Enhanced] 🔍 Unique SubId1 values in returned actions:`, uniqueSubIds);
+            console.log(`[Analytics Enhanced] 🔍 Expected SubId1: ${correctSubId1}`);
+            console.log(`[Analytics Enhanced] 🔍 Actions with expected SubId1: ${allActions.actions.filter(action => action.SubId1 === correctSubId1).length}`);
           }
           
           // Group actions by date
