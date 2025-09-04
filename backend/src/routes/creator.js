@@ -929,6 +929,14 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
               const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
               console.log(`[Earnings Summary] 📋 Action ${i+1}: Commission=$${commission}, Sale=$${saleAmount}, SubId1=${action.SubId1}`);
             });
+            
+            // Calculate total sales amount for comparison
+            const totalSalesAmount = commissionableActions.reduce((sum, action) => {
+              return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            }, 0);
+            console.log(`[Earnings Summary] 💰 Total sales amount: $${totalSalesAmount.toFixed(2)}`);
+            console.log(`[Earnings Summary] 💰 Expected total sales from network: $27,940.89`);
+            console.log(`[Earnings Summary] 🔍 Sales data match: ${Math.abs(totalSalesAmount - 27940.89) < 100 ? '✅ MATCH' : '❌ MISMATCH'}`);
           }
           
           console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
