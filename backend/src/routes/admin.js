@@ -604,53 +604,11 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     const creatorId = req.params.id;
     
-    // Get creator with all related data
+    // Get creator with basic data first (simplified to avoid Prisma issues)
     const creator = await prisma.creator.findUnique({
       where: { id: creatorId },
       include: {
-        paymentAccount: true,
-        shortLinks: {
-          select: {
-            id: true,
-            shortCode: true,
-            shortLink: true,
-            originalUrl: true,
-            clicks: true,
-            createdAt: true
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 10 // Latest 10 short links
-        },
-        earnings: {
-          select: {
-            id: true,
-            amount: true,
-            type: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 20 // Latest 20 earnings
-        },
-        referralsGiven: {
-          include: {
-            referred: {
-              select: { name: true, email: true }
-            }
-          }
-        },
-        payouts: {
-          select: {
-            id: true,
-            amount: true,
-            status: true,
-            requestedAt: true,
-            processedAt: true,
-            createdAt: true
-          },
-          orderBy: { requestedAt: 'desc' }
-        }
+        paymentAccount: true
       }
     });
     
@@ -661,10 +619,34 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     console.log('✅ Admin: Creator found:', creator.name, creator.email);
     
+    // Get performance data separately to avoid Prisma issues
+    const [earnings, shortLinks, referrals] = await Promise.all([
+      prisma.earning.findMany({
+        where: { creatorId },
+        select: { amount: true, type: true, status: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 20
+      }),
+      prisma.shortLink.findMany({
+        where: { creatorId },
+        select: { clicks: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      }),
+      prisma.referralEarning.findMany({
+        where: { referrerId: creatorId },
+        include: {
+          referred: {
+            select: { name: true, email: true }
+          }
+        }
+      })
+    ]);
+    
     // Calculate performance metrics
-    const totalEarnings = creator.earnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
-    const totalClicks = creator.shortLinks.reduce((sum, link) => sum + (link.clicks || 0), 0);
-    const totalConversions = 0; // ShortLinks don't have conversions, we'll get this from earnings
+    const totalEarnings = earnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
+    const totalClicks = shortLinks.reduce((sum, link) => sum + (link.clicks || 0), 0);
+    const totalConversions = 0; // We'll calculate this from earnings if needed
     
     // Format payment account - check both main and fallback tables
     let paymentDetails = null;
@@ -707,11 +689,8 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
       console.log('📝 Admin: No payment details found for creator:', creatorId);
     }
     
-    // Calculate referral earnings
-    const referralEarnings = await prisma.referralEarning.findMany({
-      where: { referrerId: creatorId }
-    });
-    const totalReferralEarnings = referralEarnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
+    // Calculate referral earnings from the referrals we already fetched
+    const totalReferralEarnings = referrals.reduce((sum, earning) => sum + Number(earning.amount), 0);
     
     const responseData = {
       creator: {
@@ -738,12 +717,12 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
         totalClicks,
         totalConversions,
         conversionRate: totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(2) : 0,
-        linksCount: creator.shortLinks.length,
-        referralsCount: creator.referralsGiven.length
+        linksCount: shortLinks.length,
+        referralsCount: referrals.length
       },
-      recentLinks: creator.shortLinks,
-      recentEarnings: creator.earnings,
-      referrals: creator.referralsGiven,
+      recentLinks: shortLinks,
+      recentEarnings: earnings,
+      referrals: referrals,
       payoutRequests: creator.payouts
     };
     
