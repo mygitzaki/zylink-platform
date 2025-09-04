@@ -1574,6 +1574,10 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       
       earningsTrend.push({
         date: dateStr,
+        revenue: parseFloat((dailyPending + dailyApproved).toFixed(2)),
+        commission: parseFloat((dailyPending + dailyApproved).toFixed(2)),
+        clicks: Math.floor(finalData.clicks / 7), // Distribute clicks across 7 days
+        conversions: Math.floor(finalData.conversions / 7), // Distribute conversions across 7 days
         pending: parseFloat(dailyPending.toFixed(2)),
         approved: parseFloat(dailyApproved.toFixed(2)),
         total: parseFloat((dailyPending + dailyApproved).toFixed(2))
@@ -1655,6 +1659,12 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       conversions: response.performanceMetrics.conversions,
       revenue: response.performanceMetrics.revenue,
       dataSource: response.dataSource
+    });
+    
+    console.log(`[Analytics Enhanced] 🔍 earningsTrend sample:`, {
+      firstItem: earningsTrend[0],
+      lastItem: earningsTrend[earningsTrend.length - 1],
+      totalItems: earningsTrend.length
     });
     
     res.json(response);
