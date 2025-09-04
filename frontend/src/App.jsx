@@ -8,6 +8,7 @@ import LinkGenerator from './pages/LinkGenerator'
 import MyLinks from './pages/MyLinks'
 import CreatorAnalytics from './pages/CreatorAnalytics'
 import Earnings from './pages/Earnings'
+import AnalyticsV2 from './pages/AnalyticsV2'
 import PaymentSetup from './pages/PaymentSetup'
 import Signup from './pages/Signup'
 import Settings from './pages/Settings'
@@ -339,6 +340,7 @@ export default function App() {
             <Route path="/my-links" element={<RequireAuth><MyLinks /></RequireAuth>} />
             <Route path="/analytics" element={<RequireAuth><CreatorAnalytics /></RequireAuth>} />
             <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
+            <Route path="/analytics-v2" element={<RequireAuth><AnalyticsV2 /></RequireAuth>} />
             <Route path="/payment-setup" element={<RequireAuth><PaymentSetup /></RequireAuth>} />
             <Route path="/payouts" element={<RequireAuth><Payouts /></RequireAuth>} />
             <Route path="/referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
