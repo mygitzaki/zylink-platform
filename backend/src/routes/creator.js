@@ -1591,12 +1591,26 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         
         if (allActions.success && allActions.actions) {
           console.log(`[Analytics Enhanced] ✅ Fetched ${allActions.actions.length} total actions for period`);
+          console.log(`[Analytics Enhanced] 🔍 Looking for SubId1: ${correctSubId1}`);
+          
+          // Debug: Show first few actions to understand the data structure
+          if (allActions.actions.length > 0) {
+            console.log(`[Analytics Enhanced] 🔍 First action sample:`, {
+              SubId1: allActions.actions[0].SubId1,
+              ActionDate: allActions.actions[0].ActionDate,
+              Payout: allActions.actions[0].Payout,
+              Commission: allActions.actions[0].Commission
+            });
+          }
           
           // Group actions by date
           const actionsByDate = {};
+          let matchingActions = 0;
           allActions.actions.forEach(action => {
             if (action.SubId1 === correctSubId1) {
+              matchingActions++;
               const actionDate = action.ActionDate ? action.ActionDate.split('T')[0] : null;
+              console.log(`[Analytics Enhanced] 🔍 Action date: ${action.ActionDate} -> ${actionDate}`);
               if (actionDate) {
                 if (!actionsByDate[actionDate]) {
                   actionsByDate[actionDate] = [];
@@ -1606,6 +1620,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             }
           });
           
+          console.log(`[Analytics Enhanced] 📊 Found ${matchingActions} actions for SubId1: ${correctSubId1}`);
           console.log(`[Analytics Enhanced] 📊 Grouped actions by date:`, Object.keys(actionsByDate));
           
           // Process each day in the requested period
