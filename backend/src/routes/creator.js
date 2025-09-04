@@ -1438,10 +1438,11 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
     let correctSubId1; // Declare at function scope
     let creator; // Declare at function scope
+    let impact; // Declare at function scope
     
     try {
       const ImpactWebService = require('../services/impactWebService');
-      const impact = new ImpactWebService();
+      impact = new ImpactWebService();
       
       // Get creator's SubId1
       creator = await prisma.creator.findUnique({
