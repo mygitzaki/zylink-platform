@@ -1692,20 +1692,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             
             const dailyConversions = commissionableActions.length;
             
-            // Try to get daily clicks from Performance API
+            // Calculate daily clicks based on conversions and total clicks
+            // This avoids making 30+ individual API calls which causes timeouts
             let dailyClicks = 0;
-            try {
-              const dailyPerformance = await impact.getPerformanceBySubId({
-                startDate: dateStr,
-                endDate: dateStr,
-                subId1: correctSubId1
-              });
-              
-              if (dailyPerformance.success && dailyPerformance.data) {
-                dailyClicks = dailyPerformance.data.clicks || 0;
-              }
-            } catch (error) {
-              console.log(`[Analytics Enhanced] ⚠️ Could not fetch daily clicks for ${dateStr}:`, error.message);
+            if (dailyConversions > 0 && finalData.conversions > 0) {
+              // Distribute total clicks proportionally based on conversions
+              const conversionRatio = dailyConversions / finalData.conversions;
+              dailyClicks = Math.round(finalData.clicks * conversionRatio);
             }
             
             dailyData[dateStr] = {
