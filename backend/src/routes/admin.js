@@ -612,13 +612,15 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
         links: {
           select: {
             id: true,
-            title: true,
             destinationUrl: true,
+            impactLink: true,
+            shortLink: true,
+            qrCodeUrl: true,
             clicks: true,
             conversions: true,
             revenue: true,
-            createdAt: true,
-            updatedAt: true
+            isActive: true,
+            createdAt: true
           },
           orderBy: { createdAt: 'desc' },
           take: 10 // Latest 10 links
