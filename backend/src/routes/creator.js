@@ -778,7 +778,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
         effectiveDays = requestedDays;
       endDate = fmt(now);
-      startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+      // FIXED: Subtract (days - 1) to include the current day in the range
+      // 30 days = today + 29 previous days = 30 days total
+      // 90 days = today + 89 previous days = 90 days total
+      startDate = fmt(new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)));
       console.log(`[Earnings Summary] Using PRESET range: ${requestedDays} days (${startDate} to ${endDate})`);
     }
 
@@ -1397,7 +1400,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     // Use the same simple, proven date calculation as earnings-summary
     const effectiveDays = requestedDays;
     const endDate = now.toISOString().split('T')[0];
-    const startDate = new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    // FIXED: Subtract (days - 1) to include the current day in the range
+    const startDate = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
     
     console.log(`[Analytics Enhanced] Using proven date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
     console.log(`[Analytics Enhanced] This matches earnings-summary date calculation`);
@@ -1954,7 +1958,8 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
       effectiveDays = requestedDays;
       endDate = fmt(now);
-      startDate = fmt(new Date(now.getTime() - (effectiveDays * 24 * 60 * 60 * 1000)));
+      // FIXED: Subtract (days - 1) to include the current day in the range
+      startDate = fmt(new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000)));
     }
 
     // Parse limit parameter
