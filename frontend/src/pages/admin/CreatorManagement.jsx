@@ -121,6 +121,20 @@ export default function CreatorManagement(){
         throw new Error('Invalid profile data received')
       }
       
+      // Validate and sanitize performance data to prevent errors
+      if (data.performance) {
+        // Ensure all numeric fields are properly formatted
+        data.performance = {
+          ...data.performance,
+          totalEarnings: typeof data.performance.totalEarnings === 'number' ? data.performance.totalEarnings : 0,
+          totalReferralEarnings: typeof data.performance.totalReferralEarnings === 'number' ? data.performance.totalReferralEarnings : 0,
+          totalClicks: typeof data.performance.totalClicks === 'number' ? data.performance.totalClicks : 0,
+          totalConversions: typeof data.performance.totalConversions === 'number' ? data.performance.totalConversions : 0,
+          conversionRate: typeof data.performance.conversionRate === 'number' ? data.performance.conversionRate : 0,
+          linksCount: typeof data.performance.linksCount === 'number' ? data.performance.linksCount : 0
+        };
+      }
+      
       setCreatorProfileData(data)
       setShowCreatorProfile(creatorId)
       setLoadingProfile(false) // Clear loading state on success
@@ -558,11 +572,27 @@ export default function CreatorManagement(){
                   <h3>📊 Performance Metrics</h3>
                   <div className="metrics-grid">
                     <div className="metric-card">
-                      <div className="metric-value">${(creatorProfileData.performance.totalEarnings || 0).toFixed(2)}</div>
+                      <div className="metric-value">
+                        ${(() => {
+                          const earnings = creatorProfileData.performance?.totalEarnings;
+                          if (typeof earnings === 'number' && !isNaN(earnings)) {
+                            return earnings.toFixed(2);
+                          }
+                          return '0.00';
+                        })()}
+                      </div>
                       <div className="metric-label">Total Earnings</div>
                     </div>
                     <div className="metric-card">
-                      <div className="metric-value">${(creatorProfileData.performance.totalReferralEarnings || 0).toFixed(2)}</div>
+                      <div className="metric-value">
+                        ${(() => {
+                          const earnings = creatorProfileData.performance?.totalReferralEarnings;
+                          if (typeof earnings === 'number' && !isNaN(earnings)) {
+                            return earnings.toFixed(2);
+                          }
+                          return '0.00';
+                        })()}
+                      </div>
                       <div className="metric-label">Referral Earnings</div>
                     </div>
                     <div className="metric-card">
@@ -574,7 +604,15 @@ export default function CreatorManagement(){
                       <div className="metric-label">Conversions</div>
                     </div>
                     <div className="metric-card">
-                      <div className="metric-value">{(creatorProfileData.performance.conversionRate || 0).toFixed(1)}%</div>
+                      <div className="metric-value">
+                        {(() => {
+                          const rate = creatorProfileData.performance?.conversionRate;
+                          if (typeof rate === 'number' && !isNaN(rate)) {
+                            return rate.toFixed(1);
+                          }
+                          return '0.0';
+                        })()}%
+                      </div>
                       <div className="metric-label">Conversion Rate</div>
                     </div>
                     <div className="metric-card">
