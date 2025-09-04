@@ -124,6 +124,15 @@ export default function AnalyticsV2() {
       
       if (analyticsRes.earningsTrend && analyticsRes.earningsTrend.length > 0) {
         console.log('🔍 [AnalyticsV2] Found earnings trend data, processing...')
+        console.log('🔍 [AnalyticsV2] First earnings trend item:', analyticsRes.earningsTrend[0])
+        console.log('🔍 [AnalyticsV2] All earnings trend items:', analyticsRes.earningsTrend.map(item => ({
+          date: item.date,
+          revenue: item.revenue,
+          commission: item.commission,
+          clicks: item.clicks,
+          conversions: item.conversions
+        })))
+        
         const labels = analyticsRes.earningsTrend.map(item => {
           const date = new Date(item.date)
           if (timeRange === '7d') {
@@ -139,12 +148,18 @@ export default function AnalyticsV2() {
         
         console.log('🔍 [AnalyticsV2] Generated labels:', labels)
 
+        const revenueData = analyticsRes.earningsTrend.map(item => item.revenue || 0)
+        const commissionData = analyticsRes.earningsTrend.map(item => item.commission || 0)
+        
+        console.log('🔍 [AnalyticsV2] Extracted revenue data:', revenueData)
+        console.log('🔍 [AnalyticsV2] Extracted commission data:', commissionData)
+        
         const chartData = {
           labels,
           datasets: [
             {
               label: 'Revenue ($)',
-              data: analyticsRes.earningsTrend.map(item => item.revenue || 0),
+              data: revenueData,
               borderColor: '#000000',
               backgroundColor: 'rgba(0, 0, 0, 0.1)',
               fill: true,
@@ -160,7 +175,7 @@ export default function AnalyticsV2() {
             },
             {
               label: 'Commission ($)',
-              data: analyticsRes.earningsTrend.map(item => item.commission || 0),
+              data: commissionData,
               borderColor: '#666666',
               backgroundColor: 'rgba(102, 102, 102, 0.1)',
               fill: false,
@@ -176,6 +191,8 @@ export default function AnalyticsV2() {
             }
           ]
         }
+        
+        console.log('🔍 [AnalyticsV2] Final chart data being set:', chartData)
         setChartData(chartData)
       } else {
         // Generate sample data if no real data
