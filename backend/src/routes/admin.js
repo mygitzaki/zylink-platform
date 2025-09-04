@@ -609,21 +609,17 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
       where: { id: creatorId },
       include: {
         paymentAccount: true,
-        links: {
+        shortLinks: {
           select: {
             id: true,
-            destinationUrl: true,
-            impactLink: true,
+            shortCode: true,
             shortLink: true,
-            qrCodeUrl: true,
+            originalUrl: true,
             clicks: true,
-            conversions: true,
-            revenue: true,
-            isActive: true,
             createdAt: true
           },
           orderBy: { createdAt: 'desc' },
-          take: 10 // Latest 10 links
+          take: 10 // Latest 10 short links
         },
         earnings: {
           select: {
@@ -667,8 +663,8 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     // Calculate performance metrics
     const totalEarnings = creator.earnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
-    const totalClicks = creator.links.reduce((sum, link) => sum + (link.clicks || 0), 0);
-    const totalConversions = creator.links.reduce((sum, link) => sum + (link.conversions || 0), 0);
+    const totalClicks = creator.shortLinks.reduce((sum, link) => sum + (link.clicks || 0), 0);
+    const totalConversions = 0; // ShortLinks don't have conversions, we'll get this from earnings
     
     // Format payment account - check both main and fallback tables
     let paymentDetails = null;
@@ -742,10 +738,10 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
         totalClicks,
         totalConversions,
         conversionRate: totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(2) : 0,
-        linksCount: creator.links.length,
+        linksCount: creator.shortLinks.length,
         referralsCount: creator.referralsGiven.length
       },
-      recentLinks: creator.links,
+      recentLinks: creator.shortLinks,
       recentEarnings: creator.earnings,
       referrals: creator.referralsGiven,
       payoutRequests: creator.payouts
