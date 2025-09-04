@@ -777,7 +777,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       // Use days parameter for preset ranges
       const rawDays = Number(req.query.days) || 30;
       requestedDays = Math.max(1, Math.min(90, rawDays));
-      effectiveDays = requestedDays;
+        effectiveDays = requestedDays;
       endDate = fmt(now);
       
       // FIXED: Subtract (days - 1) to include the current day in the range
@@ -990,15 +990,12 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     }
 
     // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database
-    // URGENT FIX: Revert to original query structure (database doesn't have new columns yet)
+    // FIXED: Remove date filtering to get all historical earnings (not just date range)
     const approvedEarnings = await prisma.earning.findMany({
       where: { 
         creatorId: req.user.id,
-        status: { in: ['COMPLETED', 'PROCESSING'] }, // Include completed and processing earnings
-        createdAt: {
-          gte: new Date(`${startDate}T00:00:00Z`),
-          lte: new Date(`${endDate}T23:59:59Z`)
-        }
+        status: { in: ['COMPLETED', 'PROCESSING'] } // Include completed and processing earnings
+        // REMOVED: Date filtering - get all historical earnings
       },
       select: { 
         amount: true, 
@@ -1094,7 +1091,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.log(`[Earnings Summary] 💰 Database earnings: $${totalApprovedAmount}`);
       console.log(`[Earnings Summary] 💰 Final commission earned: $${commissionEarned}`);
       console.log(`[Earnings Summary] 🔍 Calculation: $${pendingGross} × ${rate}% + $${totalApprovedAmount} = $${commissionEarned}`);
-      console.log(`[Earnings Summary] ✅ REVERTED: Using both Impact.com and database data`);
+      console.log(`[Earnings Summary] ✅ FIXED: Using both Impact.com and ALL database earnings (no date filter)`);
     }
 
     // 5. Get Analytics Data
