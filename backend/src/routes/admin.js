@@ -604,9 +604,12 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     const creatorId = req.params.id;
     
-    // Add specific debugging for problematic creator
+    // Add specific debugging for problematic creators
     if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
       console.log('🚨 DEBUGGING: Loading profile for Ijaz ahmed (problematic creator)');
+    }
+    if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+      console.log('🚨 DEBUGGING: Loading profile for Sohail Khan (problematic creator)');
     }
     
     // Get creator with basic data first (simplified to avoid Prisma issues)
@@ -624,34 +627,62 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     console.log('✅ Admin: Creator found:', creator.name, creator.email);
     
-    // Add specific debugging for problematic creator
+    // Add specific debugging for problematic creators
     if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
       console.log('🚨 DEBUGGING: Creator data for Ijaz ahmed:', JSON.stringify(creator, null, 2));
     }
+    if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+      console.log('🚨 DEBUGGING: Creator data for Sohail Khan:', JSON.stringify(creator, null, 2));
+    }
     
     // Get performance data separately to avoid Prisma issues
-    const [earnings, shortLinks, referrals] = await Promise.all([
-      prisma.earning.findMany({
-        where: { creatorId },
-        select: { amount: true, type: true, status: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 20
-      }),
-      prisma.shortLink.findMany({
-        where: { creatorId },
-        select: { clicks: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 10
-      }),
-      prisma.referralEarning.findMany({
-        where: { referrerId: creatorId },
-        include: {
-          referred: {
-            select: { name: true, email: true }
+    let earnings, shortLinks, referrals;
+    
+    try {
+      [earnings, shortLinks, referrals] = await Promise.all([
+        prisma.earning.findMany({
+          where: { creatorId },
+          select: { amount: true, type: true, status: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 20
+        }),
+        prisma.shortLink.findMany({
+          where: { creatorId },
+          select: { clicks: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 10
+        }),
+        prisma.referralEarning.findMany({
+          where: { referrerId: creatorId },
+          include: {
+            referred: {
+              select: { name: true, email: true }
+            }
           }
-        }
-      })
-    ]);
+        })
+      ]);
+      
+      // Add specific debugging for Sohail Khan
+      if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+        console.log('🚨 DEBUGGING: Sohail Khan performance data:', {
+          earnings: earnings.length,
+          shortLinks: shortLinks.length,
+          referrals: referrals.length
+        });
+      }
+    } catch (performanceError) {
+      console.error('❌ Error fetching performance data for creator:', creatorId, performanceError);
+      
+      // Add specific debugging for Sohail Khan
+      if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+        console.log('🚨 DEBUGGING: Sohail Khan performance data error:', performanceError);
+      }
+      
+      // Set default values if performance data fails
+      earnings = [];
+      shortLinks = [];
+      referrals = [];
+    }
     
     // Calculate performance metrics
     const totalEarnings = earnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
@@ -738,9 +769,12 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     
     console.log('✅ Admin: Sending profile response for:', creator.name);
     
-    // Add specific debugging for problematic creator
+    // Add specific debugging for problematic creators
     if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
       console.log('🚨 DEBUGGING: Response data for Ijaz ahmed:', JSON.stringify(responseData, null, 2));
+    }
+    if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+      console.log('🚨 DEBUGGING: Response data for Sohail Khan:', JSON.stringify(responseData, null, 2));
     }
     
     res.json(responseData);

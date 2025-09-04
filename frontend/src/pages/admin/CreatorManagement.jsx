@@ -83,9 +83,12 @@ export default function CreatorManagement(){
     try {
       console.log('🔍 Loading creator profile for:', creatorId)
       
-      // Add specific debugging for problematic creator
+      // Add specific debugging for problematic creators
       if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
         console.log('🚨 DEBUGGING: Loading profile for Ijaz ahmed (problematic creator)');
+      }
+      if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+        console.log('🚨 DEBUGGING: Loading profile for Sohail Khan (problematic creator)');
       }
       
       setLoadingProfile(true)
@@ -93,8 +96,8 @@ export default function CreatorManagement(){
       setShowCreatorProfile(null) // Clear previous modal
       setCreatorProfileData(null) // Clear previous data
       
-      // Add cache-busting for problematic creator
-      const url = creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128' 
+      // Add cache-busting for problematic creators
+      const url = (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128' || creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657')
         ? `/api/admin/creators/${creatorId}/profile?t=${Date.now()}`
         : `/api/admin/creators/${creatorId}/profile`;
       
@@ -105,9 +108,12 @@ export default function CreatorManagement(){
       
       console.log('✅ Profile data received:', data)
       
-      // Add specific debugging for problematic creator
+      // Add specific debugging for problematic creators
       if (creatorId === '9c96c390-23b4-4603-8c8e-b3ea5ce1d128') {
         console.log('🚨 DEBUGGING: Profile data for Ijaz ahmed:', JSON.stringify(data, null, 2));
+      }
+      if (creatorId === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657') {
+        console.log('🚨 DEBUGGING: Profile data for Sohail Khan:', JSON.stringify(data, null, 2));
       }
       
       if (!data || !data.creator) {
