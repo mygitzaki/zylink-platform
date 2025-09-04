@@ -1436,17 +1436,20 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     
     // 1. Get Real Impact.com Data (Real Clicks + Commissionable Sales Only)
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
+    let correctSubId1; // Declare at function scope
+    let creator; // Declare at function scope
+    
     try {
       const ImpactWebService = require('../services/impactWebService');
       const impact = new ImpactWebService();
       
       // Get creator's SubId1
-      const creator = await prisma.creator.findUnique({
+      creator = await prisma.creator.findUnique({
         where: { id: req.user.id },
         select: { impactSubId: true, commissionRate: true }
       });
       
-      const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
+      correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
       
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
