@@ -1602,6 +1602,10 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               Payout: allActions.actions[0].Payout,
               Commission: allActions.actions[0].Commission
             });
+            
+            // Show all available fields in the first action
+            console.log(`[Analytics Enhanced] 🔍 All fields in first action:`, Object.keys(allActions.actions[0]));
+            console.log(`[Analytics Enhanced] 🔍 Full first action:`, allActions.actions[0]);
           }
           
           // Group actions by date
