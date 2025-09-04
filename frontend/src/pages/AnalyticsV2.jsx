@@ -105,16 +105,25 @@ export default function AnalyticsV2() {
         const startDate = new Date(customStart).toISOString().split('T')[0]
         const endDate = new Date(customEnd).toISOString().split('T')[0]
         path += `?startDate=${startDate}&endDate=${endDate}`
+        console.log('🔍 [AnalyticsV2] Custom date range API call:', path)
+        console.log('🔍 [AnalyticsV2] Original dates:', { customStart, customEnd })
+        console.log('🔍 [AnalyticsV2] Converted dates:', { startDate, endDate })
       } else {
         const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}`
+        console.log('🔍 [AnalyticsV2] Standard date range API call:', path)
       }
       
       const analyticsRes = await apiFetch(path, { token })
+      console.log('🔍 [AnalyticsV2] Analytics API response:', analyticsRes)
       setAnalytics(analyticsRes)
       
       // Process chart data
+      console.log('🔍 [AnalyticsV2] Processing chart data...')
+      console.log('🔍 [AnalyticsV2] earningsTrend:', analyticsRes.earningsTrend)
+      
       if (analyticsRes.earningsTrend && analyticsRes.earningsTrend.length > 0) {
+        console.log('🔍 [AnalyticsV2] Found earnings trend data, processing...')
         const labels = analyticsRes.earningsTrend.map(item => {
           const date = new Date(item.date)
           if (timeRange === '7d') {
@@ -127,6 +136,8 @@ export default function AnalyticsV2() {
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           }
         })
+        
+        console.log('🔍 [AnalyticsV2] Generated labels:', labels)
 
         const chartData = {
           labels,
@@ -168,17 +179,20 @@ export default function AnalyticsV2() {
         setChartData(chartData)
       } else {
         // Generate sample data if no real data
+        console.log('🔍 [AnalyticsV2] No real data found, generating sample data...')
         let days, startDate, endDate
         
         if (timeRange === 'custom' && customStart && customEnd) {
           startDate = new Date(customStart)
           endDate = new Date(customEnd)
           days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+          console.log('🔍 [AnalyticsV2] Custom date range sample data:', { startDate, endDate, days })
         } else {
           days = timeRange === '7d' ? 7 : 30
           endDate = new Date()
           startDate = new Date()
           startDate.setDate(endDate.getDate() - (days - 1))
+          console.log('🔍 [AnalyticsV2] Standard date range sample data:', { startDate, endDate, days })
         }
         
         const labels = []
@@ -202,7 +216,7 @@ export default function AnalyticsV2() {
           commissionData.push(Math.round(baseCommission * 100) / 100)
         }
         
-        setChartData({
+        const sampleChartData = {
           labels,
           datasets: [
             {
@@ -232,7 +246,10 @@ export default function AnalyticsV2() {
               pointHoverRadius: 6
             }
           ]
-        })
+        }
+        
+        console.log('🔍 [AnalyticsV2] Setting sample chart data:', sampleChartData)
+        setChartData(sampleChartData)
       }
       
     } catch (err) {
