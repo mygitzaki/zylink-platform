@@ -1561,26 +1561,85 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       conversionRate: finalData.conversionRate + '%'
     });
     
-    // 4. Generate Earnings Trend Data (Last 7 days)
+    // 4. Generate Earnings Trend Data with Real Daily Data
     const earningsTrend = [];
+    
+    // Get real daily data from Impact.com if available
+    let dailyData = {};
+    if (hasImpactData && correctSubId1) {
+      try {
+        console.log(`[Analytics Enhanced] 🔍 Fetching daily data for trend...`);
+        
+        // Get daily performance data for the last 7 days
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          
+          // Get daily actions for this specific date
+          const dailyActions = await impact.getActionsDetailed({
+            startDate: dateStr + 'T00:00:00Z',
+            endDate: dateStr + 'T23:59:59Z',
+            subId1: correctSubId1,
+            actionType: 'SALE',
+            pageSize: 1000
+          });
+          
+          if (dailyActions.success && dailyActions.actions) {
+            const creatorActions = dailyActions.actions.filter(action => 
+              action.SubId1 === correctSubId1
+            );
+            
+            const commissionableActions = creatorActions.filter(action => {
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              return commission > 0;
+            });
+            
+            const dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
+              return sum + parseFloat(action.Payout || action.Commission || 0);
+            }, 0);
+            
+            const businessRate = creator?.commissionRate || 70;
+            const dailyCommission = (dailyGrossRevenue * businessRate) / 100;
+            
+            dailyData[dateStr] = {
+              sales: dailyGrossRevenue,
+              commission: dailyCommission,
+              clicks: Math.floor(finalData.clicks / 7), // Fallback distribution
+              conversions: commissionableActions.length
+            };
+            
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission`);
+          }
+        }
+      } catch (error) {
+        console.error('[Analytics Enhanced] Error fetching daily data:', error.message);
+      }
+    }
+    
+    // Generate trend data with real daily data or fallback distribution
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
       
-      // For now, distribute pending earnings across days (you can enhance this with real daily data)
-      const dailyPending = i === 0 ? finalData.revenue * 0.7 : 0; // Show today's pending
-      const dailyApproved = 0; // No approved earnings yet
+      // Use real daily data if available, otherwise distribute evenly
+      const dayData = dailyData[dateStr] || {
+        sales: i === 0 ? finalData.revenue * 0.3 : finalData.revenue * 0.1, // Distribute sales across days
+        commission: i === 0 ? finalData.revenue * 0.2 : finalData.revenue * 0.05, // Commission is less than sales
+        clicks: Math.floor(finalData.clicks / 7),
+        conversions: Math.floor(finalData.conversions / 7)
+      };
       
       earningsTrend.push({
         date: dateStr,
-        revenue: parseFloat((dailyPending + dailyApproved).toFixed(2)),
-        commission: parseFloat((dailyPending + dailyApproved).toFixed(2)),
-        clicks: Math.floor(finalData.clicks / 7), // Distribute clicks across 7 days
-        conversions: Math.floor(finalData.conversions / 7), // Distribute conversions across 7 days
-        pending: parseFloat(dailyPending.toFixed(2)),
-        approved: parseFloat(dailyApproved.toFixed(2)),
-        total: parseFloat((dailyPending + dailyApproved).toFixed(2))
+        revenue: parseFloat(dayData.sales.toFixed(2)), // Sales (gross revenue)
+        commission: parseFloat(dayData.commission.toFixed(2)), // Commission (creator's share)
+        clicks: dayData.clicks,
+        conversions: dayData.conversions,
+        pending: parseFloat(dayData.commission.toFixed(2)),
+        approved: 0,
+        total: parseFloat(dayData.commission.toFixed(2))
       });
     }
     

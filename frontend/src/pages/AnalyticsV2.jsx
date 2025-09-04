@@ -158,7 +158,7 @@ export default function AnalyticsV2() {
           labels,
           datasets: [
             {
-              label: 'Revenue ($)',
+              label: 'Sales ($)',
               data: revenueData,
               borderColor: '#000000',
               backgroundColor: 'rgba(0, 0, 0, 0.1)',
@@ -237,7 +237,7 @@ export default function AnalyticsV2() {
           labels,
           datasets: [
             {
-              label: 'Revenue ($)',
+              label: 'Sales ($)',
               data: revenueData,
               borderColor: '#000000',
               backgroundColor: 'rgba(0, 0, 0, 0.1)',
