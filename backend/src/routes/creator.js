@@ -1640,22 +1640,31 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             console.log(`[Analytics Enhanced] 🔍 Actions with expected SubId1: ${allActions.actions.filter(action => action.SubId1 === correctSubId1).length}`);
           }
           
-          // Group actions by date
+          // Group actions by date - FILTER BY SubId1 since API doesn't filter properly
           const actionsByDate = {};
           let matchingActions = 0;
+          let totalActions = allActions.actions.length;
+          
           allActions.actions.forEach(action => {
-            // Actions API doesn't return SubId1 in response - it's filtered by the API call
-            // So all returned actions are already for the correct SubId1
-            matchingActions++;
-            const actionDate = action.EventDate ? action.EventDate.split('T')[0] : null;
-            console.log(`[Analytics Enhanced] 🔍 Action date: ${action.EventDate} -> ${actionDate}`);
-            if (actionDate) {
-              if (!actionsByDate[actionDate]) {
-                actionsByDate[actionDate] = [];
+            // CRITICAL: Impact.com Actions API doesn't filter by SubId1 properly
+            // We need to filter on the backend side
+            if (action.SubId1 === correctSubId1) {
+              matchingActions++;
+              const actionDate = action.EventDate ? action.EventDate.split('T')[0] : null;
+              console.log(`[Analytics Enhanced] 🔍 Action date: ${action.EventDate} -> ${actionDate}`);
+              if (actionDate) {
+                if (!actionsByDate[actionDate]) {
+                  actionsByDate[actionDate] = [];
+                }
+                actionsByDate[actionDate].push(action);
               }
-              actionsByDate[actionDate].push(action);
             }
           });
+          
+          console.log(`[Analytics Enhanced] 🔍 FILTERING RESULTS:`);
+          console.log(`[Analytics Enhanced] 📊 Total actions from API: ${totalActions}`);
+          console.log(`[Analytics Enhanced] 📊 Actions matching SubId1 ${correctSubId1}: ${matchingActions}`);
+          console.log(`[Analytics Enhanced] 📊 Filtered out: ${totalActions - matchingActions} actions`);
           
           console.log(`[Analytics Enhanced] 📊 Found ${matchingActions} actions for SubId1: ${correctSubId1}`);
           console.log(`[Analytics Enhanced] 📊 Grouped actions by date:`, Object.keys(actionsByDate));
