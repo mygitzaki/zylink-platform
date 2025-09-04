@@ -1595,6 +1595,11 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             pageSize: 1000
           });
           
+          // Always set daily data - use real data if available, otherwise zero
+          let dailyGrossRevenue = 0;
+          let dailyCommission = 0;
+          let dailyConversions = 0;
+          
           if (dailyActions.success && dailyActions.actions) {
             const creatorActions = dailyActions.actions.filter(action => 
               action.SubId1 === correctSubId1
@@ -1605,22 +1610,26 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               return commission > 0;
             });
             
-            const dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
+            dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
               return sum + parseFloat(action.Payout || action.Commission || 0);
             }, 0);
             
             const businessRate = creator?.commissionRate || 70;
-            const dailyCommission = (dailyGrossRevenue * businessRate) / 100;
+            dailyCommission = (dailyGrossRevenue * businessRate) / 100;
+            dailyConversions = commissionableActions.length;
             
-            dailyData[dateStr] = {
-              sales: dailyGrossRevenue,
-              commission: dailyCommission,
-              clicks: Math.floor(finalData.clicks / 7), // Fallback distribution
-              conversions: commissionableActions.length
-            };
-            
-            console.log(`[Analytics Enhanced] 📅 ${dateStr}: $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission`);
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission, ${dailyConversions} conversions`);
+          } else {
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: No data from Impact.com - using zero values`);
           }
+          
+          // Always set the daily data (real or zero)
+          dailyData[dateStr] = {
+            sales: dailyGrossRevenue,
+            commission: dailyCommission,
+            clicks: 0, // We don't have daily click data from Impact.com
+            conversions: dailyConversions
+          };
         }
       } catch (error) {
         console.error('[Analytics Enhanced] Error fetching daily data:', error.message);
@@ -1633,61 +1642,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
       
-      // Use real daily data if available, otherwise create realistic daily variations
-      const dayData = dailyData[dateStr] || (() => {
-        // Create realistic daily variations instead of flat distribution
-        const baseSales = finalData.revenue / requestedDays;
-        const baseCommission = (finalData.revenue * (creator?.commissionRate || 70) / 100) / requestedDays;
-        
-        // Create more realistic variations using multiple factors
-        const dayOfWeek = new Date(dateStr).getDay(); // 0 = Sunday, 6 = Saturday
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        
-        // Create a more complex seed for better distribution
-        const dateObj = new Date(dateStr);
-        const year = dateObj.getFullYear();
-        const month = dateObj.getMonth() + 1;
-        const day = dateObj.getDate();
-        
-        // Create multiple seeds for different aspects
-        const seed1 = (year * 10000 + month * 100 + day) % 1000;
-        const seed2 = (year * 13 + month * 17 + day * 23) % 1000;
-        const seed3 = (year * 7 + month * 11 + day * 19) % 1000;
-        
-        // Weekend activity is typically lower
-        const weekendFactor = isWeekend ? 0.2 : 1.0;
-        
-        // Create more varied patterns
-        const activityLevel = seed1 % 10; // 0-9
-        const isActiveDay = activityLevel > 1; // 80% chance of activity
-        
-        if (!isActiveDay) {
-          return {
-            sales: 0,
-            commission: 0,
-            clicks: 0,
-            conversions: 0
-          };
-        }
-        
-        // Create more realistic daily variations
-        const baseVariation = (seed2 / 1000) * 2 - 1; // -1 to 1
-        const fineVariation = (seed3 / 1000) * 0.4 - 0.2; // -0.2 to 0.2
-        
-        // Combine variations for more realistic patterns
-        const totalVariation = (baseVariation + fineVariation) * weekendFactor;
-        const dailyMultiplier = Math.max(0.1, 1 + totalVariation); // At least 10% of base
-        
-        // Add some randomness for more natural look
-        const randomFactor = 0.9 + (activityLevel / 10); // 0.9 to 1.9
-        
-        return {
-          sales: Math.max(0, baseSales * dailyMultiplier * randomFactor),
-          commission: Math.max(0, baseCommission * dailyMultiplier * randomFactor),
-          clicks: Math.floor((finalData.clicks / requestedDays) * dailyMultiplier * randomFactor),
-          conversions: Math.floor((finalData.conversions / requestedDays) * dailyMultiplier * randomFactor)
-        };
-      })();
+      // Use real daily data if available, otherwise show zero (no simulated data)
+      const dayData = dailyData[dateStr] || {
+        sales: 0,
+        commission: 0,
+        clicks: 0,
+        conversions: 0
+      };
       
       earningsTrend.push({
         date: dateStr,
