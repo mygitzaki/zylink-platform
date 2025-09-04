@@ -67,6 +67,7 @@ export default function CreatorManagement(){
       
       setCreatorProfileData(data)
       setShowCreatorProfile(creatorId)
+      setLoadingProfile(false) // Clear loading state on success
       console.log('🎯 Modal should now show for:', data.creator.name)
       console.log('🎯 Modal state:', { showCreatorProfile: creatorId, hasData: !!data })
       
@@ -327,6 +328,23 @@ export default function CreatorManagement(){
                 </div>
               )
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Loading indicator for profile */}
+      {loadingProfile && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Loading Creator Profile...</h2>
+            </div>
+            <div className="modal-body">
+              <div style={{textAlign: 'center', padding: '2rem'}}>
+                <div className="loading-spinner"></div>
+                <p>Fetching creator details...</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

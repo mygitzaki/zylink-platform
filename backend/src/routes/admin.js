@@ -597,6 +597,7 @@ router.get('/payment-accounts', requireAuth, requireAdmin, async (req, res) => {
 // GET comprehensive creator profile for admin
 router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) => {
   try {
+    console.log('🔍 Admin: Loading creator profile for ID:', req.params.id);
     const prisma = getPrisma();
     if (!prisma) return res.status(503).json({ message: 'Database not configured' });
     
@@ -655,8 +656,11 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     });
     
     if (!creator) {
+      console.log('❌ Admin: Creator not found for ID:', creatorId);
       return res.status(404).json({ message: 'Creator not found' });
     }
+    
+    console.log('✅ Admin: Creator found:', creator.name, creator.email);
     
     // Calculate performance metrics
     const totalEarnings = creator.earnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
@@ -710,7 +714,7 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
     });
     const totalReferralEarnings = referralEarnings.reduce((sum, earning) => sum + Number(earning.amount), 0);
     
-    res.json({
+    const responseData = {
       creator: {
         id: creator.id,
         name: creator.name,
@@ -742,7 +746,10 @@ router.get('/creators/:id/profile', requireAuth, requireAdmin, async (req, res) 
       recentEarnings: creator.earnings,
       referrals: creator.referralsGiven,
       payoutRequests: creator.payouts
-    });
+    };
+    
+    console.log('✅ Admin: Sending profile response for:', creator.name);
+    res.json(responseData);
   } catch (error) {
     console.error('Failed to fetch creator profile:', error);
     res.status(500).json({ message: 'Failed to fetch creator profile', error: error.message });
