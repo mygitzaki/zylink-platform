@@ -819,12 +819,20 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           console.log(`[Earnings Summary] 🆔 SubId1: ${correctSubId1}`);
           console.log(`[Earnings Summary] 📊 Page size: 1000`);
           console.log(`[Earnings Summary] 🔍 API endpoint: getActionsDetailed`);
+          console.log(`[Earnings Summary] 🔍 Impact.com Dashboard shows: $954.18 commission, 619 sales, 6,544 clicks`);
+          console.log(`[Earnings Summary] 🔍 API returning: $63.33 commission, 20 sales, 1,822 clicks`);
+          console.log(`[Earnings Summary] ⚠️ MAJOR DISCREPANCY DETECTED!`);
         }
+        
+        // DEBUG: Date format is now handled properly in ImpactWebService.getActionsDetailed()
+        // The service now uses ISO 8601 format with time and Z suffix as per documentation
+        console.log(`[Earnings Summary] 🔍 Using date range: ${startDate} to ${endDate}`);
+        console.log(`[Earnings Summary] 📚 ImpactWebService will convert to proper ISO 8601 format`);
         
         // Get detailed actions to filter for commissionable only (same as analytics-enhanced)
         const detailedActions = await impact.getActionsDetailed({
-          startDate,
-          endDate,
+          startDate: startDate,
+          endDate: endDate,
           subId1: correctSubId1,
           pageSize: 1000
         });
