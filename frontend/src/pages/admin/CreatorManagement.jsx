@@ -12,6 +12,7 @@ export default function CreatorManagement(){
   const [showCreatorProfile, setShowCreatorProfile] = useState(null)
   const [creatorProfileData, setCreatorProfileData] = useState(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const [updatingCommission, setUpdatingCommission] = useState(null)
 
   const load = useCallback(async () => {
     try{ 
@@ -37,9 +38,33 @@ export default function CreatorManagement(){
     await load() 
   }
   
-  async function setCommission(id,commissionRate){ 
-    await apiFetch(`/api/admin/creators/${id}/commission`,{ method:'PUT', token, body:{ commissionRate } }); 
-    await load() 
+  async function setCommission(id, commissionRate) {
+    try {
+      console.log('🔧 Setting commission for creator:', id, 'to:', commissionRate + '%');
+      setError(''); // Clear any previous errors
+      setUpdatingCommission(id); // Set loading state
+      
+      const response = await apiFetch(`/api/admin/creators/${id}/commission`, { 
+        method: 'PUT', 
+        token, 
+        body: { commissionRate } 
+      });
+      
+      console.log('✅ Commission update response:', response);
+      
+      if (response.success) {
+        console.log('✅ Commission updated successfully');
+        await load(); // Refresh the creator list
+        setError(''); // Clear any errors
+      } else {
+        throw new Error(response.message || 'Failed to update commission');
+      }
+    } catch (error) {
+      console.error('❌ Failed to set commission:', error);
+      setError(`Failed to set commission: ${error.message}`);
+    } finally {
+      setUpdatingCommission(null); // Clear loading state
+    }
   }
 
   const getCreatorPaymentDetails = (creatorId) => {
@@ -141,12 +166,25 @@ export default function CreatorManagement(){
           <button 
             onClick={(e) => {
               e.stopPropagation()
-              const v = prompt('Enter commission percentage:', creator.commissionRate); 
-              if(v && !isNaN(v)) setCommission(creator.id, Number(v))
+              if (updatingCommission === creator.id) return; // Prevent multiple clicks
+              
+              const currentRate = creator.commissionRate || 70;
+              const v = prompt(`Enter commission percentage (current: ${currentRate}%):`, currentRate); 
+              if (v !== null && v !== '') {
+                const rate = Number(v);
+                if (isNaN(rate)) {
+                  setError('Please enter a valid number for commission rate');
+                } else if (rate < 0 || rate > 100) {
+                  setError('Commission rate must be between 0 and 100');
+                } else {
+                  setCommission(creator.id, rate);
+                }
+              }
             }}
             className="action-btn commission"
+            disabled={updatingCommission === creator.id}
           >
-            Set Commission
+            {updatingCommission === creator.id ? 'Updating...' : 'Set Commission'}
           </button>
           <div className="view-profile-hint">
             <span>👆 Click anywhere to view full profile</span>
