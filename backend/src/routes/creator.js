@@ -1578,58 +1578,67 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     let dailyData = {};
     if (hasImpactData && correctSubId1) {
       try {
-        console.log(`[Analytics Enhanced] 🔍 Fetching daily data for trend for ${requestedDays} days...`);
+        console.log(`[Analytics Enhanced] 🔍 Fetching all actions for ${requestedDays} days to group by day...`);
         
-        // Get daily performance data for the requested period (not hardcoded 7 days)
-        for (let i = (requestedDays - 1); i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(date.getDate() - i);
-          const dateStr = date.toISOString().split('T')[0];
+        // Fetch all actions for the entire period at once (more efficient)
+        const allActions = await impact.getActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE',
+          pageSize: 1000
+        });
+        
+        if (allActions.success && allActions.actions) {
+          console.log(`[Analytics Enhanced] ✅ Fetched ${allActions.actions.length} total actions for period`);
           
-          // Get daily actions for this specific date
-          const dailyActions = await impact.getActionsDetailed({
-            startDate: dateStr + 'T00:00:00Z',
-            endDate: dateStr + 'T23:59:59Z',
-            subId1: correctSubId1,
-            actionType: 'SALE',
-            pageSize: 1000
+          // Group actions by date
+          const actionsByDate = {};
+          allActions.actions.forEach(action => {
+            if (action.SubId1 === correctSubId1) {
+              const actionDate = action.ActionDate ? action.ActionDate.split('T')[0] : null;
+              if (actionDate) {
+                if (!actionsByDate[actionDate]) {
+                  actionsByDate[actionDate] = [];
+                }
+                actionsByDate[actionDate].push(action);
+              }
+            }
           });
           
-          // Always set daily data - use real data if available, otherwise zero
-          let dailyGrossRevenue = 0;
-          let dailyCommission = 0;
-          let dailyConversions = 0;
+          console.log(`[Analytics Enhanced] 📊 Grouped actions by date:`, Object.keys(actionsByDate));
           
-          if (dailyActions.success && dailyActions.actions) {
-            const creatorActions = dailyActions.actions.filter(action => 
-              action.SubId1 === correctSubId1
-            );
-            
-            const commissionableActions = creatorActions.filter(action => {
+          // Process each day in the requested period
+          for (let i = (requestedDays - 1); i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+            const dayActions = actionsByDate[dateStr] || [];
+            const commissionableActions = dayActions.filter(action => {
               const commission = parseFloat(action.Payout || action.Commission || 0);
               return commission > 0;
             });
             
-            dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
+            const dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
               return sum + parseFloat(action.Payout || action.Commission || 0);
             }, 0);
             
             const businessRate = creator?.commissionRate || 70;
-            dailyCommission = (dailyGrossRevenue * businessRate) / 100;
-            dailyConversions = commissionableActions.length;
+            const dailyCommission = (dailyGrossRevenue * businessRate) / 100;
+            const dailyConversions = commissionableActions.length;
             
-            console.log(`[Analytics Enhanced] 📅 ${dateStr}: $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission, ${dailyConversions} conversions`);
-          } else {
-            console.log(`[Analytics Enhanced] 📅 ${dateStr}: No data from Impact.com - using zero values`);
+            dailyData[dateStr] = {
+              sales: dailyGrossRevenue,
+              commission: dailyCommission,
+              clicks: 0, // We don't have daily click data from Impact.com
+              conversions: dailyConversions
+            };
+            
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: ${dayActions.length} actions, ${dailyConversions} commissionable, $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission`);
           }
-          
-          // Always set the daily data (real or zero)
-          dailyData[dateStr] = {
-            sales: dailyGrossRevenue,
-            commission: dailyCommission,
-            clicks: 0, // We don't have daily click data from Impact.com
-            conversions: dailyConversions
-          };
+        } else {
+          console.log(`[Analytics Enhanced] ⚠️ No actions data from Impact.com for period`);
         }
       } catch (error) {
         console.error('[Analytics Enhanced] Error fetching daily data:', error.message);
