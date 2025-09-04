@@ -976,28 +976,15 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.error('[Earnings Summary] Error fetching pending earnings:', error.message);
     }
 
-    // 2. Get All Approved Earnings (COMPLETED + PROCESSING status) from Database
-    // URGENT FIX: Revert to original query structure (database doesn't have new columns yet)
-    const approvedEarnings = await prisma.earning.findMany({
-      where: { 
-        creatorId: req.user.id,
-        status: { in: ['COMPLETED', 'PROCESSING'] }, // Include completed and processing earnings
-        createdAt: {
-          gte: new Date(`${startDate}T00:00:00Z`),
-          lte: new Date(`${endDate}T23:59:59Z`)
-        }
-      },
-      select: { 
-        amount: true, 
-        status: true
-      }
-    });
+    // 2. IGNORE DATABASE EARNINGS - Use only Impact.com data
+    console.log(`[Earnings Summary] 🚫 IGNORING DATABASE EARNINGS - Using Impact.com data only`);
+    console.log(`[Earnings Summary] 📊 This ensures consistent data across all time periods`);
     
-    // Separate approved earnings: ready for withdrawal vs total approved
-    // SAFETY: Use existing amount field (already calculated correctly when created)
-    const completedEarnings = approvedEarnings.filter(e => e.status === 'COMPLETED');
-    const availableForWithdraw = completedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const totalApprovedAmount = approvedEarnings.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    // Set all database earnings to zero to force Impact.com data usage
+    const approvedEarnings = [];
+    const completedEarnings = [];
+    const availableForWithdraw = 0;
+    const totalApprovedAmount = 0;
     
     // CRITICAL DEBUG: Show actual earnings data
     console.log(`[Earnings Summary] 🔍 DEBUGGING EARNINGS:`)
@@ -1068,19 +1055,21 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.log(`[Earnings Summary] ⚠️ This calculation may change if commission rate is modified`);
     }
     
-    const commissionEarned = pendingNet + totalApprovedAmount; // Use total approved, not just available for withdraw
+    // Use only Impact.com data for all calculations
+    const commissionEarned = pendingNet; // Only use Impact.com data, ignore database
     const totalEarnings = commissionEarned;
 
     // DEBUG: Special logging for sohailkhan521456@gmail.com
     if (creator?.email === 'sohailkhan521456@gmail.com') {
-      console.log(`[Earnings Summary] 🔍 Sohail's Final Calculation:`);
+      console.log(`[Earnings Summary] 🔍 Sohail's Final Calculation for ${requestedDays} days:`);
+      console.log(`[Earnings Summary] 📅 Date range: ${startDate} to ${endDate}`);
       console.log(`[Earnings Summary] 💰 Pending gross from Impact.com: $${pendingGross}`);
       console.log(`[Earnings Summary] 💰 Commission rate: ${rate}%`);
       console.log(`[Earnings Summary] 💰 Pending net (after rate): $${pendingNet}`);
-      console.log(`[Earnings Summary] 💰 Total approved amount: $${totalApprovedAmount}`);
-      console.log(`[Earnings Summary] 💰 Final commission earned: $${commissionEarned}`);
-      console.log(`[Earnings Summary] 💰 Expected from Impact.com: $954.18`);
+      console.log(`[Earnings Summary] 💰 Database earnings (IGNORED): $${totalApprovedAmount}`);
+      console.log(`[Earnings Summary] 💰 Final commission earned (Impact.com only): $${commissionEarned}`);
       console.log(`[Earnings Summary] 🔍 Calculation: $${pendingGross} × ${rate}% = $${pendingNet}`);
+      console.log(`[Earnings Summary] ✅ Using Impact.com data only - consistent across all time periods`);
     }
 
     // 5. Get Analytics Data
@@ -1093,11 +1082,11 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     };
 
     const summary = {
-      commissionEarned: parseFloat(commissionEarned.toFixed(2)), // Pending + All approved commissions (COMPLETED + PROCESSING)
-      availableForWithdraw: parseFloat(availableForWithdraw.toFixed(2)), // Only COMPLETED earnings ready for withdrawal
-      pendingApproval: parseFloat(pendingNet.toFixed(2)), // Pending commissions from Impact.com with business rate applied
-      totalEarnings: parseFloat(totalEarnings.toFixed(2)),
-      payoutsRequested: parseFloat(totalPayoutsRequested.toFixed(2)),
+      commissionEarned: parseFloat(commissionEarned.toFixed(2)), // Impact.com data only (no database earnings)
+      availableForWithdraw: 0, // No database earnings, so no withdrawals available
+      pendingApproval: parseFloat(pendingNet.toFixed(2)), // Pending commissions from Impact.com with current rate applied
+      totalEarnings: parseFloat(totalEarnings.toFixed(2)), // Total earnings (Impact.com only)
+      payoutsRequested: 0, // No database earnings, so no payouts requested
       analytics,
       period: {
         requestedDays,
@@ -1108,7 +1097,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       creator: {
         commissionRate: rate,
         impactSubId: creator?.impactSubId
-      }
+      },
+      dataSource: 'IMPACT_COM_ONLY' // Indicate we're using Impact.com data only
     };
 
     console.log(`[Earnings Summary] Final summary:`, summary);
