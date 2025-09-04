@@ -1564,6 +1564,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       conversionRate: finalData.conversionRate + '%'
     });
     
+    console.log(`[Analytics Enhanced] 📊 Chart data distribution for ${requestedDays} days:`, {
+      totalRevenue: finalData.revenue,
+      totalCommission: (finalData.revenue * (creator?.commissionRate || 70) / 100),
+      dailyRevenue: (finalData.revenue / requestedDays).toFixed(2),
+      dailyCommission: ((finalData.revenue * (creator?.commissionRate || 70) / 100) / requestedDays).toFixed(2)
+    });
+    
     // 4. Generate Earnings Trend Data with Real Daily Data
     const earningsTrend = [];
     
@@ -1571,10 +1578,10 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     let dailyData = {};
     if (hasImpactData && correctSubId1) {
       try {
-        console.log(`[Analytics Enhanced] 🔍 Fetching daily data for trend...`);
+        console.log(`[Analytics Enhanced] 🔍 Fetching daily data for trend for ${requestedDays} days...`);
         
-        // Get daily performance data for the last 7 days
-        for (let i = 6; i >= 0; i--) {
+        // Get daily performance data for the requested period (not hardcoded 7 days)
+        for (let i = (requestedDays - 1); i >= 0; i--) {
           const date = new Date(now);
           date.setDate(date.getDate() - i);
           const dateStr = date.toISOString().split('T')[0];
@@ -1621,17 +1628,17 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     }
     
     // Generate trend data with real daily data or fallback distribution
-    for (let i = 6; i >= 0; i--) {
+    for (let i = (requestedDays - 1); i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
       
-      // Use real daily data if available, otherwise distribute evenly
+      // Use real daily data if available, otherwise distribute evenly across the requested period
       const dayData = dailyData[dateStr] || {
-        sales: i === 0 ? finalData.revenue * 0.3 : finalData.revenue * 0.1, // Distribute sales across days
-        commission: i === 0 ? finalData.revenue * 0.2 : finalData.revenue * 0.05, // Commission is less than sales
-        clicks: Math.floor(finalData.clicks / 7),
-        conversions: Math.floor(finalData.conversions / 7)
+        sales: finalData.revenue / requestedDays, // Distribute total sales evenly across all days
+        commission: (finalData.revenue * (creator?.commissionRate || 70) / 100) / requestedDays, // Distribute total commission evenly
+        clicks: Math.floor(finalData.clicks / requestedDays),
+        conversions: Math.floor(finalData.conversions / requestedDays)
       };
       
       earningsTrend.push({
