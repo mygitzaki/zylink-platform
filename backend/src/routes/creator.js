@@ -1659,17 +1659,20 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               return commission > 0;
             });
             
+            // Calculate daily sales (gross revenue) and commission
             const dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
+              return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            }, 0);
+            
+            const dailyCommission = commissionableActions.reduce((sum, action) => {
               return sum + parseFloat(action.Payout || action.Commission || 0);
             }, 0);
             
-            const businessRate = creator?.commissionRate || 70;
-            const dailyCommission = (dailyGrossRevenue * businessRate) / 100;
             const dailyConversions = commissionableActions.length;
             
             dailyData[dateStr] = {
               sales: dailyGrossRevenue,
-              commission: dailyCommission,
+              commission: dailyCommission, // This is already the creator's commission from Impact.com
               clicks: 0, // We don't have daily click data from Impact.com
               conversions: dailyConversions
             };
