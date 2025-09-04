@@ -39,7 +39,7 @@ export default function CreatorAnalytics() {
       console.log('🔄 Loading analytics data...')
       
       // Convert timeRange to days format for API
-      const daysMap = { '7d': 7, '30d': 30, '90d': 90 }
+      const daysMap = { '7d': 7, '30d': 30 }
       const days = daysMap[timeRange] || 30
       
       console.log(`📊 Loading data for ${days} days (${timeRange})`)
@@ -190,13 +190,6 @@ export default function CreatorAnalytics() {
                   onClick={() => setTimeRange('30d')}
                 >
                   30 Days
-                </Button>
-                <Button
-                  variant={timeRange === '90d' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setTimeRange('90d')}
-                >
-                  90 Days
                 </Button>
               </div>
             </Card>

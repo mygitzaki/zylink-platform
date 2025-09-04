@@ -48,7 +48,7 @@ export default function Earnings() {
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}`
       } else {
-        const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
+        const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}`
       }
       
@@ -79,7 +79,7 @@ export default function Earnings() {
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}`
       } else {
-        const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
+        const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}`
       }
       
@@ -106,7 +106,7 @@ export default function Earnings() {
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}&limit=${limit}`
       } else {
-        const days = timeRange === '7d' ? 7 : (timeRange === '90d' ? 90 : 30)
+        const days = timeRange === '7d' ? 7 : 30
         path += `?days=${days}&limit=${limit}`
       }
       
@@ -229,7 +229,7 @@ export default function Earnings() {
         <div className="mb-8 bg-white rounded-lg shadow-sm p-4">
           <div className="flex flex-wrap items-center gap-4">
             <span className="text-sm font-medium text-gray-700">Time Period:</span>
-            {['7d', '30d', '90d', 'custom'].map((range) => (
+            {['7d', '30d', 'custom'].map((range) => (
               <button
                 key={range}
                 onClick={() => handleDateRangeChange(range)}
@@ -240,8 +240,7 @@ export default function Earnings() {
                 }`}
               >
                 {range === '7d' ? '7 Days' : 
-                 range === '30d' ? '30 Days' : 
-                 range === '90d' ? '90 Days' : 'Custom'}
+                 range === '30d' ? '30 Days' : 'Custom'}
               </button>
             ))}
             
