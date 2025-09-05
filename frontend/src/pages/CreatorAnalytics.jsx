@@ -366,7 +366,7 @@ export default function CreatorAnalytics() {
                 <ConversionRateChart 
                   data={analytics.earningsTrend.map(trend => ({
                     date: trend.date,
-                    conversionRate: analytics.conversionRate || 0 // Use real conversion rate from Impact.com
+                    conversionRate: trend.clicks > 0 ? ((trend.conversions / trend.clicks) * 100) : 0 // Calculate daily conversion rate
                   }))} 
                   timeRange={timeRange} 
                 />
