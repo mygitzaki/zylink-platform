@@ -1426,8 +1426,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       // Preset days (7, 30, 90)
       requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
       now = new Date();
-      
-      // Use the same simple, proven date calculation as earnings-summary
+    
+    // Use the same simple, proven date calculation as earnings-summary
       effectiveDays = requestedDays;
       endDate = now.toISOString().split('T')[0];
       // FIXED: Subtract (days - 1) to include the current day in the range
@@ -1632,6 +1632,16 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             // Show all available fields in the first action
             console.log(`[Analytics Enhanced] 🔍 All fields in first action:`, Object.keys(allActions.actions[0]));
             console.log(`[Analytics Enhanced] 🔍 Full first action:`, allActions.actions[0]);
+            
+            // Check for SubId1 in different possible field names
+            const firstAction = allActions.actions[0];
+            console.log(`[Analytics Enhanced] 🔍 SubId1 field variations:`);
+            console.log(`[Analytics Enhanced] 🔍 - SubId1: "${firstAction.SubId1}"`);
+            console.log(`[Analytics Enhanced] 🔍 - SubId: "${firstAction.SubId}"`);
+            console.log(`[Analytics Enhanced] 🔍 - SubId1Value: "${firstAction.SubId1Value}"`);
+            console.log(`[Analytics Enhanced] 🔍 - TrackingId: "${firstAction.TrackingId}"`);
+            console.log(`[Analytics Enhanced] 🔍 - CustomId: "${firstAction.CustomId}"`);
+            console.log(`[Analytics Enhanced] 🔍 - ExternalId: "${firstAction.ExternalId}"`);
             
             // Check SubId1 values in returned actions
             const uniqueSubIds = [...new Set(allActions.actions.map(action => action.SubId1))];
