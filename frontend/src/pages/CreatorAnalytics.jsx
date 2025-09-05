@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { apiFetch } from '../lib/api'
 import { quickReLogin } from '../utils/quickAuth'
 // Import new Zylike-inspired UI components
-import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, ConversionRateChart, TopLinksChart, ChartSkeleton } from '../components/ui'
+import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, TopLinksChart, ChartSkeleton } from '../components/ui'
 
 export default function CreatorAnalytics() {
   const { user, token, setToken } = useAuth()
@@ -354,24 +354,8 @@ export default function CreatorAnalytics() {
           </Card>
         </div>
 
-        {/* Conversion Rate and Top Links */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-
-          {/* Conversion Rate - Temporarily Disabled */}
-          <Card variant="glass">
-            <div className="p-6">
-              <div className="h-80 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-orange-300 text-2xl">📈</span>
-                  </div>
-                  <h3 className="text-white font-bold text-lg mb-2">Conversion Rate</h3>
-                  <p className="text-gray-400 text-sm">Chart temporarily disabled</p>
-                  <p className="text-orange-300 text-xs">Daily conversion rate data not available</p>
-                </div>
-              </div>
-            </div>
-          </Card>
+        {/* Top Performing Links */}
+        <div className="grid grid-cols-1 gap-6 mb-8">
 
           {/* Top Performing Links */}
           <Card variant="glass">
