@@ -250,11 +250,27 @@ export const ConversionRateChart = ({ data, timeRange }) => {
       y: {
         ...defaultChartOptions.scales.y,
         beginAtZero: true,
-        max: 100,
+        // Dynamic scaling based on data range for better visibility
+        suggestedMin: 0,
+        suggestedMax: function(context) {
+          const data = context.chart.data.datasets[0].data
+          const maxValue = Math.max(...data)
+          // If max value is less than 5%, scale to 5% for better visibility
+          // If max value is greater than 5%, scale to max + 20% for padding
+          return maxValue < 5 ? 5 : maxValue * 1.2
+        },
         ticks: {
           ...defaultChartOptions.scales.y.ticks,
           callback: function(value) {
-            return value + '%'
+            return value.toFixed(1) + '%'
+          },
+          // Show more granular ticks for small values
+          stepSize: function(context) {
+            const data = context.chart.data.datasets[0].data
+            const maxValue = Math.max(...data)
+            // If max value is less than 5%, use 0.5% steps
+            // If max value is greater than 5%, use 1% steps
+            return maxValue < 5 ? 0.5 : 1
           }
         }
       }
