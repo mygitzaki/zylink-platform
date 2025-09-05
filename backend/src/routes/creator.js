@@ -911,7 +911,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             }
           }
           
-          // Filter for this creator's actions
+          // CRITICAL: Filter for this creator's actions to ensure data isolation
+          // Even though API should filter by SubId1, we need backend-side filtering for security
           const creatorActions = actions.filter(action => 
             action.SubId1 === correctSubId1
           );
@@ -1624,26 +1625,17 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           if (allActions.actions.length > 0) {
             console.log(`[Analytics Enhanced] 🔍 First action sample:`, {
               SubId1: allActions.actions[0].SubId1,
-              ActionDate: allActions.actions[0].ActionDate,
+              EventDate: allActions.actions[0].EventDate,
               Payout: allActions.actions[0].Payout,
-              Commission: allActions.actions[0].Commission
+              Amount: allActions.actions[0].Amount,
+              State: allActions.actions[0].State
             });
             
             // Show all available fields in the first action
             console.log(`[Analytics Enhanced] 🔍 All fields in first action:`, Object.keys(allActions.actions[0]));
             console.log(`[Analytics Enhanced] 🔍 Full first action:`, allActions.actions[0]);
             
-            // Check for SubId1 in different possible field names
-            const firstAction = allActions.actions[0];
-            console.log(`[Analytics Enhanced] 🔍 SubId1 field variations:`);
-            console.log(`[Analytics Enhanced] 🔍 - SubId1: "${firstAction.SubId1}"`);
-            console.log(`[Analytics Enhanced] 🔍 - SubId: "${firstAction.SubId}"`);
-            console.log(`[Analytics Enhanced] 🔍 - SubId1Value: "${firstAction.SubId1Value}"`);
-            console.log(`[Analytics Enhanced] 🔍 - TrackingId: "${firstAction.TrackingId}"`);
-            console.log(`[Analytics Enhanced] 🔍 - CustomId: "${firstAction.CustomId}"`);
-            console.log(`[Analytics Enhanced] 🔍 - ExternalId: "${firstAction.ExternalId}"`);
-            
-            // Check SubId1 values in returned actions
+            // Check SubId1 values in returned actions for debugging
             const uniqueSubIds = [...new Set(allActions.actions.map(action => action.SubId1))];
             console.log(`[Analytics Enhanced] 🔍 Unique SubId1 values in returned actions:`, uniqueSubIds);
             console.log(`[Analytics Enhanced] 🔍 Expected SubId1: ${correctSubId1}`);
@@ -1656,8 +1648,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           let totalActions = allActions.actions.length;
           
           allActions.actions.forEach(action => {
-            // CRITICAL: Impact.com Actions API doesn't filter by SubId1 properly
-            // We need to filter on the backend side
+            // CRITICAL: Filter by SubId1 to ensure creator data isolation
+            // This is essential for security - each creator must only see their own data
             if (action.SubId1 === correctSubId1) {
               matchingActions++;
               const actionDate = action.EventDate ? action.EventDate.split('T')[0] : null;
@@ -1676,7 +1668,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] 📊 Actions matching SubId1 ${correctSubId1}: ${matchingActions}`);
           console.log(`[Analytics Enhanced] 📊 Filtered out: ${totalActions - matchingActions} actions`);
           
-          console.log(`[Analytics Enhanced] 📊 Found ${matchingActions} actions for SubId1: ${correctSubId1}`);
+          console.log(`[Analytics Enhanced] 📊 Found ${matchingActions} actions for creator (SubId1: ${correctSubId1})`);
           console.log(`[Analytics Enhanced] 📊 Grouped actions by date:`, Object.keys(actionsByDate));
           
           // Process each day in the requested period
