@@ -2333,13 +2333,53 @@ router.get('/referrals', requireAuth, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    // Calculate totals
+    // 🚀 REFERRAL BONUS EARNINGS: Get actual referral bonuses earned from Earning table
+    let referralBonuses = 0;
+    let referralBonusesThisMonth = 0;
+    let pendingReferralBonuses = 0;
+    
+    try {
+      // Get referral bonus earnings (actual bonuses earned from referrals)
+      const referralBonusEarnings = await prisma.earning.findMany({
+        where: {
+          creatorId: req.user.id,
+          type: 'REFERRAL_BONUS',
+          status: { in: ['COMPLETED', 'PROCESSING', 'PENDING'] }
+        },
+        select: { amount: true, status: true, createdAt: true }
+      });
+      
+      referralBonuses = referralBonusEarnings.reduce((sum, earning) => sum + parseFloat(earning.amount || 0), 0);
+      
+      // Calculate this month's referral bonuses
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      referralBonusesThisMonth = referralBonusEarnings
+        .filter(earning => new Date(earning.createdAt) >= startOfMonth)
+        .reduce((sum, earning) => sum + parseFloat(earning.amount || 0), 0);
+      
+      // Calculate pending referral bonuses
+      pendingReferralBonuses = referralBonusEarnings
+        .filter(earning => earning.status === 'PENDING')
+        .reduce((sum, earning) => sum + parseFloat(earning.amount || 0), 0);
+      
+      console.log(`[Referrals] 🚀 Referral bonus data:`, {
+        totalBonuses: parseFloat(referralBonuses.toFixed(2)),
+        thisMonthBonuses: parseFloat(referralBonusesThisMonth.toFixed(2)),
+        pendingBonuses: parseFloat(pendingReferralBonuses.toFixed(2))
+      });
+      
+    } catch (bonusError) {
+      console.error('[Referrals] ⚠️ Failed to fetch referral bonus data (non-critical):', bonusError.message);
+    }
+
+    // Calculate totals from ReferralEarning table (referral relationships)
     const total = referralEarnings.reduce((sum, r) => sum + Number(r.amount || 0), 0);
     const pending = referralEarnings
       .filter(r => r.status === 'PENDING')
       .reduce((sum, r) => sum + Number(r.amount || 0), 0);
     
-    // Calculate this month's earnings
+    // Calculate this month's earnings from ReferralEarning table
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const thisMonth = referralEarnings
@@ -2363,7 +2403,11 @@ router.get('/referrals', requireAuth, async (req, res) => {
       total, 
       pending, 
       thisMonth, 
-      referrals 
+      referrals,
+      // 🚀 REFERRAL BONUS DATA
+      referralBonuses: parseFloat(referralBonuses.toFixed(2)), // Total referral bonuses earned
+      referralBonusesThisMonth: parseFloat(referralBonusesThisMonth.toFixed(2)), // This month's bonuses
+      pendingReferralBonuses: parseFloat(pendingReferralBonuses.toFixed(2)) // Pending bonuses
     });
   } catch (err) {
     console.error(err);

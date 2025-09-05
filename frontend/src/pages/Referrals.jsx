@@ -10,7 +10,11 @@ export default function Referrals(){
     total: 0,
     pending: 0,
     thisMonth: 0,
-    referrals: []
+    referrals: [],
+    // 🚀 REFERRAL BONUS DATA
+    referralBonuses: 0,
+    referralBonusesThisMonth: 0,
+    pendingReferralBonuses: 0
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -232,6 +236,61 @@ export default function Referrals(){
             <div className="stat-label">Pending Bonus</div>
             <div className="stat-value">${Number(summary.pending || 0).toFixed(2)}</div>
             <div className="stat-change positive">Processing</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🚀 REFERRAL BONUS EARNINGS - New Section */}
+      <div className="modern-stats-grid" style={{ marginTop: '2rem' }}>
+        <div className="modern-stat-card">
+          <div className="stat-icon" style={{ background: '#10b98120', color: '#10b981' }}>
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-label">Referral Bonuses Earned</div>
+            <div className="stat-value">${Number(summary.referralBonuses || 0).toFixed(2)}</div>
+            <div className="stat-change positive">Actual bonuses received</div>
+          </div>
+        </div>
+
+        <div className="modern-stat-card">
+          <div className="stat-icon" style={{ background: '#f59e0b20', color: '#f59e0b' }}>
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-label">This Month Bonuses</div>
+            <div className="stat-value">${Number(summary.referralBonusesThisMonth || 0).toFixed(2)}</div>
+            <div className="stat-change positive">Monthly bonus earnings</div>
+          </div>
+        </div>
+
+        <div className="modern-stat-card">
+          <div className="stat-icon" style={{ background: '#ef444420', color: '#ef4444' }}>
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-label">Pending Bonuses</div>
+            <div className="stat-value">${Number(summary.pendingReferralBonuses || 0).toFixed(2)}</div>
+            <div className="stat-change positive">Awaiting approval</div>
+          </div>
+        </div>
+
+        <div className="modern-stat-card">
+          <div className="stat-icon" style={{ background: '#6366f120', color: '#6366f1' }}>
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-label">Active Referrals</div>
+            <div className="stat-value">{summary.count}</div>
+            <div className="stat-change positive">Currently earning bonuses</div>
           </div>
         </div>
       </div>
