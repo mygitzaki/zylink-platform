@@ -11,7 +11,6 @@ export default function CreatorAnalytics() {
     totalClicks: 0,
     totalConversions: 0,
     totalRevenue: 0,
-    conversionRate: 0,
     averageOrderValue: 0,
     topPerformingLinks: [],
     recentActivity: [],
@@ -357,31 +356,20 @@ export default function CreatorAnalytics() {
 
         {/* Conversion Rate and Top Links */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Conversion Rate Chart */}
+
+          {/* Conversion Rate - Temporarily Disabled */}
           <Card variant="glass">
             <div className="p-6">
-              {loading ? (
-                <ChartSkeleton />
-              ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
-                <ConversionRateChart 
-                  data={analytics.earningsTrend.map(trend => ({
-                    date: trend.date,
-                    conversionRate: trend.clicks > 0 ? ((trend.conversions / trend.clicks) * 100) : 0 // Calculate daily conversion rate
-                  }))} 
-                  timeRange={timeRange} 
-                />
-              ) : (
-                <div className="h-80 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-orange-300 text-2xl">📈</span>
-                    </div>
-                    <h3 className="text-white font-bold text-lg mb-2">Conversion Rate</h3>
-                    <p className="text-gray-400 text-sm">No conversion data available yet</p>
-                    <p className="text-orange-300 text-xs">Data will appear once you start getting sales</p>
+              <div className="h-80 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-orange-300 text-2xl">📈</span>
                   </div>
+                  <h3 className="text-white font-bold text-lg mb-2">Conversion Rate</h3>
+                  <p className="text-gray-400 text-sm">Chart temporarily disabled</p>
+                  <p className="text-orange-300 text-xs">Daily conversion rate data not available</p>
                 </div>
-              )}
+              </div>
             </div>
           </Card>
 
