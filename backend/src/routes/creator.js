@@ -1688,9 +1688,21 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
             }, 0);
             
+            // Apply creator's commission rate to get net commission (same as KPI cards)
+            const creatorCommissionRate = creator?.commissionRate || 70; // Get from database or default to 70%
             const dailyCommission = commissionableActions.reduce((sum, action) => {
-              return sum + parseFloat(action.Payout || action.Commission || 0);
+              const impactCommission = parseFloat(action.Payout || action.Commission || 0);
+              const creatorCommission = (impactCommission * creatorCommissionRate) / 100;
+              return sum + creatorCommission;
             }, 0);
+            
+            // Debug: Log commission calculation for first day only
+            if (i === (requestedDays - 1)) {
+              console.log(`[Analytics Enhanced] 🔍 Commission Rate Applied:`);
+              console.log(`[Analytics Enhanced] 📊 Creator Commission Rate: ${creatorCommissionRate}%`);
+              console.log(`[Analytics Enhanced] 📊 Daily Impact Commission: $${commissionableActions.reduce((sum, action) => sum + parseFloat(action.Payout || 0), 0).toFixed(2)}`);
+              console.log(`[Analytics Enhanced] 📊 Daily Creator Commission: $${dailyCommission.toFixed(2)}`);
+            }
             
             const dailyConversions = commissionableActions.length;
             
