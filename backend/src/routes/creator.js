@@ -17,7 +17,22 @@ function signToken(payload) {
 
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password, adminRole } = req.body;
+    const { name, email, password, adminRole, referralCode } = req.body;
+    
+    // 🔍 SAFE LOGGING: Monitor referral code handling (ZERO RISK)
+    console.log('🔍 [SIGNUP DEBUG] Request body received:', {
+      name: name ? 'provided' : 'missing',
+      email: email ? 'provided' : 'missing', 
+      password: password ? 'provided' : 'missing',
+      adminRole: adminRole || 'not provided',
+      referralCode: referralCode || 'not provided'
+    });
+    
+    if (referralCode) {
+      console.log('🔍 [SIGNUP DEBUG] Referral code detected:', referralCode);
+      console.log('🔍 [SIGNUP DEBUG] Referral code will be IGNORED (not implemented yet)');
+    }
+    
     if (!name || !email || !password) return res.status(400).json({ message: 'Missing fields' });
     
     const prisma = getPrisma();
@@ -39,6 +54,14 @@ router.post('/signup', async (req, res) => {
         adminRole: role === 'USER' ? null : role,
         walletAddress: '0x0000000000000000000000000000000000000000' // Default value
       } 
+    });
+    
+    // 🔍 SAFE LOGGING: Monitor creator creation (ZERO RISK)
+    console.log('🔍 [SIGNUP DEBUG] Creator created successfully:', {
+      id: creator.id,
+      email: creator.email,
+      referralCode: creator.referralCode || 'not generated yet',
+      referredBy: creator.referredBy || 'not set'
     });
     
     // Send welcome email (non-blocking)
