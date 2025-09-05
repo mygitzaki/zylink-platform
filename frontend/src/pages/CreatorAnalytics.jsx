@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { apiFetch } from '../lib/api'
 import { quickReLogin } from '../utils/quickAuth'
 // Import new Zylike-inspired UI components
-import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, TopLinksChart, ChartSkeleton } from '../components/ui'
+import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, ChartSkeleton } from '../components/ui'
 
 export default function CreatorAnalytics() {
   const { user, token, setToken } = useAuth()
@@ -12,7 +12,6 @@ export default function CreatorAnalytics() {
     totalConversions: 0,
     totalRevenue: 0,
     averageOrderValue: 0,
-    topPerformingLinks: [],
     recentActivity: [],
     monthlyTrends: [],
     earningsTrend: []
@@ -72,7 +71,6 @@ export default function CreatorAnalytics() {
         totalRevenue,
         conversionRate,
         averageOrderValue,
-        topPerformingLinks: analyticsRes.topLinks || [],
         recentActivity: analyticsRes.recentActivity || [],
         monthlyTrends: analyticsRes.monthlyTrends || [],
         earningsTrend: analyticsRes.earningsTrend || []
@@ -354,20 +352,6 @@ export default function CreatorAnalytics() {
           </Card>
         </div>
 
-        {/* Top Performing Links */}
-        <div className="grid grid-cols-1 gap-6 mb-8">
-
-          {/* Top Performing Links */}
-          <Card variant="glass">
-            <div className="p-6">
-              {loading ? (
-                <ChartSkeleton />
-              ) : (
-                <TopLinksChart data={analytics.topPerformingLinks} />
-              )}
-            </div>
-          </Card>
-        </div>
 
         {/* Recent Activity */}
         <Card variant="glass">
