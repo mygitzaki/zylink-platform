@@ -84,6 +84,151 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+// 🧪 PHASE 2: SAFE TEST ENDPOINT for referral validation (ZERO RISK)
+router.post('/signup-test', async (req, res) => {
+  try {
+    console.log('🧪 [SIGNUP-TEST] Testing referral validation logic...');
+    const { name, email, password, adminRole, referralCode } = req.body;
+    
+    // 🔍 SAFE LOGGING: Monitor test request
+    console.log('🧪 [SIGNUP-TEST] Request body received:', {
+      name: name ? 'provided' : 'missing',
+      email: email ? 'provided' : 'missing', 
+      password: password ? 'provided' : 'missing',
+      adminRole: adminRole || 'not provided',
+      referralCode: referralCode || 'not provided'
+    });
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Missing fields' });
+    }
+    
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ message: 'Database not configured' });
+    }
+    
+    // 🧪 TEST: Referral code validation logic
+    let referrerId = null;
+    let referralValidation = { valid: false, reason: 'No referral code provided' };
+    
+    if (referralCode) {
+      console.log('🧪 [SIGNUP-TEST] Validating referral code:', referralCode);
+      
+      // Check if referral code exists
+      const referrer = await prisma.creator.findUnique({ 
+        where: { referralCode: referralCode.trim().toUpperCase() },
+        select: { id: true, name: true, email: true, isActive: true }
+      });
+      
+      if (!referrer) {
+        referralValidation = { 
+          valid: false, 
+          reason: 'Invalid referral code - code not found',
+          code: referralCode 
+        };
+        console.log('🧪 [SIGNUP-TEST] ❌ Invalid referral code:', referralCode);
+      } else if (!referrer.isActive) {
+        referralValidation = { 
+          valid: false, 
+          reason: 'Invalid referral code - referrer account inactive',
+          code: referralCode,
+          referrer: referrer.email
+        };
+        console.log('🧪 [SIGNUP-TEST] ❌ Inactive referrer:', referrer.email);
+      } else {
+        referrerId = referrer.id;
+        referralValidation = { 
+          valid: true, 
+          reason: 'Valid referral code',
+          code: referralCode,
+          referrer: {
+            id: referrer.id,
+            name: referrer.name,
+            email: referrer.email
+          }
+        };
+        console.log('🧪 [SIGNUP-TEST] ✅ Valid referral code from:', referrer.email);
+      }
+    }
+    
+    // 🧪 TEST: Check for self-referral (if email matches referrer)
+    if (referrerId && email) {
+      const referrer = await prisma.creator.findUnique({ 
+        where: { id: referrerId },
+        select: { email: true }
+      });
+      
+      if (referrer && referrer.email.toLowerCase() === email.toLowerCase()) {
+        referralValidation = { 
+          valid: false, 
+          reason: 'Cannot refer yourself',
+          code: referralCode,
+          referrer: referrer.email
+        };
+        console.log('🧪 [SIGNUP-TEST] ❌ Self-referral attempt blocked');
+      }
+    }
+    
+    // 🧪 TEST: Simulate creator creation (without actually creating)
+    const hashed = await bcrypt.hash(password, 10);
+    const role = (adminRole === 'ADMIN' || adminRole === 'SUPER_ADMIN') ? adminRole : 'USER';
+    
+    console.log('🧪 [SIGNUP-TEST] Would create creator with:', {
+      name,
+      email,
+      role,
+      referralCode: referralCode || 'not provided',
+      referredBy: referrerId || 'not set',
+      referralValidation
+    });
+    
+    // 🧪 TEST: Simulate ReferralEarning creation (without actually creating)
+    if (referralValidation.valid && referrerId) {
+      const now = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 6); // 6 months from now
+      
+      console.log('🧪 [SIGNUP-TEST] Would create ReferralEarning with:', {
+        referrerId,
+        referredEmail: email,
+        startDate: now,
+        endDate: endDate,
+        amount: 0 // Starts at 0, gets updated via webhooks
+      });
+    }
+    
+    // 🧪 TEST: Return validation results (NO ACTUAL CREATION)
+    res.json({
+      success: true,
+      message: 'Test completed - no actual signup performed',
+      validation: {
+        referralCode: referralCode || null,
+        referralValidation,
+        wouldCreateCreator: {
+          name,
+          email,
+          role,
+          referredBy: referrerId
+        },
+        wouldCreateReferralEarning: referralValidation.valid && referrerId ? {
+          referrerId,
+          referredEmail: email,
+          duration: '6 months'
+        } : null
+      }
+    });
+    
+  } catch (err) {
+    console.error('🧪 [SIGNUP-TEST] Error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Test failed', 
+      error: err.message 
+    });
+  }
+});
+
 // Referral code generation for the current user (if missing)
 router.get('/referral-code', requireAuth, async (req, res) => {
   try {
