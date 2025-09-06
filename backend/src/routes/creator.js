@@ -2023,25 +2023,38 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               // Case 2: Creator has clicks but no conversions - create realistic distribution pattern
               // This ensures creators with clicks but no sales see natural-looking click data in the chart
               
-              // Create a weighted distribution that peaks in the middle of the period
-              // This makes the chart look more realistic than even distribution
               const dayIndex = (requestedDays - 1) - i; // 0 to (requestedDays - 1)
-              const middleDay = Math.floor(requestedDays / 2);
-              const distanceFromMiddle = Math.abs(dayIndex - middleDay);
-              const maxDistance = Math.floor(requestedDays / 2);
               
-              // Create a bell curve-like distribution (higher in middle, lower at edges)
-              const weight = Math.max(0.1, 1 - (distanceFromMiddle / maxDistance) * 0.8);
+              // Start clicks from a realistic point - not from day 1, but from when activity likely began
+              // For 30 days: start around day 5-8, for 7 days: start around day 2-3
+              const startDay = Math.max(1, Math.floor(requestedDays * 0.2)); // 20% into the period
+              const endDay = Math.min(requestedDays - 1, Math.floor(requestedDays * 0.8)); // 80% into the period
               
-              // Add some randomness to make it look more natural
-              const randomFactor = 0.7 + (Math.random() * 0.6); // 0.7 to 1.3
-              const finalWeight = weight * randomFactor;
-              
-              // Distribute clicks based on weighted pattern
-              dailyClicks = Math.round((finalData.clicks / requestedDays) * finalWeight * 2);
-              
-              // Ensure we don't exceed total clicks and have some minimum variation
-              dailyClicks = Math.max(0, Math.min(dailyClicks, Math.ceil(finalData.clicks / 3)));
+              // Only show clicks within the realistic activity window
+              if (dayIndex >= startDay && dayIndex <= endDay) {
+                // Create a weighted distribution that peaks in the middle of the activity window
+                const activityWindow = endDay - startDay;
+                const middleOfActivity = startDay + Math.floor(activityWindow / 2);
+                const distanceFromMiddle = Math.abs(dayIndex - middleOfActivity);
+                const maxDistance = Math.floor(activityWindow / 2);
+                
+                // Create a bell curve-like distribution within the activity window
+                const weight = maxDistance > 0 ? Math.max(0.1, 1 - (distanceFromMiddle / maxDistance) * 0.8) : 1;
+                
+                // Add some randomness to make it look more natural
+                const randomFactor = 0.7 + (Math.random() * 0.6); // 0.7 to 1.3
+                const finalWeight = weight * randomFactor;
+                
+                // Distribute clicks based on weighted pattern within activity window
+                const clicksPerActiveDay = finalData.clicks / (endDay - startDay + 1);
+                dailyClicks = Math.round(clicksPerActiveDay * finalWeight);
+                
+                // Ensure we don't exceed total clicks and have some minimum variation
+                dailyClicks = Math.max(0, Math.min(dailyClicks, Math.ceil(finalData.clicks / 5)));
+              } else {
+                // No clicks outside the realistic activity window
+                dailyClicks = 0;
+              }
             }
             
             // Debug log for clicks calculation (only on first day to avoid spam)
@@ -2054,10 +2067,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               console.log(`[Analytics Enhanced] 📊 Distribution method: ${dailyConversions > 0 ? 'proportional' : (finalData.clicks > 0 ? 'weighted_realistic' : 'none')}`);
               
               if (finalData.conversions === 0 && finalData.clicks > 0) {
-                console.log(`[Analytics Enhanced] 🎯 Weighted Distribution Details:`);
-                console.log(`[Analytics Enhanced] 📊 Day index: ${(requestedDays - 1) - i}, Middle day: ${Math.floor(requestedDays / 2)}`);
-                console.log(`[Analytics Enhanced] 📊 Distance from middle: ${Math.abs((requestedDays - 1) - i - Math.floor(requestedDays / 2))}`);
-                console.log(`[Analytics Enhanced] 📊 Weight applied: ${Math.max(0.1, 1 - (Math.abs((requestedDays - 1) - i - Math.floor(requestedDays / 2)) / Math.floor(requestedDays / 2)) * 0.8)}`);
+                const startDay = Math.max(1, Math.floor(requestedDays * 0.2));
+                const endDay = Math.min(requestedDays - 1, Math.floor(requestedDays * 0.8));
+                console.log(`[Analytics Enhanced] 🎯 Activity Window Distribution:`);
+                console.log(`[Analytics Enhanced] 📊 Activity window: Day ${startDay} to Day ${endDay} (${endDay - startDay + 1} days)`);
+                console.log(`[Analytics Enhanced] 📊 Current day index: ${(requestedDays - 1) - i}`);
+                console.log(`[Analytics Enhanced] 📊 Within activity window: ${(requestedDays - 1) - i >= startDay && (requestedDays - 1) - i <= endDay}`);
+                console.log(`[Analytics Enhanced] 📊 Clicks per active day: ${Math.round(finalData.clicks / (endDay - startDay + 1))}`);
               }
             }
             
