@@ -59,15 +59,24 @@ router.get('/detailed', safeRoute(async (req, res) => {
 
   // Check Impact.com API
   try {
-    const response = await fetch('https://api.impact.com/Mediapartners/IR6HvVENfaTR3908029jXFhKg7EFcPYDe1', {
-      method: 'GET',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from('IR6HvVENfaTR3908029jXFhKg7EFcPYDe1:VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd').toString('base64')
-      }
-    });
-    systemInfo.impact_api.accessible = response.ok;
-    systemInfo.impact_api.status_code = response.status;
-    systemInfo.impact_api.last_check = new Date().toISOString();
+    const accountSid = process.env.IMPACT_ACCOUNT_SID;
+    const authToken = process.env.IMPACT_AUTH_TOKEN;
+    const apiBase = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
+    
+    if (!accountSid || !authToken) {
+      systemInfo.impact_api.error = 'Missing environment variables';
+      systemInfo.impact_api.last_check = new Date().toISOString();
+    } else {
+      const response = await fetch(`${apiBase}/Mediapartners/${accountSid}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+        }
+      });
+      systemInfo.impact_api.accessible = response.ok;
+      systemInfo.impact_api.status_code = response.status;
+      systemInfo.impact_api.last_check = new Date().toISOString();
+    }
   } catch (error) {
     systemInfo.impact_api.error = error.message;
     systemInfo.impact_api.last_check = new Date().toISOString();

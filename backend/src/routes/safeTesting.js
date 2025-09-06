@@ -38,10 +38,18 @@ router.get('/health', safeTest(async (req, res) => {
 router.post('/test-impact-api', safeTest(async (req, res) => {
   console.log('🧪 TESTING: Impact.com API connectivity');
   
-  const response = await fetch('https://api.impact.com/Mediapartners/IR6HvVENfaTR3908029jXFhKg7EFcPYDe1', {
+  const accountSid = process.env.IMPACT_ACCOUNT_SID;
+  const authToken = process.env.IMPACT_AUTH_TOKEN;
+  const apiBase = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
+  
+  if (!accountSid || !authToken) {
+    throw new Error('Missing Impact.com environment variables');
+  }
+  
+  const response = await fetch(`${apiBase}/Mediapartners/${accountSid}`, {
     method: 'GET',
     headers: {
-      'Authorization': 'Basic ' + Buffer.from('IR6HvVENfaTR3908029jXFhKg7EFcPYDe1:VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd').toString('base64')
+      'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64')
     }
   });
   
@@ -121,31 +129,47 @@ router.post('/pre-flight-check', safeTest(async (req, res) => {
   
   // Test Impact.com API
   try {
-    const apiResponse = await fetch('https://api.impact.com/Mediapartners/IR6HvVENfaTR3908029jXFhKg7EFcPYDe1', {
-      method: 'GET',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from('IR6HvVENfaTR3908029jXFhKg7EFcPYDe1:VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd').toString('base64')
-      }
-    });
-    results.impact_api = { status: 'connected', safe: apiResponse.ok, statusCode: apiResponse.status };
+    const accountSid = process.env.IMPACT_ACCOUNT_SID;
+    const authToken = process.env.IMPACT_AUTH_TOKEN;
+    const apiBase = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
+    
+    if (!accountSid || !authToken) {
+      results.impact_api = { status: 'error', safe: false, error: 'Missing environment variables' };
+    } else {
+      const apiResponse = await fetch(`${apiBase}/Mediapartners/${accountSid}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+        }
+      });
+      results.impact_api = { status: 'connected', safe: apiResponse.ok, statusCode: apiResponse.status };
+    }
   } catch (error) {
     results.impact_api = { status: 'error', safe: false, error: error.message };
   }
   
   // Test Earnings API
   try {
-    const earningsResponse = await fetch('https://api.impact.com/Mediapartners/IR6HvVENfaTR3908029jXFhKg7EFcPYDe1/Actions', {
-      method: 'GET',
-      headers: {
-        'Authorization': 'Basic ' + Buffer.from('IR6HvVENfaTR3908029jXFhKg7EFcPYDe1:VdKCaAEqjDjKGmwMX3e.-pehMdm3ZiDd').toString('base64')
-      }
-    });
-    const earningsData = await earningsResponse.json();
-    results.earnings_api = { 
-      status: 'connected', 
-      safe: earningsResponse.ok, 
-      earningsCount: earningsData.Actions?.length || 0 
-    };
+    const accountSid = process.env.IMPACT_ACCOUNT_SID;
+    const authToken = process.env.IMPACT_AUTH_TOKEN;
+    const apiBase = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
+    
+    if (!accountSid || !authToken) {
+      results.earnings_api = { status: 'error', safe: false, error: 'Missing environment variables' };
+    } else {
+      const earningsResponse = await fetch(`${apiBase}/Mediapartners/${accountSid}/Actions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64')
+        }
+      });
+      const earningsData = await earningsResponse.json();
+      results.earnings_api = { 
+        status: 'connected', 
+        safe: earningsResponse.ok, 
+        earningsCount: earningsData.Actions?.length || 0 
+      };
+    }
   } catch (error) {
     results.earnings_api = { status: 'error', safe: false, error: error.message };
   }

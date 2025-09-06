@@ -102,14 +102,27 @@ class HealthMonitor {
         const accountSid = process.env.IMPACT_ACCOUNT_SID;
         const authToken = process.env.IMPACT_AUTH_TOKEN;
         const apiBase = process.env.IMPACT_API_BASE_URL || 'https://api.impact.com';
-        if (!accountSid || !authToken) return false;
+        
+        if (!accountSid || !authToken) {
+          console.log('⚠️ Health check impact-api failed: Missing environment variables');
+          return false;
+        }
+        
         const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
         const response = await fetch(`${apiBase}/Mediapartners/${accountSid}`, {
           method: 'GET',
           headers: { 'Authorization': `Basic ${auth}` }
         });
-        return response.ok;
+        
+        if (!response.ok) {
+          console.log(`⚠️ Health check impact-api failed: HTTP ${response.status}`);
+          return false;
+        }
+        
+        console.log('✅ Health check impact-api passed');
+        return true;
       } catch (error) {
+        console.log(`⚠️ Health check impact-api failed: ${error.message}`);
         return false;
       }
     }, 300000); // Check every 5 minutes
