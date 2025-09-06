@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const ApiCallManager = require('./apiCallManager');
 
 class ImpactWebService {
   constructor() {
@@ -16,10 +15,9 @@ class ImpactWebService {
     this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
     this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
     
-    // Advanced caching system to reduce API calls
+    // Simple in-memory cache to reduce API calls
     this.cache = new Map();
-    this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
-    this.apiCallManager = new ApiCallManager();
+    this.cacheTimeout = 10 * 60 * 1000; // 10 minutes (increased from 5 minutes)
     
     // Validate required credentials
     this.validateCredentials();
@@ -74,11 +72,6 @@ class ImpactWebService {
         this.cache.delete(key);
       }
     }
-  }
-
-  // Check if request is already in progress to prevent duplicates
-  async getOrCreateRequest(key, requestFn) {
-    return await this.apiCallManager.getOrCreateRequest(key, requestFn);
   }
 
   computeObfuscatedSubId(creatorId) {
@@ -404,39 +397,14 @@ class ImpactWebService {
         maxRetries = 3
       } = options;
 
-      const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
-      
       // Check cache first (only for first attempt)
       if (retryCount === 0) {
+        const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
         const cached = this.getFromCache(cacheKey);
         if (cached) {
-          console.log(`[ImpactWebService] 📦 Cache hit for getActionsDetailed - avoiding API call`);
           return cached;
         }
       }
-
-      // Use request deduplication and rate limiting
-      return await this.getOrCreateRequest(cacheKey, async () => {
-        return await this.executeGetActionsDetailed(options, cacheKey);
-      });
-    } catch (error) {
-      return { success: false, error: error.message, actions: [], totalResults: 0 };
-    }
-  }
-
-  async executeGetActionsDetailed(options, cacheKey) {
-    const {
-      startDate,
-      endDate,
-      status,
-      actionType,
-      page = 1,
-      pageSize = 100,
-      subId1,
-      campaignId,
-      retryCount = 0,
-      maxRetries = 3
-    } = options;
 
       // Normalize dates to Impact Actions API format (ISO 8601 with time and Z suffix)
       const toImpactActionsDate = (val) => {
@@ -582,10 +550,10 @@ class ImpactWebService {
         console.log(`[ImpactWebService] ⏳ Actions API rate limit hit, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         
-        return this.executeGetActionsDetailed({
+        return this.getActionsDetailed({
           ...options,
           retryCount: retryCount + 1
-        }, cacheKey);
+        });
       }
       
       console.log(`[ImpactWebService] ❌ API failed after ${retryCount + 1} attempts: ${error.message}`);
@@ -838,35 +806,12 @@ class ImpactWebService {
       const { startDate, endDate, subId1, retryCount = 0, maxRetries = 3 } = options;
       console.log(`🎯 Fetching real performance data for SubId1: ${subId1}`);
       
-      const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
-      
-      // Check cache first
-      if (retryCount === 0) {
-        const cached = this.getFromCache(cacheKey);
-        if (cached) {
-          console.log(`[ImpactWebService] 📦 Cache hit for getPerformanceBySubId - avoiding API call`);
-          return cached;
-        }
-      }
-
-      // Use request deduplication and rate limiting
-      return await this.getOrCreateRequest(cacheKey, async () => {
-        return await this.executeGetPerformanceBySubId(options, cacheKey);
+      const exp = await this.exportReportAndDownloadJson("partner_performance_by_subid", {
+        START_DATE: startDate,
+        END_DATE: endDate,
+        Program: this.programId,
+        ResultFormat: "JSON"
       });
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async executeGetPerformanceBySubId(options, cacheKey) {
-    const { startDate, endDate, subId1, retryCount = 0, maxRetries = 3 } = options;
-    
-    const exp = await this.exportReportAndDownloadJson("partner_performance_by_subid", {
-      START_DATE: startDate,
-      END_DATE: endDate,
-      Program: this.programId,
-      ResultFormat: "JSON"
-    });
       
       if (!exp.success) {
         const isRateLimit = exp.error && (exp.error.includes('rate limit') || exp.error.includes('429'));
@@ -876,10 +821,10 @@ class ImpactWebService {
           console.log(`[ImpactWebService] ⏳ Performance API rate limit hit, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           
-          return this.executeGetPerformanceBySubId({
+          return this.getPerformanceBySubId({
             ...options,
             retryCount: retryCount + 1
-          }, cacheKey);
+          });
         }
         
         console.log('⚠️ Performance by SubId report failed:', exp.error);
@@ -905,7 +850,7 @@ class ImpactWebService {
           
           console.log(`✅ Real performance for ${subId1}: ${clicks} clicks, ${actions} actions, ${conversionRate}% CR`);
           
-          const result = {
+          return {
             success: true,
             data: {
               clicks,
@@ -916,10 +861,6 @@ class ImpactWebService {
               subId1
             }
           };
-          
-          // Cache successful results
-          this.setCache(cacheKey, result);
-          return result;
         } else {
           console.log(`❌ No performance data found for SubId1: ${subId1}`);
           return { success: false, error: 'No data found for this SubId1' };
@@ -936,14 +877,10 @@ class ImpactWebService {
             parseFloat(((parseInt(r.Actions || 0) / parseInt(r.Clicks || 0)) * 100).toFixed(2)) : 0
         }));
         
-        const result = {
+        return {
           success: true,
           data: platformData
         };
-        
-        // Cache successful results
-        this.setCache(cacheKey, result);
-        return result;
       }
     } catch (error) {
       console.error('❌ Error fetching performance by SubId:', error);

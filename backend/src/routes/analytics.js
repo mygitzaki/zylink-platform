@@ -123,7 +123,8 @@ router.get('/platform', requireAuth, requireAdmin, async (req, res) => {
     let platformData = { clicks: 0, conversions: 0, revenue: 0 };
     
     try {
-      const impact = new OptimizedImpactService();
+      const ImpactWebService = require('../services/impactWebService');
+      const impact = new ImpactWebService();
       
       console.log('[Platform Analytics] Fetching real platform data from Impact.com...');
       
