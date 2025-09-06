@@ -6,7 +6,7 @@ import { useState } from 'react'
 import Login from './pages/Login'
 import LinkGenerator from './pages/LinkGenerator'
 import MyLinks from './pages/MyLinks'
-import CreatorAnalytics from './pages/CreatorAnalytics'
+import Analytics from './pages/Analytics'
 import Earnings from './pages/Earnings'
 import AnalyticsV2 from './pages/AnalyticsV2'
 import PaymentSetup from './pages/PaymentSetup'
@@ -338,7 +338,7 @@ export default function App() {
             <Route path="/creator-application" element={<CreatorApplication />} />
             <Route path="/link-generator" element={<RequireAuth><LinkGenerator /></RequireAuth>} />
             <Route path="/my-links" element={<RequireAuth><MyLinks /></RequireAuth>} />
-            <Route path="/analytics" element={<RequireAuth><CreatorAnalytics /></RequireAuth>} />
+            <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
             <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
             <Route path="/analytics-v2" element={<RequireAuth><AnalyticsV2 /></RequireAuth>} />
             <Route path="/payment-setup" element={<RequireAuth><PaymentSetup /></RequireAuth>} />
