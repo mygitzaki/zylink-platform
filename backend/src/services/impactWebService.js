@@ -393,6 +393,14 @@ class ImpactWebService {
       const ed = toImpactActionsDate(endDate);
       if (sd) qp.set('StartDate', sd);
       if (ed) qp.set('EndDate', ed);
+      
+      // DEBUG: Log the exact API request parameters
+      console.log(`[ImpactWebService] 🔍 getActionsDetailed API Request Debug:`);
+      console.log(`[ImpactWebService] 📅 Original dates: startDate=${startDate}, endDate=${endDate}`);
+      console.log(`[ImpactWebService] 📅 Converted dates: StartDate=${sd}, EndDate=${ed}`);
+      console.log(`[ImpactWebService] 🔍 Query parameters: ${qp.toString()}`);
+      console.log(`[ImpactWebService] 🆔 SubId1: ${subId1}`);
+      console.log(`[ImpactWebService] 📊 Page: ${page}, PageSize: ${pageSize}`);
       if (status) qp.set('ActionStatus', status);
       if (actionType) qp.set('ActionType', actionType);
       if (subId1) qp.set('SubId1', subId1);
@@ -431,6 +439,22 @@ class ImpactWebService {
         response = retry;
       }
       const data = await response.json();
+      
+      // DEBUG: Log the actual API response
+      console.log(`[ImpactWebService] 📊 API Response Data:`);
+      console.log(`[ImpactWebService] 📊 Total Actions: ${data.Actions?.length || 0}`);
+      console.log(`[ImpactWebService] 📊 Total Results: ${data.TotalResults || data.TotalRecords || 0}`);
+      console.log(`[ImpactWebService] 📊 Response Keys: ${Object.keys(data).join(', ')}`);
+      if (data.Actions && data.Actions.length > 0) {
+        console.log(`[ImpactWebService] 📊 First Action Sample:`, {
+          SubId1: data.Actions[0].SubId1,
+          EventDate: data.Actions[0].EventDate,
+          Payout: data.Actions[0].Payout,
+          Amount: data.Actions[0].Amount,
+          State: data.Actions[0].State
+        });
+      }
+      
       return {
         success: true,
         totalResults: data.TotalResults || data.TotalRecords || 0,
