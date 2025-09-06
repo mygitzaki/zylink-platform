@@ -375,8 +375,8 @@ export default function LinkGenerator() {
                 size="lg"
                 className={`w-full font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg ring-2 ${
                   !productUrl.trim() 
-                    ? 'bg-gradient-to-r from-blue-400 to-purple-500 text-white ring-blue-200 hover:from-blue-500 hover:to-purple-600 hover:ring-blue-300' 
-                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white ring-blue-200 hover:from-blue-600 hover:to-purple-700 hover:ring-blue-300'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white ring-blue-300 hover:from-blue-600 hover:to-purple-700 hover:ring-blue-400' 
+                    : 'bg-gradient-to-r from-blue-600 to-purple-700 text-white ring-blue-300 hover:from-blue-700 hover:to-purple-800 hover:ring-blue-400'
                 }`}
               >
                 {loading ? 'Generating...' : 'Generate Link'}
