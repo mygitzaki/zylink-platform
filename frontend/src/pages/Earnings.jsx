@@ -19,7 +19,6 @@ export default function Earnings() {
   const [analytics, setAnalytics] = useState({
     earningsTrend: [],
     performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
-    topLinks: [],
     recentActivity: []
   })
   const [salesData, setSalesData] = useState({
@@ -94,7 +93,6 @@ export default function Earnings() {
       setAnalytics({
         earningsTrend: [],
         performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
-        topLinks: [],
         recentActivity: []
       })
     }
@@ -397,45 +395,6 @@ export default function Earnings() {
             </div>
           </div>
 
-          {/* Top Performing Links */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Top Performing Links</h3>
-            {analytics.topLinks.length > 0 ? (
-              <div className="space-y-3">
-                {analytics.topLinks.slice(0, 5).map((link, index) => (
-                  <div key={link.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
-                      <div className="truncate max-w-32">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {link.url.split('/').pop() || 'Link'}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {link.clicks} clicks
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {formatCurrency(link.revenue)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatPercentage(link.conversionRate)} CR
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <p>No performance data yet</p>
-                <p className="text-sm">Start creating links to see analytics</p>
-              </div>
-            )}
-          </div>
         </div>
 
 
