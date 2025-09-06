@@ -1083,14 +1083,15 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
         
         // DEBUG: Special logging for sohailkhan521456@gmail.com
         if (creator?.email === 'sohailkhan521456@gmail.com') {
-          console.log(`[Earnings Summary] 🔍 Sohail's API Call Details:`);
-          console.log(`[Earnings Summary] 📅 Date range: ${startDate} to ${endDate}`);
-          console.log(`[Earnings Summary] 🆔 SubId1: ${correctSubId1}`);
-          console.log(`[Earnings Summary] 📊 Page size: 1000`);
-          console.log(`[Earnings Summary] 🔍 API endpoint: getActionsDetailed`);
-          console.log(`[Earnings Summary] 🔍 Impact.com Dashboard shows: $954.18 commission, 619 sales, 6,544 clicks`);
-          console.log(`[Earnings Summary] 🔍 API returning: $63.33 commission, 20 sales, 1,822 clicks`);
-          console.log(`[Earnings Summary] ⚠️ MAJOR DISCREPANCY DETECTED!`);
+        console.log(`[Earnings Summary] 🔍 API Call Details:`);
+        console.log(`[Earnings Summary] 📅 Date range: ${startDate} to ${endDate}`);
+        console.log(`[Earnings Summary] 🆔 SubId1: ${correctSubId1}`);
+        console.log(`[Earnings Summary] 📊 Page size: 1000`);
+        console.log(`[Earnings Summary] 🔍 API endpoint: getActionsDetailed`);
+        console.log(`[Earnings Summary] 🔍 Impact.com Dashboard shows: $954.18 commission, 619 sales, 6,544 clicks`);
+        console.log(`[Earnings Summary] 🔍 API returning: $63.33 commission, 20 sales, 1,822 clicks`);
+        console.log(`[Earnings Summary] ⚠️ MAJOR DISCREPANCY DETECTED!`);
+        
         }
         
         // DEBUG: Date format is now handled properly in ImpactWebService.getActionsDetailed()
@@ -1105,6 +1106,24 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
           subId1: correctSubId1,
           pageSize: 1000
         });
+        
+        // DEBUG: Check what the API actually returned
+        console.log(`[Earnings Summary] 🔍 API RESPONSE DEBUG:`);
+        console.log(`[Earnings Summary] 📊 detailedActions.success: ${detailedActions.success}`);
+        console.log(`[Earnings Summary] 📊 detailedActions.actions?.length: ${detailedActions.actions?.length || 0}`);
+        console.log(`[Earnings Summary] 📊 detailedActions.error: ${detailedActions.error || 'none'}`);
+        
+        if (detailedActions.actions && detailedActions.actions.length > 0) {
+          console.log(`[Earnings Summary] 📊 First action sample:`, {
+            SubId1: detailedActions.actions[0].SubId1,
+            EventDate: detailedActions.actions[0].EventDate,
+            Payout: detailedActions.actions[0].Payout,
+            Amount: detailedActions.actions[0].Amount,
+            State: detailedActions.actions[0].State
+          });
+        } else {
+          console.log(`[Earnings Summary] ❌ No actions returned from API`);
+        }
         
         if (detailedActions.success && detailedActions.actions) {
           const actions = detailedActions.actions;
