@@ -50,6 +50,14 @@ export default function CreatorAnalytics() {
       console.log('📊 Analytics response:', analyticsRes)
       console.log('💰 Earnings response:', earningsRes)
       
+      // DEBUG: Check if we're getting empty data
+      if (!analyticsRes || !analyticsRes.performanceMetrics) {
+        console.error('❌ Analytics response is empty or missing performanceMetrics:', analyticsRes)
+      }
+      if (!earningsRes || earningsRes.commissionEarned === undefined) {
+        console.error('❌ Earnings response is empty or missing commissionEarned:', earningsRes)
+      }
+      
       // Prioritize Impact.com data from analytics API, fallback to earnings API
       const totalRevenue = analyticsRes.performanceMetrics?.revenue || earningsRes.commissionEarned || 0
       const totalClicks = analyticsRes.performanceMetrics?.clicks || 0

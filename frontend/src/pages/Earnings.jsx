@@ -54,6 +54,12 @@ export default function Earnings() {
       console.log(`🔄 [Frontend] Loading earnings summary for ${timeRange}: ${path}`)
       const summaryRes = await apiFetch(path, { token })
       console.log(`✅ [Frontend] Earnings summary response for ${timeRange}:`, summaryRes)
+      
+      // DEBUG: Check if we're getting empty data
+      if (!summaryRes || summaryRes.commissionEarned === undefined) {
+        console.error('❌ Earnings summary response is empty or missing commissionEarned:', summaryRes)
+      }
+      
       setEarningsSummary(summaryRes)
       
     } catch (err) {
