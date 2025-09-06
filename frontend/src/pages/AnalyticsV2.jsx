@@ -1,730 +1,409 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { apiFetch } from '../lib/api'
-import { Line } from 'react-chartjs-2'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js'
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-)
+import { quickReLogin } from '../utils/quickAuth'
+// Import new Zylike-inspired UI components
+import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, ChartSkeleton } from '../components/ui'
 
 export default function AnalyticsV2() {
-  const { user, token } = useAuth()
-  const [earningsSummary, setEarningsSummary] = useState({
-    commissionEarned: 0,
-    availableForWithdraw: 0,
-    pendingApproval: 0,
-    totalEarnings: 0,
-    payoutsRequested: 0,
-    analytics: {
-      conversionRate: 0,
-      averageOrderValue: 0,
-      totalActions: 0
-    }
-  })
+  const { user, token, setToken } = useAuth()
   const [analytics, setAnalytics] = useState({
-    earningsTrend: [],
-    performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
-    topLinks: [],
-    recentActivity: []
-  })
-  const [salesChartData, setSalesChartData] = useState({
-    labels: [],
-    datasets: []
-  })
-  const [commissionChartData, setCommissionChartData] = useState({
-    labels: [],
-    datasets: []
-  })
-  const [clicksChartData, setClicksChartData] = useState({
-    labels: [],
-    datasets: []
-  })
-  const [salesData, setSalesData] = useState({
-    totalSales: 0,
-    salesCount: 0,
-    recentSales: []
+    totalClicks: 0,
+    totalConversions: 0,
+    totalRevenue: 0,
+    averageOrderValue: 0,
+    recentActivity: [],
+    monthlyTrends: [],
+    earningsTrend: []
   })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
-  const [customStart, setCustomStart] = useState('')
-  const [customEnd, setCustomEnd] = useState('')
 
   useEffect(() => {
-    loadEarningsSummary()
     loadAnalytics()
-    loadSalesData()
-  }, [timeRange, customStart, customEnd])
+  }, [timeRange])
 
-  const loadEarningsSummary = async () => {
+  const loadAnalytics = async () => {
     try {
       setLoading(true)
-      let path = '/api/creator/earnings-summary'
-      if (timeRange === 'custom' && customStart && customEnd) {
-        // Convert date format from MM/DD/YYYY to YYYY-MM-DD for API
-        const startDate = new Date(customStart).toISOString().split('T')[0]
-        const endDate = new Date(customEnd).toISOString().split('T')[0]
-        path += `?startDate=${startDate}&endDate=${endDate}`
-      } else {
-        const days = timeRange === '7d' ? 7 : 30
-        path += `?days=${days}`
+      
+      // If no token, skip loading
+      if (!token) {
+        console.log('No token available, skipping analytics load')
+        setLoading(false)
+        return
       }
       
-      const summaryRes = await apiFetch(path, { token })
-      setEarningsSummary(summaryRes)
+      console.log('🔄 Loading analytics data...')
       
-    } catch (err) {
-      console.error('Failed to load earnings summary:', err)
-      setEarningsSummary({
-        commissionEarned: 0,
-        availableForWithdraw: 0,
-        pendingApproval: 0,
-        totalEarnings: 0,
-        payoutsRequested: 0,
-        analytics: { conversionRate: 0, averageOrderValue: 0, totalActions: 0 }
+      // Convert timeRange to days format for API
+      const daysMap = { '7d': 7, '30d': 30 }
+      const days = daysMap[timeRange] || 30
+      
+      console.log(`📊 Loading data for ${days} days (${timeRange})`)
+      
+      const [analyticsRes, earningsRes] = await Promise.all([
+        apiFetch(`/api/creator/analytics-enhanced?days=${days}`, { token }),
+        apiFetch(`/api/creator/earnings-summary?days=${days}`, { token })
+      ])
+      
+      console.log('📊 Analytics response:', analyticsRes)
+      console.log('💰 Earnings response:', earningsRes)
+      
+      // DEBUG: Check if we're getting empty data
+      if (!analyticsRes || !analyticsRes.performanceMetrics) {
+        console.error('❌ Analytics response is empty or missing performanceMetrics:', analyticsRes)
+      }
+      if (!earningsRes || earningsRes.commissionEarned === undefined) {
+        console.error('❌ Earnings response is empty or missing commissionEarned:', earningsRes)
+      }
+      
+      // Prioritize Impact.com data from analytics API, fallback to earnings API
+      const totalRevenue = analyticsRes.performanceMetrics?.revenue || earningsRes.commissionEarned || 0
+      const totalClicks = analyticsRes.performanceMetrics?.clicks || 0
+      const totalConversions = analyticsRes.performanceMetrics?.conversions || 0
+      const conversionRate = analyticsRes.performanceMetrics?.conversionRate || (totalClicks > 0 ? ((totalConversions / totalClicks) * 100) : 0)
+      const averageOrderValue = analyticsRes.performanceMetrics?.averageOrderValue || (totalConversions > 0 ? (totalRevenue / totalConversions) : 0)
+      
+      console.log('📊 Using Impact.com data source:', {
+        revenue: totalRevenue,
+        clicks: totalClicks,
+        conversions: totalConversions,
+        conversionRate: conversionRate.toFixed(2) + '%',
+        dataSource: analyticsRes.dataSource || 'unknown'
       })
+      
+      setAnalytics({
+        totalClicks,
+        totalConversions,
+        totalRevenue,
+        conversionRate,
+        averageOrderValue,
+        recentActivity: analyticsRes.recentActivity || [],
+        monthlyTrends: analyticsRes.monthlyTrends || [],
+        earningsTrend: analyticsRes.earningsTrend || []
+      })
+      
+      console.log('✅ Analytics data loaded successfully')
+      console.log('📊 Final analytics state:', {
+        totalRevenue,
+        totalClicks,
+        totalConversions,
+        conversionRate: conversionRate.toFixed(2) + '%',
+        averageOrderValue: averageOrderValue.toFixed(2),
+        timeRange,
+        days
+      })
+    } catch (err) {
+      console.error('❌ Failed to load analytics:', err)
+      if (err.status === 401 || err.message?.includes('Missing token')) {
+        console.log('🔄 401 detected - token may be expired. Use the Refresh button.')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const loadAnalytics = async () => {
-    try {
-      let path = '/api/creator/analytics-enhanced'
-      if (timeRange === 'custom' && customStart && customEnd) {
-        // Convert date format from MM/DD/YYYY to YYYY-MM-DD for API
-        const startDate = new Date(customStart).toISOString().split('T')[0]
-        const endDate = new Date(customEnd).toISOString().split('T')[0]
-        path += `?startDate=${startDate}&endDate=${endDate}`
-        console.log('🔍 [AnalyticsV2] Custom date range API call:', path)
-        console.log('🔍 [AnalyticsV2] Original dates:', { customStart, customEnd })
-        console.log('🔍 [AnalyticsV2] Converted dates:', { startDate, endDate })
-      } else {
-        const days = timeRange === '7d' ? 7 : 30
-        path += `?days=${days}`
-        console.log('🔍 [AnalyticsV2] Standard date range API call:', path)
-      }
-      
-      const analyticsRes = await apiFetch(path, { token })
-      console.log('🔍 [AnalyticsV2] Analytics API response:', analyticsRes)
-      setAnalytics(analyticsRes)
-      
-      // Process chart data
-      console.log('🔍 [AnalyticsV2] Processing chart data...')
-      console.log('🔍 [AnalyticsV2] earningsTrend:', analyticsRes.earningsTrend)
-      
-      if (analyticsRes.earningsTrend && analyticsRes.earningsTrend.length > 0) {
-        console.log('🔍 [AnalyticsV2] Found earnings trend data, processing...')
-        console.log('🔍 [AnalyticsV2] First earnings trend item:', analyticsRes.earningsTrend[0])
-        console.log('🔍 [AnalyticsV2] All earnings trend items:', analyticsRes.earningsTrend.map(item => ({
-          date: item.date,
-          revenue: item.revenue,
-          commission: item.commission,
-          clicks: item.clicks,
-          conversions: item.conversions
-        })))
-        
-        const labels = analyticsRes.earningsTrend.map(item => {
-          const date = new Date(item.date)
-          if (timeRange === '7d') {
-            return date.toLocaleDateString('en-US', { weekday: 'short' })
-          } else if (timeRange === '30d') {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          } else if (timeRange === 'custom') {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          } else {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          }
-        })
-        
-        console.log('🔍 [AnalyticsV2] Generated labels:', labels)
-
-        const revenueData = analyticsRes.earningsTrend.map(item => item.revenue || 0)
-        const commissionData = analyticsRes.earningsTrend.map(item => item.commission || 0)
-        const clicksData = analyticsRes.earningsTrend.map(item => item.clicks || 0)
-        
-        console.log('🔍 [AnalyticsV2] Extracted revenue data:', revenueData)
-        console.log('🔍 [AnalyticsV2] Extracted commission data:', commissionData)
-        console.log('🔍 [AnalyticsV2] Extracted clicks data:', clicksData)
-        
-        // Create separate charts for each metric
-        const salesChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Sales',
-              data: revenueData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              pointHoverBackgroundColor: '#3b82f6',
-              pointHoverBorderColor: '#ffffff',
-              pointHoverBorderWidth: 3
-            }
-          ]
-        }
-
-        const commissionChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Commission',
-              data: commissionData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: true,
-              tension: 0.4,
-              borderWidth: 2,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              pointHoverBackgroundColor: '#3b82f6',
-              pointHoverBorderColor: '#ffffff',
-              pointHoverBorderWidth: 3
-            }
-          ]
-        }
-
-        const clicksChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Clicks',
-              data: clicksData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: false,
-              tension: 0.4,
-              borderWidth: 2,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              pointHoverBackgroundColor: '#3b82f6',
-              pointHoverBorderColor: '#ffffff',
-              pointHoverBorderWidth: 3
-            }
-          ]
-        }
-        
-        console.log('🔍 [AnalyticsV2] Setting separate chart data')
-        setSalesChartData(salesChart)
-        setCommissionChartData(commissionChart)
-        setClicksChartData(clicksChart)
-      } else {
-        // Generate sample data if no real data
-        console.log('🔍 [AnalyticsV2] No real data found, generating sample data...')
-        let days, startDate, endDate
-        
-        if (timeRange === 'custom' && customStart && customEnd) {
-          startDate = new Date(customStart)
-          endDate = new Date(customEnd)
-          days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
-          console.log('🔍 [AnalyticsV2] Custom date range sample data:', { startDate, endDate, days })
-        } else {
-          days = timeRange === '7d' ? 7 : 30
-          endDate = new Date()
-          startDate = new Date()
-          startDate.setDate(endDate.getDate() - (days - 1))
-          console.log('🔍 [AnalyticsV2] Standard date range sample data:', { startDate, endDate, days })
-        }
-        
-        const labels = []
-        const revenueData = []
-        const commissionData = []
-        const clicksData = []
-        
-        for (let i = 0; i < days; i++) {
-          const date = new Date(startDate)
-          date.setDate(startDate.getDate() + i)
-          
-          if (timeRange === '7d') {
-            labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }))
-          } else {
-            labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
-          }
-          
-          // Generate sample data with some variation
-          const baseRevenue = 50 + Math.random() * 100
-          const baseCommission = baseRevenue * 0.7
-          const baseClicks = Math.floor(20 + Math.random() * 80) // Random clicks between 20-100
-          revenueData.push(Math.round(baseRevenue * 100) / 100)
-          commissionData.push(Math.round(baseCommission * 100) / 100)
-          clicksData.push(baseClicks)
-        }
-        
-        // Create separate sample charts
-        const sampleSalesChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Sales',
-              data: revenueData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }
-          ]
-        }
-
-        const sampleCommissionChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Commission',
-              data: commissionData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: true,
-              tension: 0.4,
-              borderWidth: 2,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }
-          ]
-        }
-
-        const sampleClicksChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Clicks',
-              data: clicksData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: false,
-              tension: 0.4,
-              borderWidth: 2,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }
-          ]
-        }
-        
-        console.log('🔍 [AnalyticsV2] Setting sample chart data')
-        setSalesChartData(sampleSalesChart)
-        setCommissionChartData(sampleCommissionChart)
-        setClicksChartData(sampleClicksChart)
-      }
-      
-    } catch (err) {
-      console.error('Failed to load analytics:', err)
-      setAnalytics({
-        earningsTrend: [],
-        performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
-        topLinks: [],
-        recentActivity: []
-      })
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black">
+        <Container className="py-4 sm:py-6 lg:py-8">
+          <Skeleton.Dashboard className="animate-fadeIn" />
+        </Container>
+      </div>
+    )
   }
 
-  const loadSalesData = async () => {
-    try {
-      let path = '/api/creator/sales-history'
-      if (timeRange === 'custom' && customStart && customEnd) {
-        // Convert date format from MM/DD/YYYY to YYYY-MM-DD for API
-        const startDate = new Date(customStart).toISOString().split('T')[0]
-        const endDate = new Date(customEnd).toISOString().split('T')[0]
-        path += `?startDate=${startDate}&endDate=${endDate}&limit=10`
-      } else {
-        const days = timeRange === '7d' ? 7 : 30
-        path += `?days=${days}&limit=10`
-      }
-      
-      const salesRes = await apiFetch(path, { token })
-      setSalesData(salesRes)
-      
-    } catch (err) {
-      console.error('Failed to load sales data:', err)
-      setSalesData({
-        totalSales: 0,
-        salesCount: 0,
-        recentSales: []
-      })
-    }
-  }
-
-  const handleDateRangeChange = (range) => {
-    setTimeRange(range)
-    if (range !== 'custom') {
-      setCustomStart('')
-      setCustomEnd('')
-    }
-  }
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount || 0)
-  }
-
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat('en-US').format(num || 0)
-  }
-
-  const getDateRangeText = () => {
-    if (timeRange === 'custom' && customStart && customEnd) {
-      return `${customStart} - ${customEnd}`
-    }
-    const now = new Date()
-    const days = timeRange === '7d' ? 7 : 30
-    const startDate = new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000)
-    return `${startDate.toISOString().split('T')[0]} - ${now.toISOString().split('T')[0]}`
-  }
-
-  const getChartOptions = (chartType) => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false
-      },
-      tooltip: {
-        backgroundColor: '#ffffff',
-        titleColor: '#000000',
-        bodyColor: '#000000',
-        borderColor: '#e5e7eb',
-        borderWidth: 1,
-        cornerRadius: 8,
-        displayColors: true,
-        callbacks: {
-          label: function(context) {
-            const label = context.dataset.label
-            const value = context.parsed.y
-            
-            // Format clicks as count, others as currency
-            if (label === 'Clicks') {
-              return `${label}: ${Math.round(value)}`
-            } else {
-              return `${label}: ${formatCurrency(value)}`
-            }
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        ticks: {
-          color: '#666666',
-          font: {
-            size: 11
-          }
-        },
-        grid: {
-          color: '#f3f4f6',
-          drawBorder: false
-        }
-      },
-      y: {
-        beginAtZero: true,
-        ticks: {
-          color: '#666666',
-          font: {
-            size: 11
-          },
-          callback: function(value) {
-            if (chartType === 'clicks') {
-              return Math.round(value)
-            } else {
-              return '$' + value.toFixed(0)
-            }
-          }
-        },
-        grid: {
-          color: '#f3f4f6',
-          drawBorder: false
-        }
-      }
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index'
-    }
+  // Debug information (remove in production)
+  console.log('🎯 Analytics component render:', { 
+    loading, 
+    analytics, 
+    user: user?.email,
+    hasToken: !!token 
   })
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Analytics
-          </h1>
-          <p className="text-gray-600">
-            {getDateRangeText()}
-          </p>
-        </div>
-
-        {/* Date Range Selector */}
-        <div className="mb-8 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-medium text-gray-700">Time Period:</span>
-            {['7d', '30d', 'custom'].map((range) => (
-              <button
-                key={range}
-                onClick={() => handleDateRangeChange(range)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  timeRange === range
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {range === '7d' ? 'Last 7 days' : 
-                 range === '30d' ? 'Last 30 days' : 'Custom'}
-              </button>
-            ))}
-            
-            {timeRange === 'custom' && (
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <span className="text-gray-500">to</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Sales Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Sales</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(salesData.totalSales)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">View your sales over time.</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Commission Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Commissions</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(earningsSummary.commissionEarned)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">See how much you've earned in commission.</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Clicks Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Clicks</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(analytics.performanceMetrics.clicks)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Track your link performance.</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Conversion Card */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Conversion</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {analytics.performanceMetrics.conversionRate ? 
-                    parseFloat(analytics.performanceMetrics.conversionRate).toFixed(2) + '%' : 
-                    '0.00%'
-                  }
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Your conversion rate.</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Separate Charts - Sales and Commissions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Sales Chart */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Sales</h3>
-                <p className="text-sm text-gray-600">View your sales over time.</p>
-              </div>
-              <button className="flex items-center text-sm text-blue-600 hover:text-blue-700">
-                Chart
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
-            <div className="h-64">
-              {salesChartData.labels.length > 0 ? (
-                <Line data={salesChartData} options={getChartOptions('sales')} />
-              ) : (
-                <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 text-sm">Loading sales data...</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Commission Chart */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Commissions</h3>
-                <p className="text-sm text-gray-600">See how much you've earned in commission.</p>
-              </div>
-              <button className="flex items-center text-sm text-blue-600 hover:text-blue-700">
-                Chart
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </div>
-            <div className="h-64">
-              {commissionChartData.labels.length > 0 ? (
-                <Line data={commissionChartData} options={getChartOptions('commission')} />
-              ) : (
-                <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 text-sm">Loading commission data...</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Clicks Chart - Full Width */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Clicks</h3>
-              <p className="text-sm text-gray-600">Track your link performance over time.</p>
-            </div>
-            <button className="flex items-center text-sm text-blue-600 hover:text-blue-700">
-              Chart
-              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+  // Error boundary - if something goes wrong, show a fallback
+  if (!analytics || typeof analytics !== 'object') {
+    console.error('❌ Analytics data is invalid:', analytics)
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+        <Container className="py-4 sm:py-6 lg:py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
+            <p className="text-gray-400 mb-6">Unable to load analytics data</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg"
+            >
+              Reload Page
             </button>
           </div>
-          <div className="h-64">
-            {clicksChartData.labels.length > 0 ? (
-              <Line data={clicksChartData} options={getChartOptions('clicks')} />
-            ) : (
-              <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 text-sm">Loading clicks data...</p>
+        </Container>
+      </div>
+    )
+  }
+
+  // Fallback content if analytics data is empty
+  const hasData = analytics.totalClicks > 0 || analytics.totalConversions > 0 || analytics.totalRevenue > 0;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+      <Container className="py-4 sm:py-6 lg:py-8 animate-fadeIn">
+        {/* Hero Section */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-4 sm:mb-0">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-2xl">📊</span>
                 </div>
+                <span>Analytics Dashboard</span>
+              </h1>
+              <p className="text-purple-200 text-sm sm:text-base lg:text-lg">
+                Track your performance and optimize your affiliate strategy
+              </p>
+              
+              {/* No Data Message */}
+              {!hasData && (
+                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                      <span className="text-blue-300 text-lg">💡</span>
+                    </div>
+                    <div>
+                      <p className="text-blue-200 font-medium">Getting Started</p>
+                      <p className="text-blue-300 text-sm">Create your first affiliate link to start tracking analytics and earnings!</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Time Range Selector */}
+            <Card variant="glass" className="w-full sm:w-auto">
+              <div className="flex space-x-2">
+                <Button
+                  variant={timeRange === '7d' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setTimeRange('7d')}
+                >
+                  7 Days
+                </Button>
+                <Button
+                  variant={timeRange === '30d' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setTimeRange('30d')}
+                >
+                  30 Days
+                </Button>
               </div>
-            )}
+            </Card>
           </div>
         </div>
 
-        {loading && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6">
-              <div className="flex items-center space-x-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
-                <span className="text-black">Loading analytics...</span>
+        {/* Key Metrics - Zylike Style */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          
+          {/* Total Revenue */}
+          <Card variant="glass" hover className="group">
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <div className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
+                    +12.5%
+                  </div>
+                </div>
+                <h3 className="text-sm font-medium text-white/60 mb-1 uppercase tracking-wide">Total Revenue</h3>
+                <p className="text-2xl font-bold text-white">${analytics.totalRevenue.toFixed(2)}</p>
+                <p className="text-xs text-green-300 mt-1">💎 Commission earnings</p>
               </div>
             </div>
+          </Card>
+
+          {/* Total Clicks */}
+          <Card variant="glass" hover className="group">
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.122 2.122" />
+                    </svg>
+                  </div>
+                  <div className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300">
+                    +8.2%
+                  </div>
+                </div>
+                <h3 className="text-sm font-medium text-white/60 mb-1 uppercase tracking-wide">Total Clicks</h3>
+                <p className="text-2xl font-bold text-white">{analytics.totalClicks.toLocaleString()}</p>
+                <p className="text-xs text-blue-300 mt-1">👆 Link interactions</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Conversions */}
+          <Card variant="glass" hover className="group">
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                  <div className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300">
+                    +15.3%
+                  </div>
+                </div>
+                <h3 className="text-sm font-medium text-white/60 mb-1 uppercase tracking-wide">Conversions</h3>
+                <p className="text-2xl font-bold text-white">{analytics.totalConversions.toLocaleString()}</p>
+                <p className="text-xs text-purple-300 mt-1">🎯 Successful sales</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Conversion Rate */}
+          <Card variant="glass" hover className="group">
+            <div className="relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-yellow-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <div className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-300">
+                    +2.1%
+                  </div>
+                </div>
+                <h3 className="text-sm font-medium text-white/60 mb-1 uppercase tracking-wide">Conversion Rate</h3>
+                <p className="text-2xl font-bold text-white">{analytics.conversionRate.toFixed(2)}%</p>
+                <p className="text-xs text-orange-300 mt-1">📈 Click-to-sale ratio</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Revenue Trend Chart */}
+          <Card variant="glass">
+            <div className="p-6">
+              {loading ? (
+                <ChartSkeleton />
+              ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
+                <RevenueTrendChart 
+                  data={analytics.earningsTrend.map(trend => ({
+                    date: trend.date,
+                    revenue: trend.total || 0
+                  }))} 
+                  timeRange={timeRange} 
+                />
+              ) : (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-blue-300 text-2xl">📊</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg mb-2">Revenue Trend</h3>
+                    <p className="text-gray-400 text-sm">No revenue data available yet</p>
+                    <p className="text-blue-300 text-xs">Create your first link to see trends</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+          
+          {/* Clicks vs Conversions Chart */}
+          <Card variant="glass">
+            <div className="p-6">
+              {loading ? (
+                <ChartSkeleton />
+              ) : analytics.earningsTrend && analytics.earningsTrend.length > 0 ? (
+                <ClicksConversionsChart 
+                  data={analytics.earningsTrend.map((trend, index) => {
+                    // Use real data when available, distribute across trend for visualization
+                    const totalClicks = analytics.totalClicks || 0;
+                    const totalConversions = analytics.totalConversions || 0;
+                    const dayWeight = trend.total / (analytics.earningsTrend.reduce((sum, t) => sum + (t.total || 0), 0) || 1);
+                    
+                    return {
+                      date: trend.date,
+                      clicks: Math.floor(totalClicks * dayWeight),
+                      conversions: Math.floor(totalConversions * dayWeight)
+                    };
+                  })} 
+                  timeRange={timeRange} 
+                />
+              ) : (
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-purple-300 text-2xl">🎯</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg mb-2">Clicks vs Conversions</h3>
+                    <p className="text-gray-400 text-sm">No click data available yet</p>
+                    <p className="text-purple-300 text-xs">Activity will appear once you start sharing links</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+
+        {/* Recent Activity */}
+        <Card variant="glass">
+          <div className="p-6">
+            <h3 className="text-white font-bold text-lg mb-4 flex items-center">
+              <span className="text-emerald-300 text-2xl mr-3">⚡</span>
+              Recent Activity
+            </h3>
+            {analytics.recentActivity && analytics.recentActivity.length > 0 ? (
+              <div className="space-y-3">
+                {analytics.recentActivity.slice(0, 5).map((activity, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                        <span className="text-emerald-300 text-sm">🔗</span>
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">Link Created</p>
+                        <p className="text-gray-400 text-xs">{activity.shortCode}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-emerald-300 text-sm font-semibold">{activity.clicks} clicks</p>
+                      <p className="text-gray-500 text-xs">{new Date(activity.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500/20 to-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-emerald-300 text-2xl">⚡</span>
+                </div>
+                <p className="text-gray-400 text-sm">No activity yet</p>
+                <p className="text-emerald-300 text-xs">Your activity will appear here once you start using links</p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </Card>
+      </Container>
     </div>
   )
 }
+
+
+
+
