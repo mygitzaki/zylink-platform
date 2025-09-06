@@ -15,9 +15,11 @@ class ImpactWebService {
     this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
     this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
     
-    // Simple in-memory cache to reduce API calls
+    // Enhanced caching system to reduce API calls
     this.cache = new Map();
-    this.cacheTimeout = 10 * 60 * 1000; // 10 minutes (increased from 5 minutes)
+    this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
+    this.lastCallTime = 0;
+    this.minCallInterval = 3000; // 3 seconds between calls
     
     // Validate required credentials
     this.validateCredentials();
@@ -63,6 +65,20 @@ class ImpactWebService {
     
     // Clean up old cache entries to prevent memory leaks
     this.cleanupCache();
+  }
+
+  // Simple rate limiting to prevent API overload
+  async waitForRateLimit() {
+    const now = Date.now();
+    const timeSinceLastCall = now - this.lastCallTime;
+    
+    if (timeSinceLastCall < this.minCallInterval) {
+      const delay = this.minCallInterval - timeSinceLastCall;
+      console.log(`[ImpactWebService] ⏳ Rate limiting: waiting ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    this.lastCallTime = Date.now();
   }
 
   cleanupCache() {
@@ -402,9 +418,13 @@ class ImpactWebService {
         const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
         const cached = this.getFromCache(cacheKey);
         if (cached) {
+          console.log(`[ImpactWebService] 📦 Cache hit - avoiding API call`);
           return cached;
         }
       }
+
+      // Wait for rate limiting
+      await this.waitForRateLimit();
 
       // Normalize dates to Impact Actions API format (ISO 8601 with time and Z suffix)
       const toImpactActionsDate = (val) => {
@@ -806,6 +826,19 @@ class ImpactWebService {
       const { startDate, endDate, subId1, retryCount = 0, maxRetries = 3 } = options;
       console.log(`🎯 Fetching real performance data for SubId1: ${subId1}`);
       
+      // Check cache first
+      if (retryCount === 0) {
+        const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
+        const cached = this.getFromCache(cacheKey);
+        if (cached) {
+          console.log(`[ImpactWebService] 📦 Cache hit for getPerformanceBySubId - avoiding API call`);
+          return cached;
+        }
+      }
+
+      // Wait for rate limiting
+      await this.waitForRateLimit();
+      
       const exp = await this.exportReportAndDownloadJson("partner_performance_by_subid", {
         START_DATE: startDate,
         END_DATE: endDate,
@@ -850,7 +883,7 @@ class ImpactWebService {
           
           console.log(`✅ Real performance for ${subId1}: ${clicks} clicks, ${actions} actions, ${conversionRate}% CR`);
           
-          return {
+          const result = {
             success: true,
             data: {
               clicks,
@@ -861,6 +894,14 @@ class ImpactWebService {
               subId1
             }
           };
+          
+          // Cache successful results
+          if (retryCount === 0) {
+            const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
+            this.setCache(cacheKey, result);
+          }
+          
+          return result;
         } else {
           console.log(`❌ No performance data found for SubId1: ${subId1}`);
           return { success: false, error: 'No data found for this SubId1' };
