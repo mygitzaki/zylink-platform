@@ -129,6 +129,10 @@ app.use('/api/webhooks', require('./src/routes/webhooks'));
 app.use('/api/shortlinks', require('./src/routes/shortlinks'));
 app.use('/api/analytics', require('./src/routes/analytics'));
 
+// V2 API routes (completely independent)
+app.use('/api/v2/links', require('./src/routes/linksV2'));
+app.use('/api/v2/shortlinks', require('./src/routes/shortlinksV2'));
+
 // Redirect root to the docs html explicitly
 app.get('/', (req, res) => {
   res.redirect('/docs/ZYLINK_DOCUMENTATION_SIMPLE.html');
@@ -236,6 +240,10 @@ async function handleShortRedirect(req, res) {
 
 app.get('/s/:shortCode', handleShortRedirect);
 app.head('/s/:shortCode', handleShortRedirect);
+
+// V2 Short link redirects (completely independent)
+app.get('/v2/:shortCode', require('./src/routes/shortlinksV2'));
+app.head('/v2/:shortCode', require('./src/routes/shortlinksV2'));
 
 // Handle short links at root path only for shortlink host (e.g., s.zylike.com)
 app.get('/:shortCode', (req, res, next) => {
