@@ -373,7 +373,7 @@ export default function LinkGenerator() {
                 disabled={loading || !productUrl.trim()}
                 loading={loading}
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-700 to-purple-700 hover:from-blue-800 hover:to-purple-800 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-lg sm:shadow-xl hover:shadow-xl sm:hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg"
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg ring-2 ring-blue-200 hover:ring-blue-300"
               >
                 {loading ? 'Generating...' : 'Generate Link'}
               </Button>
