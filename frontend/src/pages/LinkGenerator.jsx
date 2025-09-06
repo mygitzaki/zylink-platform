@@ -280,55 +280,16 @@ export default function LinkGenerator() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
-      <Container className="py-6 sm:py-8 lg:py-12 animate-fadeIn">
+      <Container className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-12 animate-fadeIn">
         {/* Hero Section */}
-        <div className="mb-8 sm:mb-12 animate-slideIn">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+        <div className="mb-6 sm:mb-8 lg:mb-12 animate-slideIn">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">
               Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{user?.name || 'Creator'}!</span>
             </h1>
-            <p className="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto">
+            <p className="text-gray-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto px-4">
               Transform your audience into revenue with powerful affiliate links
             </p>
-          </div>
-          
-          {/* Stats Cards - Enhanced Style */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-center p-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                </div>
-                <p className="text-4xl font-bold text-gray-900 mb-2">{dashboardData.totalLinks}</p>
-                <p className="text-gray-600 font-medium">Active Links</p>
-              </div>
-            </Card>
-            
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-center p-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <p className="text-4xl font-bold text-gray-900 mb-2">$0.00</p>
-                <p className="text-gray-600 font-medium">Total Earnings</p>
-              </div>
-            </Card>
-            
-            <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-center p-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <p className="text-4xl font-bold text-gray-900 mb-2">0</p>
-                <p className="text-gray-600 font-medium">Referrals</p>
-              </div>
-            </Card>
           </div>
         </div>
 
@@ -373,22 +334,22 @@ export default function LinkGenerator() {
           </Card>
         )}
 
-        {/* Link Generation Form - Enhanced Style */}
-        <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-2xl mb-12 max-w-4xl mx-auto">
-          <div className="p-8">
-            <div className="text-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Link Generation Form - Enhanced Mobile Responsive Style */}
+        <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-2xl mb-8 sm:mb-12 max-w-4xl mx-auto">
+          <div className="p-4 sm:p-6 lg:p-8">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-xl">
+                <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Affiliate Link Generator</h2>
-              <p className="text-gray-600 text-lg">Create high-converting affiliate links in seconds</p>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">Affiliate Link Generator</h2>
+              <p className="text-gray-600 text-base sm:text-lg px-4">Create high-converting affiliate links in seconds</p>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Product URL</label>
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+              <div className="space-y-3 sm:space-y-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2 px-2">Product URL</label>
                 <div className="relative">
                   <Input
                     type="url"
@@ -396,11 +357,11 @@ export default function LinkGenerator() {
                     onChange={handleUrlChange}
                     placeholder="https://walmart.com/product/example"
                     error={!urlValidation.isValid ? urlValidation.message : ''}
-                    className="w-full text-lg py-4 px-6 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-300"
+                    className="w-full text-base sm:text-lg py-3 sm:py-4 px-4 sm:px-6 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all duration-300"
                     required
                   />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-4">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
                   </div>
@@ -412,14 +373,14 @@ export default function LinkGenerator() {
                 disabled={loading || !productUrl.trim()}
                 loading={loading}
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-4 px-8 rounded-xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-lg"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-lg sm:shadow-xl hover:shadow-xl sm:hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg"
               >
                 {loading ? 'Generating...' : 'Generate Link'}
               </Button>
               
               {urlValidation.message && urlValidation.isValid && (
-                <div className="flex items-center justify-center space-x-2 text-green-600 text-sm font-medium">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center justify-center space-x-2 text-green-600 text-sm font-medium px-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   <span>{urlValidation.message}</span>
@@ -429,45 +390,45 @@ export default function LinkGenerator() {
           </div>
         </Card>
 
-        {/* Generated Link Display - Enhanced Style */}
+        {/* Generated Link Display - Enhanced Mobile Responsive Style */}
         {generatedLink && (
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 shadow-2xl mb-12 max-w-4xl mx-auto animate-scaleIn">
-            <div className="p-8">
-              <div className="text-center mb-8">
-                <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-                  <span className="text-white text-4xl">🎉</span>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 shadow-2xl mb-8 sm:mb-12 max-w-4xl mx-auto animate-scaleIn">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="text-center mb-6 sm:mb-8">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-xl">
+                  <span className="text-white text-3xl sm:text-4xl">🎉</span>
                 </div>
-                <h3 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Your Link is Ready!</h3>
-                <p className="text-gray-600 text-lg">Share this link to start earning commissions</p>
+                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">Your Link is Ready!</h3>
+                <p className="text-gray-600 text-base sm:text-lg px-4">Share this link to start earning commissions</p>
               </div>
 
               {/* Primary Link Card */}
               <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
-                <div className="p-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                      <span className="text-white text-xl">✨</span>
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg sm:text-xl">✨</span>
                     </div>
-                    <span className="text-gray-800 font-bold text-lg">Share This Link</span>
+                    <span className="text-gray-800 font-bold text-base sm:text-lg">Share This Link</span>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-xl p-4 mb-4 border-2 border-gray-100">
-                    <p className="text-gray-900 text-lg font-mono break-all text-center">
+                  <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 border-2 border-gray-100">
+                    <p className="text-gray-900 text-sm sm:text-base lg:text-lg font-mono break-all text-center">
                       {generatedLink.shortLink}
                     </p>
                   </div>
                   
-                  <p className="text-gray-600 text-center mb-6">Clean, branded link perfect for social media</p>
+                  <p className="text-gray-600 text-center mb-4 sm:mb-6 text-sm sm:text-base px-2">Clean, branded link perfect for social media</p>
                   
                   <button
                     onClick={() => copyToClipboard(generatedLink.shortLink, 'Short link')}
-                    className={`w-full font-bold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center text-lg ${
+                    className={`w-full font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center text-base sm:text-lg ${
                       copyClicked 
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700' 
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
                     } transform hover:-translate-y-1 hover:shadow-xl`}
                   >
-                    <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                     {copyClicked ? 'Copied!' : 'Copy Link'}
@@ -478,23 +439,23 @@ export default function LinkGenerator() {
           </Card>
         )}
 
-        {/* Quick Actions - Enhanced Style */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 max-w-6xl mx-auto">
-          <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group">
-            <div className="p-8">
-              <div className="flex flex-col items-center text-center space-y-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Quick Actions - Enhanced Mobile Responsive Style */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 max-w-6xl mx-auto">
+          <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-2 group">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">View Analytics</h3>
-                  <p className="text-gray-600 text-lg">Deep dive into performance</p>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">View Analytics</h3>
+                  <p className="text-gray-600 text-sm sm:text-base lg:text-lg">Deep dive into performance</p>
                 </div>
                 <Button 
                   onClick={() => handleQuickAction('analytics')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-lg"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base lg:text-lg"
                 >
                   View Analytics
                 </Button>
@@ -502,21 +463,21 @@ export default function LinkGenerator() {
             </div>
           </Card>
 
-          <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group">
-            <div className="p-8">
-              <div className="flex flex-col items-center text-center space-y-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-2 group">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Referral Program</h3>
-                  <p className="text-gray-600 text-lg">Invite friends, earn 10%</p>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Referral Program</h3>
+                  <p className="text-gray-600 text-sm sm:text-base lg:text-lg">Invite friends, earn 10%</p>
                 </div>
                 <Button 
                   onClick={() => handleQuickAction('referrals')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-lg"
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base lg:text-lg"
                 >
                   Invite Friends
                 </Button>
@@ -525,48 +486,48 @@ export default function LinkGenerator() {
           </Card>
         </div>
 
-        {/* Recent Links - Enhanced Style */}
+        {/* Recent Links - Enhanced Mobile Responsive Style */}
         {dashboardData.recentLinks.length > 0 && (
-          <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-2xl mb-12 max-w-6xl mx-auto">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-2xl mb-8 sm:mb-12 max-w-6xl mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Recent Links</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Recent Links</h3>
                 </div>
                 <Button
                   onClick={() => handleQuickAction('manage-links')}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base"
                 >
                   View All →
                 </Button>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {dashboardData.recentLinks.map((link, index) => (
-                  <div key={link.id} className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+                  <div key={link.id} className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-sm font-bold">{index + 1}</span>
+                        <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs sm:text-sm font-bold">{index + 1}</span>
                           </div>
-                          <p className="text-gray-900 font-semibold truncate text-base sm:text-lg">{truncateUrl(link.shortLink || link.impactLink, 60)}</p>
+                          <p className="text-gray-900 font-semibold truncate text-sm sm:text-base lg:text-lg">{truncateUrl(link.shortLink || link.impactLink, 50)}</p>
                         </div>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-600">
                           <span className="flex items-center space-x-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                             <span>{link.clicks || 0} clicks</span>
                           </span>
                           <span className="flex items-center space-x-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                             </svg>
                             <span>${Number(link.revenue || 0).toFixed(2)} earned</span>
@@ -575,7 +536,7 @@ export default function LinkGenerator() {
                       </div>
                       <Button
                         onClick={() => copyToClipboard(link.shortLink || link.impactLink, 'Link')}
-                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base"
                       >
                         Copy
                       </Button>
