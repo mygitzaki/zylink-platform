@@ -2083,7 +2083,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
                 const shouldShowClicks = creatorJoinDate ? (daysSinceJoin >= 1 && daysSinceJoin <= 30) : true;
                 
                 console.log(`[Analytics Enhanced] 🎯 Simplified Distribution Logic:`);
+                console.log(`[Analytics Enhanced] 📊 Creator email: ${creator?.email || 'Unknown'}`);
                 console.log(`[Analytics Enhanced] 📊 Creator join date: ${creatorJoinDate?.toISOString().split('T')[0] || 'Unknown'}`);
+                console.log(`[Analytics Enhanced] 📊 Creator join date raw: ${creator?.createdAt || 'Unknown'}`);
                 console.log(`[Analytics Enhanced] 📊 Days since join: ${daysSinceJoin}`);
                 console.log(`[Analytics Enhanced] 📊 Should show clicks: ${shouldShowClicks}`);
                 console.log(`[Analytics Enhanced] 📊 Current date: ${currentDate.toISOString().split('T')[0]}`);
