@@ -281,17 +281,6 @@ export default function LinkGenerator() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
       <Container className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-12 animate-fadeIn">
-        {/* Hero Section */}
-        <div className="mb-6 sm:mb-8 lg:mb-12 animate-slideIn">
-          <div className="text-center mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">
-              Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{user?.name || 'Creator'}!</span>
-            </h1>
-            <p className="text-gray-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto px-4">
-              Transform your audience into revenue with powerful affiliate links
-            </p>
-          </div>
-        </div>
 
         {/* Success/Error Messages */}
         {success && (
