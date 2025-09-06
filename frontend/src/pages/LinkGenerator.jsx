@@ -499,7 +499,7 @@ export default function LinkGenerator() {
               {dashboardData.recentLinks.map((link, index) => (
                 <div key={link.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3 sm:space-y-0">
                   <div className="min-w-0 flex-1">
-                    <p className="text-gray-900 font-medium truncate text-sm sm:text-base">{truncateUrl(link.destinationUrl, 60)}</p>
+                    <p className="text-gray-900 font-medium truncate text-sm sm:text-base">{truncateUrl(link.shortLink || link.impactLink, 60)}</p>
                     <p className="text-gray-600 text-xs sm:text-sm">{link.clicks || 0} clicks • ${Number(link.revenue || 0).toFixed(2)} earned</p>
                   </div>
                   <Button
