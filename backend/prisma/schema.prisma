@@ -313,3 +313,93 @@ enum AdminRole {
   ADMIN
   SUPER_ADMIN
 }
+
+// V2 Link Generation Models - Completely Independent
+// These models are separate from V1 and won't affect existing functionality
+
+model ShortLinkV2 {
+  id          String   @id @default(cuid())
+  shortCode   String   @unique
+  originalUrl String
+  impactLink  String?
+  brandId     String?
+  creatorId   String
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relationships
+  brand       BrandConfig? @relation(fields: [brandId], references: [id])
+  link        LinkV2?
+  
+  @@map("short_links_v2")
+}
+
+model LinkV2 {
+  id           String    @id @default(cuid())
+  shortLinkId  String    @unique
+  destinationUrl String
+  impactLink   String?
+  qrCodeUrl    String?
+  brandId      String?
+  creatorId    String
+  metadata     Json?     // Store additional data as JSON
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relationships
+  shortLink    ShortLinkV2 @relation(fields: [shortLinkId], references: [id])
+  brand        BrandConfig? @relation(fields: [brandId], references: [id])
+  
+  @@map("links_v2")
+}
+
+model BrandConfig {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  displayName     String
+  impactAccountSid String?
+  impactAuthToken String?
+  impactProgramId String?
+  defaultCommissionRate Float @default(0.1)
+  customDomain    String?
+  isActive        Boolean   @default(true)
+  settings        Json?     // Store brand-specific settings
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relationships
+  shortLinks      ShortLinkV2[]
+  links           LinkV2[]
+  
+  @@map("brand_configs")
+}
+
+model ClickLogV2 {
+  id          String    @id @default(cuid())
+  shortLinkId String
+  ipAddress   String
+  userAgent   String
+  referrer    String?
+  country     String?
+  city        String?
+  device      String?
+  browser     String?
+  os          String?
+  createdAt   DateTime  @default(now())
+  
+  @@map("click_logs_v2")
+}
+
+model PerformanceMetricsV2 {
+  id              String    @id @default(cuid())
+  shortLinkId     String
+  generationTime  Int       // Time in milliseconds
+  apiCalls        Int       // Number of API calls made
+  cacheHits       Int       // Number of cache hits
+  errors          Int       // Number of errors encountered
+  brandId         String?
+  createdAt       DateTime  @default(now())
+  
+  @@map("performance_metrics_v2")
+}
