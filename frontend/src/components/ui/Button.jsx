@@ -13,12 +13,12 @@ const Button = ({
   loading = false,
   ...props 
 }) => {
-  const baseClasses = 'font-medium rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation';
+  const baseClasses = 'font-medium rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation';
   
   const variants = {
     primary: 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:scale-105 focus:ring-blue-500',
-    secondary: 'bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/30 backdrop-blur-sm',
-    ghost: 'bg-transparent hover:bg-white/10 text-white',
+    secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 hover:border-gray-400',
+    ghost: 'bg-transparent hover:bg-gray-100 text-gray-700',
     danger: 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:scale-105',
     outline: 'border-2 border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white'
   };
