@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 
 const LinkGeneratorV2 = () => {
   const [destinationUrl, setDestinationUrl] = useState('');
@@ -87,13 +87,13 @@ const LinkGeneratorV2 = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🚀 Link Generator V2 - v2.0.2 (CACHE BUST)
+            🚀 Link Generator V2 - v2.0.3 (FIXED)
           </h1>
           <p className="text-gray-600">
             Modern, fast link generation with advanced features and analytics
           </p>
-          <div className="mt-2 text-sm text-red-600">
-            If you see this, the cache has been cleared! 🎉
+          <div className="mt-2 text-sm text-green-600">
+            ✅ Build errors fixed - Vercel deployment should work now!
           </div>
         </div>
 
@@ -135,115 +135,115 @@ const LinkGeneratorV2 = () => {
         {activeTab === 'generate' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <div className="p-6">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
                   <span className="text-2xl">⚡</span>
                   Generate New Link
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Destination URL *
-                  </label>
-                  <Input
-                    type="url"
-                    placeholder="https://example.com"
-                    value={destinationUrl}
-                    onChange={(e) => setDestinationUrl(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Destination URL *
+                    </label>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com"
+                      value={destinationUrl}
+                      onChange={(e) => setDestinationUrl(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Custom Short Code (Optional)
-                  </label>
-                  <Input
-                    placeholder="my-custom-code"
-                    value={customShortCode}
-                    onChange={(e) => setCustomShortCode(e.target.value)}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Leave empty for auto-generated code
-                  </p>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Custom Short Code (Optional)
+                    </label>
+                    <Input
+                      placeholder="my-custom-code"
+                      value={customShortCode}
+                      onChange={(e) => setCustomShortCode(e.target.value)}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Leave empty for auto-generated code
+                    </p>
+                  </div>
 
-                <Button
-                  onClick={handleGenerateLink}
-                  disabled={isGenerating || !destinationUrl}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {isGenerating ? 'Generating...' : 'Generate Link'}
-                </Button>
-              </CardContent>
+                  <Button
+                    onClick={handleGenerateLink}
+                    disabled={isGenerating || !destinationUrl}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    {isGenerating ? 'Generating...' : 'Generate Link'}
+                  </Button>
+                </div>
+              </div>
             </Card>
 
             {generatedLink && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
                     <span className="text-2xl">🔗</span>
                     Generated Link
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Short Link
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={generatedLink.shortLink || 'Generating...'}
-                        readOnly
-                        className="flex-1"
-                      />
-                      <Button
-                        onClick={() => copyToClipboard(generatedLink.shortLink)}
-                        className="px-4"
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Impact.com Tracking Link
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={generatedLink.impactLink || 'Generating...'}
-                        readOnly
-                        className="flex-1"
-                      />
-                      <Button
-                        onClick={() => copyToClipboard(generatedLink.impactLink)}
-                        className="px-4"
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  </h3>
+                  <div className="space-y-4">
                     <div>
-                      <span className="font-medium text-gray-700">Generation Time:</span>
-                      <br />
-                      <span className="text-green-600 font-mono">
-                        {generatedLink.generationTime ? `${generatedLink.generationTime}ms` : 'N/A'}
-                      </span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Short Link
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={generatedLink.shortLink || 'Generating...'}
+                          readOnly
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={() => copyToClipboard(generatedLink.shortLink)}
+                          className="px-4"
+                        >
+                          Copy
+                        </Button>
+                      </div>
                     </div>
+
                     <div>
-                      <span className="font-medium text-gray-700">Method:</span>
-                      <br />
-                      <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                        {generatedLink.method || 'V2'}
-                      </span>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Impact.com Tracking Link
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={generatedLink.impactLink || 'Generating...'}
+                          readOnly
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={() => copyToClipboard(generatedLink.impactLink)}
+                          className="px-4"
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700">Generation Time:</span>
+                        <br />
+                        <span className="text-green-600 font-mono">
+                          {generatedLink.generationTime ? `${generatedLink.generationTime}ms` : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">Method:</span>
+                        <br />
+                        <span className="bg-gray-100 px-2 py-1 rounded text-xs">
+                          {generatedLink.method || 'V2'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </CardContent>
+                </div>
               </Card>
             )}
           </div>
@@ -251,10 +251,8 @@ const LinkGeneratorV2 = () => {
 
         {activeTab === 'links' && (
           <Card>
-            <CardHeader>
-              <CardTitle>My Generated Links</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <div className="p-6">
+              <h3 className="text-xl font-semibold mb-4">My Generated Links</h3>
               {userLinks.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-6xl mb-4">🔗</div>
@@ -301,17 +299,15 @@ const LinkGeneratorV2 = () => {
                   ))}
                 </div>
               )}
-            </CardContent>
+            </div>
           </Card>
         )}
 
         {activeTab === 'analytics' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle>V2 Statistics</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className="p-6">
+                <h3 className="text-xl font-semibold mb-4">V2 Statistics</h3>
                 {stats ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -332,14 +328,12 @@ const LinkGeneratorV2 = () => {
                 ) : (
                   <p className="text-gray-500">No analytics data available</p>
                 )}
-              </CardContent>
+              </div>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>V2 System Status</CardTitle>
-              </CardHeader>
-              <CardContent>
+              <div className="p-6">
+                <h3 className="text-xl font-semibold mb-4">V2 System Status</h3>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="text-green-500">✅</span>
@@ -358,14 +352,14 @@ const LinkGeneratorV2 = () => {
                     <span className="text-sm">Performance Optimized</span>
                   </div>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           </div>
         )}
 
         <div className="mt-8">
           <Card>
-            <CardContent className="pt-6">
+            <div className="p-6">
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   🎉 V2 System Fully Operational!
@@ -388,7 +382,7 @@ const LinkGeneratorV2 = () => {
                   </div>
                 </div>
               </div>
-            </CardContent>
+            </div>
           </Card>
         </div>
       </div>
