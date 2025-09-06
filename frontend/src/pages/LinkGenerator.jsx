@@ -357,7 +357,7 @@ export default function LinkGenerator() {
                     onChange={handleUrlChange}
                     placeholder="https://walmart.com/product/example"
                     error={!urlValidation.isValid ? urlValidation.message : ''}
-                    className="w-full text-base sm:text-lg py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all duration-300"
+                    className="w-full text-base sm:text-lg py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 border-2 border-blue-300 bg-blue-50/30 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 sm:focus:ring-4 focus:ring-blue-200 focus:bg-white transition-all duration-300 placeholder-gray-500"
                     required
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
@@ -373,7 +373,11 @@ export default function LinkGenerator() {
                 disabled={loading || !productUrl.trim()}
                 loading={loading}
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg ring-2 ring-blue-200 hover:ring-blue-300"
+                className={`w-full font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl hover:shadow-2xl sm:hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg ring-2 ${
+                  !productUrl.trim() 
+                    ? 'bg-gradient-to-r from-blue-400 to-purple-500 text-white ring-blue-200 hover:from-blue-500 hover:to-purple-600 hover:ring-blue-300' 
+                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white ring-blue-200 hover:from-blue-600 hover:to-purple-700 hover:ring-blue-300'
+                }`}
               >
                 {loading ? 'Generating...' : 'Generate Link'}
               </Button>
