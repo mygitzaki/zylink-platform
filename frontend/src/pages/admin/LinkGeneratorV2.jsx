@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { apiFetch } from '../../lib/api';
+import { useAuth } from '../../hooks/useAuth';
 
 const LinkGeneratorV2 = () => {
+  const { token } = useAuth();
   const [destinationUrl, setDestinationUrl] = useState('');
   const [customShortCode, setCustomShortCode] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -19,10 +22,10 @@ const LinkGeneratorV2 = () => {
 
   const loadUserLinks = async () => {
     try {
-      const response = await fetch('https://api.zylike.com/api/v2/links', {
-        credentials: 'include'
+      const data = await apiFetch('/api/v2/links', { 
+        method: 'GET',
+        token 
       });
-      const data = await response.json();
       if (data.success) {
         setUserLinks(data.data.links || []);
       }
@@ -33,10 +36,10 @@ const LinkGeneratorV2 = () => {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('https://api.zylike.com/api/v2/links/stats/user', {
-        credentials: 'include'
+      const data = await apiFetch('/api/v2/links/stats/user', { 
+        method: 'GET',
+        token 
       });
-      const data = await response.json();
       if (data.success) {
         setStats(data.data);
       }
@@ -53,19 +56,14 @@ const LinkGeneratorV2 = () => {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('https://api.zylike.com/api/v2/links/generate', {
+      const data = await apiFetch('/api/v2/links/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
+        token,
+        body: {
           destinationUrl,
           customShortCode: customShortCode || null,
-        }),
+        }
       });
-
-      const data = await response.json();
       
       if (data.success) {
         setGeneratedLink(data.data);
