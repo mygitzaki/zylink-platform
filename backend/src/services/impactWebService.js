@@ -15,6 +15,10 @@ class ImpactWebService {
     this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
     this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
     
+    // Simple in-memory cache to reduce API calls
+    this.cache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+    
     // Validate required credentials
     this.validateCredentials();
   }
@@ -31,6 +35,31 @@ class ImpactWebService {
   // NEW: Check if service is properly configured
   isConfigured() {
     return !!(this.accountSid && this.authToken && this.programId);
+  }
+
+  // Cache management methods
+  getCacheKey(method, params) {
+    return `${method}_${JSON.stringify(params)}`;
+  }
+
+  getFromCache(key) {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      console.log(`[ImpactWebService] 📦 Cache hit for ${key}`);
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(key);
+    }
+    return null;
+  }
+
+  setCache(key, data) {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+    console.log(`[ImpactWebService] 💾 Cached data for ${key}`);
   }
 
   computeObfuscatedSubId(creatorId) {
@@ -351,8 +380,19 @@ class ImpactWebService {
         pageSize = 100,
         subId1,
         campaignId,
-        noRetry = false
+        noRetry = false,
+        retryCount = 0,
+        maxRetries = 3
       } = options;
+
+      // Check cache first (only for first attempt)
+      if (retryCount === 0) {
+        const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
+        const cached = this.getFromCache(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
 
       // Normalize dates to Impact Actions API format (ISO 8601 with time and Z suffix)
       const toImpactActionsDate = (val) => {
@@ -418,25 +458,43 @@ class ImpactWebService {
       });
 
       let response = await doFetch(url);
+      
+      // Handle rate limiting with exponential backoff
       if (!response.ok) {
         const errorText = await response.text();
-        // Retry once without date filters as a safe fallback (some programs reject ranges)
-        if (noRetry) {
+        const isRateLimit = response.status === 429 || errorText.includes('rate limit');
+        
+        if (isRateLimit && retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+          console.log(`[ImpactWebService] ⏳ Rate limit hit, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          return this.getActionsDetailed({
+            ...options,
+            retryCount: retryCount + 1
+          });
+        }
+        
+        // If still failing after retries, try fallback without date filters
+        if (!noRetry && !isRateLimit) {
+          console.log(`[ImpactWebService] 🔄 API failed, trying fallback without date filters`);
+          const qpNoDates = new URLSearchParams();
+          qpNoDates.set('Page', String(page));
+          qpNoDates.set('PageSize', String(pageSize));
+          if (status) qpNoDates.set('ActionStatus', status);
+          if (actionType) qpNoDates.set('ActionType', actionType);
+          if (subId1) qpNoDates.set('SubId1', subId1);
+          if (campaignId) qpNoDates.set('CampaignId', String(campaignId));
+          const fallbackUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions?${qpNoDates.toString()}`;
+          const retry = await doFetch(fallbackUrl);
+          if (!retry.ok) {
+            return { success: false, status: response.status, error: errorText, actions: [], totalResults: 0 };
+          }
+          response = retry;
+        } else {
+          console.log(`[ImpactWebService] ❌ API failed after ${retryCount} retries: ${errorText}`);
           return { success: false, status: response.status, error: errorText, actions: [], totalResults: 0 };
         }
-        const qpNoDates = new URLSearchParams();
-        qpNoDates.set('Page', String(page));
-        qpNoDates.set('PageSize', String(pageSize));
-        if (status) qpNoDates.set('ActionStatus', status);
-        if (actionType) qpNoDates.set('ActionType', actionType);
-        if (subId1) qpNoDates.set('SubId1', subId1);
-        if (campaignId) qpNoDates.set('CampaignId', String(campaignId));
-        const fallbackUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions?${qpNoDates.toString()}`;
-        const retry = await doFetch(fallbackUrl);
-        if (!retry.ok) {
-          return { success: false, status: response.status, error: errorText, actions: [], totalResults: 0 };
-        }
-        response = retry;
       }
       const data = await response.json();
       
@@ -455,7 +513,7 @@ class ImpactWebService {
         });
       }
       
-      return {
+      const result = {
         success: true,
         totalResults: data.TotalResults || data.TotalRecords || 0,
         page,
@@ -463,6 +521,14 @@ class ImpactWebService {
         actions: data.Actions || data.Results || [],
         raw: data
       };
+
+      // Cache successful results (only for first attempt)
+      if (retryCount === 0) {
+        const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
+        this.setCache(cacheKey, result);
+      }
+
+      return result;
     } catch (error) {
       return { success: false, error: error.message, actions: [], totalResults: 0 };
     }
@@ -710,7 +776,7 @@ class ImpactWebService {
   // Get real clicks and performance data by SubId1 (NEW - for accurate analytics)
   async getPerformanceBySubId(options = {}) {
     try {
-      const { startDate, endDate, subId1 } = options;
+      const { startDate, endDate, subId1, retryCount = 0, maxRetries = 3 } = options;
       console.log(`🎯 Fetching real performance data for SubId1: ${subId1}`);
       
       const exp = await this.exportReportAndDownloadJson("partner_performance_by_subid", {
@@ -721,6 +787,19 @@ class ImpactWebService {
       });
       
       if (!exp.success) {
+        const isRateLimit = exp.error && (exp.error.includes('rate limit') || exp.error.includes('429'));
+        
+        if (isRateLimit && retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+          console.log(`[ImpactWebService] ⏳ Performance API rate limit hit, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          return this.getPerformanceBySubId({
+            ...options,
+            retryCount: retryCount + 1
+          });
+        }
+        
         console.log('⚠️ Performance by SubId report failed:', exp.error);
         return { success: false, error: exp.error };
       }
