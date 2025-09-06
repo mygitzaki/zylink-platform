@@ -17,7 +17,7 @@ class ImpactWebService {
     
     // Simple in-memory cache to reduce API calls
     this.cache = new Map();
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+    this.cacheTimeout = 10 * 60 * 1000; // 10 minutes (increased from 5 minutes)
     
     // Validate required credentials
     this.validateCredentials();
@@ -60,6 +60,18 @@ class ImpactWebService {
       timestamp: Date.now()
     });
     console.log(`[ImpactWebService] 💾 Cached data for ${key}`);
+    
+    // Clean up old cache entries to prevent memory leaks
+    this.cleanupCache();
+  }
+
+  cleanupCache() {
+    const now = Date.now();
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > this.cacheTimeout) {
+        this.cache.delete(key);
+      }
+    }
   }
 
   computeObfuscatedSubId(creatorId) {
@@ -530,6 +542,21 @@ class ImpactWebService {
 
       return result;
     } catch (error) {
+      // Handle rate limiting with retry logic
+      const isRateLimit = error.message && (error.message.includes('rate limit') || error.message.includes('429'));
+      
+      if (isRateLimit && retryCount < maxRetries) {
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+        console.log(`[ImpactWebService] ⏳ Actions API rate limit hit, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        return this.getActionsDetailed({
+          ...options,
+          retryCount: retryCount + 1
+        });
+      }
+      
+      console.log(`[ImpactWebService] ❌ API failed after ${retryCount + 1} attempts: ${error.message}`);
       return { success: false, error: error.message, actions: [], totalResults: 0 };
     }
   }
