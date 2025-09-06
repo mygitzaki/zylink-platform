@@ -357,7 +357,7 @@ export default function LinkGenerator() {
                     onChange={handleUrlChange}
                     placeholder="https://walmart.com/product/example"
                     error={!urlValidation.isValid ? urlValidation.message : ''}
-                    className="w-full text-base sm:text-lg py-3 sm:py-4 px-4 sm:px-6 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all duration-300"
+                    className="w-full text-base sm:text-lg py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 border-2 border-gray-200 rounded-lg sm:rounded-xl focus:border-blue-500 focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all duration-300"
                     required
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4">
@@ -373,7 +373,7 @@ export default function LinkGenerator() {
                 disabled={loading || !productUrl.trim()}
                 loading={loading}
                 size="lg"
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-lg sm:shadow-xl hover:shadow-xl sm:hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg"
+                className="w-full bg-gradient-to-r from-blue-700 to-purple-700 hover:from-blue-800 hover:to-purple-800 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-lg sm:shadow-xl hover:shadow-xl sm:hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-base sm:text-lg"
               >
                 {loading ? 'Generating...' : 'Generate Link'}
               </Button>
@@ -392,43 +392,43 @@ export default function LinkGenerator() {
 
         {/* Generated Link Display - Enhanced Mobile Responsive Style */}
         {generatedLink && (
-          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 shadow-2xl mb-8 sm:mb-12 max-w-4xl mx-auto animate-scaleIn">
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="text-center mb-6 sm:mb-8">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-xl">
-                  <span className="text-white text-3xl sm:text-4xl">🎉</span>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 shadow-2xl mb-6 sm:mb-8 lg:mb-12 max-w-4xl mx-auto animate-scaleIn">
+            <div className="p-3 sm:p-4 lg:p-6">
+              <div className="text-center mb-4 sm:mb-6 lg:mb-8">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 lg:mb-6 shadow-xl">
+                  <span className="text-white text-2xl sm:text-3xl lg:text-4xl">🎉</span>
                 </div>
-                <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">Your Link is Ready!</h3>
-                <p className="text-gray-600 text-base sm:text-lg px-4">Share this link to start earning commissions</p>
+                <h3 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 mb-2 sm:mb-3 lg:mb-4 px-2">Your Link is Ready!</h3>
+                <p className="text-gray-600 text-sm sm:text-base lg:text-lg px-3 sm:px-4">Share this link to start earning commissions</p>
               </div>
 
               {/* Primary Link Card */}
               <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-xl">
-                <div className="p-4 sm:p-6">
+                <div className="p-3 sm:p-4 lg:p-6">
                   <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <span className="text-white text-lg sm:text-xl">✨</span>
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md sm:rounded-lg lg:rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm sm:text-base lg:text-xl">✨</span>
                     </div>
-                    <span className="text-gray-800 font-bold text-base sm:text-lg">Share This Link</span>
+                    <span className="text-gray-800 font-bold text-sm sm:text-base lg:text-lg">Share This Link</span>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-3 sm:mb-4 border-2 border-gray-100">
-                    <p className="text-gray-900 text-sm sm:text-base lg:text-lg font-mono break-all text-center">
+                  <div className="bg-gray-50 rounded-md sm:rounded-lg lg:rounded-xl p-2 sm:p-3 lg:p-4 mb-3 sm:mb-4 border-2 border-gray-100">
+                    <p className="text-gray-900 text-xs sm:text-sm lg:text-base font-mono break-all text-center leading-relaxed">
                       {generatedLink.shortLink}
                     </p>
                   </div>
                   
-                  <p className="text-gray-600 text-center mb-4 sm:mb-6 text-sm sm:text-base px-2">Clean, branded link perfect for social media</p>
+                  <p className="text-gray-600 text-center mb-3 sm:mb-4 lg:mb-6 text-xs sm:text-sm lg:text-base px-2">Clean, branded link perfect for social media</p>
                   
                   <button
                     onClick={() => copyToClipboard(generatedLink.shortLink, 'Short link')}
-                    className={`w-full font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center text-base sm:text-lg ${
+                    className={`w-full font-bold py-2.5 sm:py-3 lg:py-4 px-3 sm:px-4 lg:px-6 rounded-md sm:rounded-lg lg:rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center text-sm sm:text-base lg:text-lg ${
                       copyClicked 
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700' 
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'
+                        : 'bg-gradient-to-r from-blue-700 to-purple-700 text-white hover:from-blue-800 hover:to-purple-800'
                     } transform hover:-translate-y-1 hover:shadow-xl`}
                   >
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-1.5 sm:mr-2 lg:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                     {copyClicked ? 'Copied!' : 'Copy Link'}
