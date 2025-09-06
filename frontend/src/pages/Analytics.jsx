@@ -677,12 +677,6 @@ export default function Analytics() {
               <h3 className="text-lg font-semibold text-gray-900">Clicks</h3>
               <p className="text-sm text-gray-600">Track your link performance over time.</p>
             </div>
-            <button className="flex items-center text-sm text-blue-600 hover:text-blue-700">
-              Chart
-              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
           </div>
           <div className="h-64">
             {clicksChartData.labels.length > 0 ? (
