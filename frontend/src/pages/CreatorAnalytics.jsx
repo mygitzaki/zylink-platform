@@ -5,7 +5,7 @@ import { quickReLogin } from '../utils/quickAuth'
 // Import new Zylike-inspired UI components
 import { Button, Card, Container, Skeleton, RevenueTrendChart, ClicksConversionsChart, ChartSkeleton } from '../components/ui'
 
-export default function Analytics() {
+export default function CreatorAnalytics() {
   const { user, token, setToken } = useAuth()
   const [analytics, setAnalytics] = useState({
     totalClicks: 0,
