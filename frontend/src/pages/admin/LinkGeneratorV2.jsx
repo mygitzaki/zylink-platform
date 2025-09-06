@@ -87,11 +87,14 @@ const LinkGeneratorV2 = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🚀 Link Generator V2 - v2.0.1
+            🚀 Link Generator V2 - v2.0.2 (CACHE BUST)
           </h1>
           <p className="text-gray-600">
             Modern, fast link generation with advanced features and analytics
           </p>
+          <div className="mt-2 text-sm text-red-600">
+            If you see this, the cache has been cleared! 🎉
+          </div>
         </div>
 
         <div className="mb-6">
