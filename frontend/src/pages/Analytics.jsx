@@ -624,12 +624,6 @@ export default function Analytics() {
                 <h3 className="text-lg font-semibold text-gray-900">Sales</h3>
                 <p className="text-sm text-gray-600">View your sales over time.</p>
               </div>
-              <button className="flex items-center text-sm text-blue-600 hover:text-blue-700">
-                Chart
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
             </div>
             <div className="h-64">
               {salesChartData.labels.length > 0 ? (
@@ -656,12 +650,6 @@ export default function Analytics() {
                 <h3 className="text-lg font-semibold text-gray-900">Commissions</h3>
                 <p className="text-sm text-gray-600">See how much you've earned in commission.</p>
               </div>
-              <button className="flex items-center text-sm text-blue-600 hover:text-blue-700">
-                Chart
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
             </div>
             <div className="h-64">
               {commissionChartData.labels.length > 0 ? (
