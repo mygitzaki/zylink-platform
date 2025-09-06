@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * Zylike-inspired Input Component
- * Beautiful glassmorphism input with focus states
+ * Simple Input Component
+ * Clean input with visible borders and placeholder text
  */
 const Input = ({ 
   label,
@@ -12,9 +12,9 @@ const Input = ({
   type = 'text',
   ...props 
 }) => {
-  const baseClasses = 'w-full px-4 py-3 bg-glass-white border border-white/20 rounded-xl text-white placeholder-white/50 backdrop-blur-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent';
+  const baseClasses = 'w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
   
-  const errorClasses = error ? 'border-red-500/50 focus:ring-red-500' : '';
+  const errorClasses = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
   
   const inputClasses = [
     baseClasses,
@@ -25,7 +25,7 @@ const Input = ({
   return (
     <div className={containerClassName}>
       {label && (
-        <label className="block text-sm font-medium text-white/80 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           {label}
         </label>
       )}
@@ -35,7 +35,7 @@ const Input = ({
         {...props}
       />
       {error && (
-        <p className="mt-2 text-sm text-red-400">
+        <p className="mt-2 text-sm text-red-600">
           {error}
         </p>
       )}
