@@ -16,12 +16,15 @@ const LinkGeneratorV2 = () => {
   const [activeTab, setActiveTab] = useState('generate');
 
   useEffect(() => {
-    loadUserLinks();
-    loadStats();
-  }, []);
+    if (token) {
+      loadUserLinks();
+      loadStats();
+    }
+  }, [token]);
 
   const loadUserLinks = async () => {
     try {
+      console.log('🔍 [V2] Loading user links with token:', token ? 'Present' : 'Missing');
       const data = await apiFetch('/api/v2/links', { 
         method: 'GET',
         token 
@@ -30,7 +33,7 @@ const LinkGeneratorV2 = () => {
         setUserLinks(data.data.links || []);
       }
     } catch (error) {
-      console.error('Error loading user links:', error);
+      console.error('❌ [V2] Error loading user links:', error);
     }
   };
 
@@ -54,8 +57,14 @@ const LinkGeneratorV2 = () => {
       return;
     }
 
+    if (!token) {
+      alert('Please login to generate links');
+      return;
+    }
+
     setIsGenerating(true);
     try {
+      console.log('🚀 [V2] Generating link with token:', token ? 'Present' : 'Missing');
       const data = await apiFetch('/api/v2/links/generate', {
         method: 'POST',
         token,
@@ -73,8 +82,8 @@ const LinkGeneratorV2 = () => {
         alert(`Error: ${data.message}`);
       }
     } catch (error) {
-      console.error('Error generating link:', error);
-      alert('Failed to generate link');
+      console.error('❌ [V2] Error generating link:', error);
+      alert(`Failed to generate link: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
