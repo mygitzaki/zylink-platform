@@ -96,7 +96,7 @@ router.post('/signup', async (req, res) => {
     } else if (referralCode && !ENABLE_REFERRAL_SYSTEM) {
       console.log('🚀 [SIGNUP] Referral code ignored (feature disabled):', referralCode);
     }
-
+    
     const creator = await prisma.creator.create({ 
       data: { 
         name, 
@@ -1731,25 +1731,54 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       console.log(`[Analytics Enhanced] 🎯 Computed SubId1: ${impact.computeObfuscatedSubId(req.user.id)}`);
       console.log(`[Analytics Enhanced] 🎯 Final SubId1 being used: ${correctSubId1}`);
       
+      // DEBUG: Check Impact.com API credentials
+      console.log(`[Analytics Enhanced] 🔑 IMPACT API CREDENTIALS DEBUG:`);
+      console.log(`[Analytics Enhanced] 🔑 Account SID: ${process.env.IMPACT_ACCOUNT_SID ? 'SET' : 'MISSING'}`);
+      console.log(`[Analytics Enhanced] 🔑 Auth Token: ${process.env.IMPACT_AUTH_TOKEN ? 'SET' : 'MISSING'}`);
+      console.log(`[Analytics Enhanced] 🔑 API Base URL: ${process.env.IMPACT_API_BASE_URL || 'https://api.impact.com'}`);
+      console.log(`[Analytics Enhanced] 🔑 Program ID: ${process.env.IMPACT_PROGRAM_ID || 'NOT SET'}`);
+      
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
         // Step 1: Get REAL clicks from Performance by SubId report
+        console.log(`[Analytics Enhanced] 🔍 Calling getPerformanceBySubId with:`, {
+          startDate,
+          endDate,
+          subId1: correctSubId1
+        });
+        
         const performanceData = await impact.getPerformanceBySubId({
           startDate,
           endDate,
           subId1: correctSubId1
         });
         
+        console.log(`[Analytics Enhanced] 📊 Performance API response:`, {
+          success: performanceData.success,
+          data: performanceData.data,
+          error: performanceData.error
+        });
+        
         let realClicks = 0;
         if (performanceData.success && performanceData.data) {
           realClicks = performanceData.data.clicks || 0;
           console.log(`[Analytics Enhanced] ✅ Real clicks from Performance report: ${realClicks}`);
+        } else {
+          console.log(`[Analytics Enhanced] ❌ Performance API failed:`, performanceData.error);
         }
         
         // Step 2: Get COMMISSIONABLE sales only from Actions API
         let realConversions = 0;
         let realRevenue = 0;
+        
+        console.log(`[Analytics Enhanced] 🔍 Calling getActionsDetailed with:`, {
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE',
+          pageSize: 1000
+        });
         
         const detailedActions = await impact.getActionsDetailed({
           startDate: startDate + 'T00:00:00Z',
@@ -1757,6 +1786,12 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           subId1: correctSubId1,
           actionType: 'SALE',
           pageSize: 1000
+        });
+        
+        console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
+          success: detailedActions.success,
+          actionsCount: detailedActions.actions?.length || 0,
+          error: detailedActions.error
         });
         
         if (detailedActions.success && detailedActions.actions) {
