@@ -2141,6 +2141,15 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       dataSource: response.dataSource
     });
     
+    // DEBUG: Check earningsTrend data
+    console.log(`[Analytics Enhanced] 🔍 EARNINGS TREND DEBUG:`);
+    console.log(`[Analytics Enhanced] 📊 earningsTrend.length: ${earningsTrend.length}`);
+    console.log(`[Analytics Enhanced] 📊 First 3 earningsTrend items:`, earningsTrend.slice(0, 3));
+    console.log(`[Analytics Enhanced] 📊 Last 3 earningsTrend items:`, earningsTrend.slice(-3));
+    console.log(`[Analytics Enhanced] 📊 Total revenue in trend: ${earningsTrend.reduce((sum, item) => sum + (item.revenue || 0), 0)}`);
+    console.log(`[Analytics Enhanced] 📊 Total commission in trend: ${earningsTrend.reduce((sum, item) => sum + (item.commission || 0), 0)}`);
+    console.log(`[Analytics Enhanced] 📊 Total clicks in trend: ${earningsTrend.reduce((sum, item) => sum + (item.clicks || 0), 0)}`);
+    
     console.log(`[Analytics Enhanced] 🔍 earningsTrend sample:`, {
       firstItem: earningsTrend[0],
       lastItem: earningsTrend[earningsTrend.length - 1],
