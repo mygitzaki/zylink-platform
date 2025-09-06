@@ -19,7 +19,9 @@ const LinkGeneratorV2 = () => {
 
   const loadUserLinks = async () => {
     try {
-      const response = await fetch('/api/v2/links');
+      const response = await fetch('https://api.zylike.com/api/v2/links', {
+        credentials: 'include'
+      });
       const data = await response.json();
       if (data.success) {
         setUserLinks(data.data.links || []);
@@ -31,7 +33,9 @@ const LinkGeneratorV2 = () => {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/v2/links/stats/user');
+      const response = await fetch('https://api.zylike.com/api/v2/links/stats/user', {
+        credentials: 'include'
+      });
       const data = await response.json();
       if (data.success) {
         setStats(data.data);
@@ -49,11 +53,12 @@ const LinkGeneratorV2 = () => {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/v2/links/generate', {
+      const response = await fetch('https://api.zylike.com/api/v2/links/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           destinationUrl,
           customShortCode: customShortCode || null,
