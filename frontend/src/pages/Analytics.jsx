@@ -53,10 +53,6 @@ export default function Analytics() {
     labels: [],
     datasets: []
   })
-  const [clicksChartData, setClicksChartData] = useState({
-    labels: [],
-    datasets: []
-  })
   const [salesData, setSalesData] = useState({
     totalSales: 0,
     salesCount: 0,
@@ -158,11 +154,9 @@ export default function Analytics() {
 
         const revenueData = analyticsRes.earningsTrend.map(item => item.revenue || 0)
         const commissionData = analyticsRes.earningsTrend.map(item => item.commission || 0)
-        const clicksData = analyticsRes.earningsTrend.map(item => item.clicks || 0)
         
         console.log('🔍 [AnalyticsV2] Extracted revenue data:', revenueData)
         console.log('🔍 [AnalyticsV2] Extracted commission data:', commissionData)
-        console.log('🔍 [AnalyticsV2] Extracted clicks data:', clicksData)
         
         // Create separate charts for each metric
         const salesChart = {
@@ -210,33 +204,10 @@ export default function Analytics() {
           ]
         }
 
-        const clicksChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Clicks',
-              data: clicksData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: false,
-              tension: 0.4,
-              borderWidth: 2,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              pointHoverBackgroundColor: '#3b82f6',
-              pointHoverBorderColor: '#ffffff',
-              pointHoverBorderWidth: 3
-            }
-          ]
-        }
         
         console.log('🔍 [AnalyticsV2] Setting separate chart data')
         setSalesChartData(salesChart)
         setCommissionChartData(commissionChart)
-        setClicksChartData(clicksChart)
       } else {
         // Generate sample data if no real data
         console.log('🔍 [AnalyticsV2] No real data found, generating sample data...')
@@ -258,7 +229,6 @@ export default function Analytics() {
         const labels = []
         const revenueData = []
         const commissionData = []
-        const clicksData = []
         
         for (let i = 0; i < days; i++) {
           const date = new Date(startDate)
@@ -273,10 +243,8 @@ export default function Analytics() {
           // Generate sample data with some variation
           const baseRevenue = 50 + Math.random() * 100
           const baseCommission = baseRevenue * 0.7
-          const baseClicks = Math.floor(20 + Math.random() * 80) // Random clicks between 20-100
           revenueData.push(Math.round(baseRevenue * 100) / 100)
           commissionData.push(Math.round(baseCommission * 100) / 100)
-          clicksData.push(baseClicks)
         }
         
         // Create separate sample charts
@@ -319,30 +287,10 @@ export default function Analytics() {
           ]
         }
 
-        const sampleClicksChart = {
-          labels,
-          datasets: [
-            {
-              label: 'Clicks',
-              data: clicksData,
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              fill: false,
-              tension: 0.4,
-              borderWidth: 2,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }
-          ]
-        }
         
         console.log('🔍 [AnalyticsV2] Setting sample chart data')
         setSalesChartData(sampleSalesChart)
         setCommissionChartData(sampleCommissionChart)
-        setClicksChartData(sampleClicksChart)
       }
       
     } catch (err) {
@@ -430,13 +378,7 @@ export default function Analytics() {
           label: function(context) {
             const label = context.dataset.label
             const value = context.parsed.y
-            
-            // Format clicks as count, others as currency
-            if (label === 'Clicks') {
-              return `${label}: ${Math.round(value)}`
-            } else {
-              return `${label}: ${formatCurrency(value)}`
-            }
+            return `${label}: ${formatCurrency(value)}`
           }
         }
       }
@@ -462,11 +404,7 @@ export default function Analytics() {
             size: 11
           },
           callback: function(value) {
-            if (chartType === 'clicks') {
-              return Math.round(value)
-            } else {
-              return '$' + value.toFixed(0)
-            }
+            return '$' + value.toFixed(0)
           }
         },
         grid: {
@@ -670,31 +608,6 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Clicks Chart - Full Width */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Clicks</h3>
-              <p className="text-sm text-gray-600">Track your link performance over time.</p>
-            </div>
-          </div>
-          <div className="h-64">
-            {clicksChartData.labels.length > 0 ? (
-              <Line data={clicksChartData} options={getChartOptions('clicks')} />
-            ) : (
-              <div className="h-full bg-gray-50 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 text-sm">Loading clicks data...</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
         {loading && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
