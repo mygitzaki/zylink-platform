@@ -272,91 +272,91 @@ export default function Earnings() {
         {/* Main Earnings Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           {/* Commission Earned */}
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1">Commission Earned</h3>
-            <p className="text-3xl font-bold mb-2">
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">Commission Earned</h3>
+            <p className="text-3xl font-bold mb-2 text-gray-900">
               {formatCurrency(earningsSummary.commissionEarned)}
             </p>
-            <p className="text-green-100 text-sm">
+            <p className="text-gray-600 text-sm">
               Pending + Approved commissions
             </p>
           </div>
 
           {/* Total Commissionable Sales */}
-          <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1">Sales Generated</h3>
-            <p className="text-3xl font-bold mb-2">
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">Sales Generated</h3>
+            <p className="text-3xl font-bold mb-2 text-gray-900">
               {formatCurrency(salesData.totalSales)}
             </p>
-            <p className="text-indigo-100 text-sm">
+            <p className="text-gray-600 text-sm">
               {salesData.salesCount} commissionable sales
             </p>
           </div>
 
           {/* Available for Withdraw */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1">Available for Withdraw</h3>
-            <p className="text-3xl font-bold mb-2">
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">Available for Withdraw</h3>
+            <p className="text-3xl font-bold mb-2 text-gray-900">
               {formatCurrency(earningsSummary.availableForWithdraw)}
             </p>
-            <p className="text-blue-100 text-sm">
+            <p className="text-gray-600 text-sm">
               Ready to withdraw
             </p>
           </div>
 
           {/* Total Earnings */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1">Total Earnings</h3>
-            <p className="text-3xl font-bold mb-2">
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">Total Earnings</h3>
+            <p className="text-3xl font-bold mb-2 text-gray-900">
               {formatCurrency(earningsSummary.totalEarnings)}
             </p>
-            <p className="text-purple-100 text-sm">
+            <p className="text-gray-600 text-sm">
               All time earnings
             </p>
           </div>
 
           {/* Payouts Requested */}
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-1">Payouts Requested</h3>
-            <p className="text-3xl font-bold mb-2">
+            <h3 className="text-lg font-semibold mb-1 text-gray-900">Payouts Requested</h3>
+            <p className="text-3xl font-bold mb-2 text-gray-900">
               {formatCurrency(earningsSummary.payoutsRequested)}
             </p>
-            <p className="text-orange-100 text-sm">
+            <p className="text-gray-600 text-sm">
               In processing
             </p>
           </div>
