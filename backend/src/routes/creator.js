@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { getPrisma } = require('../utils/prisma');
-const ImpactWebService = require('../services/impactWebService');
+const OptimizedImpactService = require('../services/optimizedImpactService');
 const { LinkShortener } = require('../services/linkShortener');
 const { QRCodeService } = require('../services/qrcodeService');
 const { EmailService } = require('../services/emailService');
@@ -463,7 +463,7 @@ router.post('/links', requireAuth, requireApprovedCreator, async (req, res) => {
     
     console.log('✅ URL validation passed:', destinationUrl);
     
-    const impact = new ImpactWebService();
+    const impact = new OptimizedImpactService();
     const shortener = new LinkShortener();
     const qr = new QRCodeService();
 
@@ -754,8 +754,8 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     if (!prisma) return res.json({ pendingNet: 0 });
 
     // CRITICAL FIX: Use the same SubId1 computation as tracking links
-    const ImpactWebService = require('../services/impactWebService');
-    const impact = new ImpactWebService();
+    const OptimizedImpactService = require('../services/optimizedImpactService');
+    const impact = new OptimizedImpactService();
     
     // Declare variables at function scope
     let correctSubId1;
@@ -1064,8 +1064,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     let pendingGross = 0;
     let pendingActions = 0;
     try {
-      const ImpactWebService = require('../services/impactWebService');
-      const impact = new ImpactWebService();
+      const OptimizedImpactService = require('../services/optimizedImpactService');
+      const impact = new OptimizedImpactService();
       
       // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
@@ -1732,7 +1732,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     let impact; // Declare at function scope
     
     try {
-      const ImpactWebService = require('../services/impactWebService');
+      const OptimizedImpactService = require('../services/optimizedImpactService');
       impact = new ImpactWebService();
       
       // Get creator's SubId1
@@ -2253,8 +2253,8 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
     let realData = { clicks: 0, conversions: 0, revenue: 0 };
     
     try {
-      const ImpactWebService = require('../services/impactWebService');
-      const impact = new ImpactWebService();
+      const OptimizedImpactService = require('../services/optimizedImpactService');
+      const impact = new OptimizedImpactService();
       
       // Get creator's SubId1
       const creator = await prisma.creator.findUnique({
@@ -2623,8 +2623,8 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
     let recentSales = [];
 
     try {
-      const ImpactWebService = require('../services/impactWebService');
-      const impact = new ImpactWebService();
+      const OptimizedImpactService = require('../services/optimizedImpactService');
+      const impact = new OptimizedImpactService();
       
       // Use stored SubId1 or compute it
       const correctSubId1 = creator?.impactSubId || impact.computeObfuscatedSubId(req.user.id);
@@ -2806,8 +2806,8 @@ router.get('/debug-impact/:subId1', requireAuth, requireApprovedCreator, async (
     const subId1 = req.params.subId1;
     console.log(`[DEBUG Impact] Checking Impact.com data for SubId1: ${subId1}`);
     
-    const ImpactWebService = require('../services/impactWebService');
-    const impact = new ImpactWebService();
+    const OptimizedImpactService = require('../services/optimizedImpactService');
+    const impact = new OptimizedImpactService();
     
     // Get current date range (last 30 days)
     const now = new Date();
