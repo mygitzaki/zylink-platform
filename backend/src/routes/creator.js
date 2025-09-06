@@ -2016,9 +2016,23 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             // This avoids making 30+ individual API calls which causes timeouts
             let dailyClicks = 0;
             if (dailyConversions > 0 && finalData.conversions > 0) {
-              // Distribute total clicks proportionally based on conversions
+              // Case 1: Creator has conversions - distribute clicks proportionally based on conversions
               const conversionRatio = dailyConversions / finalData.conversions;
               dailyClicks = Math.round(finalData.clicks * conversionRatio);
+            } else if (finalData.conversions === 0 && finalData.clicks > 0) {
+              // Case 2: Creator has clicks but no conversions - distribute clicks evenly across all days
+              // This ensures creators with clicks but no sales still see their click data in the chart
+              dailyClicks = Math.round(finalData.clicks / requestedDays);
+            }
+            
+            // Debug log for clicks calculation (only on first day to avoid spam)
+            if (i === (requestedDays - 1)) {
+              console.log(`[Analytics Enhanced] 🔍 Clicks Distribution Logic:`);
+              console.log(`[Analytics Enhanced] 📊 Total clicks available: ${finalData.clicks}`);
+              console.log(`[Analytics Enhanced] 📊 Total conversions: ${finalData.conversions}`);
+              console.log(`[Analytics Enhanced] 📊 Daily conversions: ${dailyConversions}`);
+              console.log(`[Analytics Enhanced] 📊 Daily clicks calculated: ${dailyClicks}`);
+              console.log(`[Analytics Enhanced] 📊 Distribution method: ${dailyConversions > 0 ? 'proportional' : (finalData.clicks > 0 ? 'even' : 'none')}`);
             }
             
             dailyData[dateStr] = {
@@ -2028,7 +2042,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               conversions: dailyConversions
             };
             
-            console.log(`[Analytics Enhanced] 📅 ${dateStr}: ${dayActions.length} actions, ${dailyConversions} commissionable, $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission`);
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: ${dayActions.length} actions, ${dailyConversions} commissionable, $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission, ${dailyClicks} clicks`);
           }
         } else {
           console.log(`[Analytics Enhanced] ⚠️ No actions data from Impact.com for period`);
