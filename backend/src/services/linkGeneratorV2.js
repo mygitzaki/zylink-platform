@@ -24,47 +24,27 @@ class LinkGeneratorV2 {
     const startTime = Date.now();
     
     try {
-      // Get brand configuration
-      const brandConfig = await this.getBrandConfig(brandId);
+      // Import ImpactWebService for proper Impact.com API integration
+      const ImpactWebService = require('./impactWebService');
+      const impact = new ImpactWebService();
       
-      if (!brandConfig) {
-        // Fallback to default Impact.com settings
-        return this.createFallbackLink(destinationUrl, creatorId);
-      }
-
-      // Use brand-specific Impact.com credentials
-      const auth = Buffer.from(`${brandConfig.impactAccountSid}:${brandConfig.impactAuthToken}`).toString('base64');
+      // Use the same Impact.com API as V1
+      const trackingResult = await impact.createTrackingLink(destinationUrl, creatorId);
       
-      const response = await fetch(`${brandConfig.impactApiBaseUrl || 'https://api.impact.com'}/Mediapartners/${brandConfig.impactAccountSid}/DeepLinks`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          ProgramId: brandConfig.impactProgramId,
-          DestinationUrl: destinationUrl,
-          SubId1: creatorId,
-          SharedId: this.generateSharedId(creatorId, brandId)
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (trackingResult.success) {
         this.recordPerformance(startTime, 1, 0, 0, brandId);
         return {
           success: true,
-          trackingUrl: data.DeepLinkUrl || data.trackingUrl,
+          trackingUrl: trackingResult.trackingUrl,
           originalUrl: destinationUrl,
-          method: 'impact_api'
+          method: 'impact_api_v1_compatible'
         };
       } else {
-        console.warn(`⚠️ Impact.com API failed for brand ${brandId}, using fallback`);
+        console.warn(`⚠️ Impact.com API failed, using fallback`);
         return this.createFallbackLink(destinationUrl, creatorId, brandId);
       }
     } catch (error) {
-      console.error(`❌ Error creating Impact.com link for brand ${brandId}:`, error);
+      console.error(`❌ Error creating Impact.com link:`, error);
       return this.createFallbackLink(destinationUrl, creatorId, brandId);
     }
   }
