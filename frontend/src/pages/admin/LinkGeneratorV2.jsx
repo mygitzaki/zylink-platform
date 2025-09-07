@@ -6,7 +6,7 @@ import { apiFetch } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 
 const LinkGeneratorV2 = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [destinationUrl, setDestinationUrl] = useState('');
   const [customShortCode, setCustomShortCode] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -16,11 +16,16 @@ const LinkGeneratorV2 = () => {
   const [activeTab, setActiveTab] = useState('generate');
 
   useEffect(() => {
+    console.log('🔍 [V2] Component mounted, token status:', token ? 'Present' : 'Missing');
+    console.log('🔍 [V2] Token value:', token);
+    console.log('🔍 [V2] User info:', user);
     if (token) {
       loadUserLinks();
       loadStats();
+    } else {
+      console.warn('⚠️ [V2] No authentication token available');
     }
-  }, [token]);
+  }, [token, user]);
 
   const loadUserLinks = async () => {
     try {
