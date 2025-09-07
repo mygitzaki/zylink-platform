@@ -7,6 +7,47 @@ const router = express.Router();
 const prisma = getPrisma();
 const linkGenerator = new LinkGeneratorV2();
 
+// Debug endpoint to check database connection (no auth required)
+router.get('/debug/database', async (req, res) => {
+  try {
+    console.log('🔍 [V2] Debug: Checking database connection...');
+    console.log('🔍 [V2] Database URL present:', !!process.env.DATABASE_URL);
+    
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Prisma client not available' 
+      });
+    }
+
+    // Check if V2 tables exist
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name LIKE '%v2%'
+    `;
+
+    console.log('📋 [V2] V2 tables found:', tables);
+
+    res.json({
+      success: true,
+      message: 'Database connection working',
+      databaseUrlPresent: !!process.env.DATABASE_URL,
+      v2Tables: tables,
+      tableCount: tables.length
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Database debug error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database connection failed',
+      error: error.message
+    });
+  }
+});
+
 // Generate new link (V2)
 router.post('/generate', requireAuth, async (req, res) => {
   try {
@@ -365,6 +406,7 @@ router.post('/admin/setup-tables', requireAuth, requireAdmin, async (req, res) =
     }
 
     console.log('🔍 [V2] Checking V2 tables in production database...');
+    console.log('🔍 [V2] Database URL:', process.env.DATABASE_URL ? 'Present' : 'Missing');
 
     // Check if tables exist
     const tables = await prisma.$queryRaw`
