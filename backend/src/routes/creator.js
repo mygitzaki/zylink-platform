@@ -3037,6 +3037,15 @@ router.post('/admin/create-v2-tables', requireAuth, requireApprovedCreator, asyn
   try {
     console.log('🔧 [ADMIN] Creating V2 tables in production database...');
     
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured',
+        error: 'Prisma client not available'
+      });
+    }
+    
     // Create V2 tables using raw SQL
     await prisma.$executeRaw`
       CREATE TABLE IF NOT EXISTS short_links_v2 (
