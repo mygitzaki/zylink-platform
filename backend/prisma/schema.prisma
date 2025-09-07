@@ -319,14 +319,14 @@ enum AdminRole {
 
 model ShortLinkV2 {
   id          String   @id @default(cuid())
-  shortCode   String   @unique
-  originalUrl String
-  impactLink  String?
-  brandId     String?
-  creatorId   String
+  shortCode   String   @unique @map("short_code")
+  originalUrl String   @map("original_url")
+  impactLink  String?  @map("impact_link")
+  brandId     String?  @map("brand_id")
+  creatorId   String   @map("creator_id")
   clicks      Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
   
   // Relationships
   brand       BrandConfig? @relation(fields: [brandId], references: [id])
@@ -337,15 +337,15 @@ model ShortLinkV2 {
 
 model LinkV2 {
   id           String    @id @default(cuid())
-  shortLinkId  String    @unique
-  destinationUrl String
-  impactLink   String?
-  qrCodeUrl    String?
-  brandId      String?
-  creatorId    String
+  shortLinkId  String    @unique @map("short_link_id")
+  destinationUrl String  @map("destination_url")
+  impactLink   String?   @map("impact_link")
+  qrCodeUrl    String?   @map("qr_code_url")
+  brandId      String?   @map("brand_id")
+  creatorId    String    @map("creator_id")
   metadata     Json?     // Store additional data as JSON
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
   
   // Relationships
   shortLink    ShortLinkV2 @relation(fields: [shortLinkId], references: [id])
@@ -357,16 +357,16 @@ model LinkV2 {
 model BrandConfig {
   id              String    @id @default(cuid())
   name            String    @unique
-  displayName     String
-  impactAccountSid String?
-  impactAuthToken String?
-  impactProgramId String?
-  defaultCommissionRate Float @default(0.1)
-  customDomain    String?
-  isActive        Boolean   @default(true)
+  displayName     String    @map("display_name")
+  impactAccountSid String?  @map("impact_account_sid")
+  impactAuthToken String?   @map("impact_auth_token")
+  impactProgramId String?   @map("impact_program_id")
+  defaultCommissionRate Float @default(0.1) @map("default_commission_rate")
+  customDomain    String?   @map("custom_domain")
+  isActive        Boolean   @default(true) @map("is_active")
   settings        Json?     // Store brand-specific settings
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
   
   // Relationships
   shortLinks      ShortLinkV2[]
@@ -377,29 +377,29 @@ model BrandConfig {
 
 model ClickLogV2 {
   id          String    @id @default(cuid())
-  shortLinkId String
-  ipAddress   String
-  userAgent   String
+  shortLinkId String    @map("short_link_id")
+  ipAddress   String    @map("ip_address")
+  userAgent   String    @map("user_agent")
   referrer    String?
   country     String?
   city        String?
   device      String?
   browser     String?
   os          String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime  @default(now()) @map("created_at")
   
   @@map("click_logs_v2")
 }
 
 model PerformanceMetricsV2 {
   id              String    @id @default(cuid())
-  shortLinkId     String
-  generationTime  Int       // Time in milliseconds
-  apiCalls        Int       // Number of API calls made
-  cacheHits       Int       // Number of cache hits
+  shortLinkId     String    @map("short_link_id")
+  generationTime  Int       @map("generation_time") // Time in milliseconds
+  apiCalls        Int       @map("api_calls") // Number of API calls made
+  cacheHits       Int       @map("cache_hits") // Number of cache hits
   errors          Int       // Number of errors encountered
-  brandId         String?
-  createdAt       DateTime  @default(now())
+  brandId         String?   @map("brand_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
   
   @@map("performance_metrics_v2")
 }
