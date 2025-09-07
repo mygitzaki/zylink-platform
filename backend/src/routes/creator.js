@@ -3032,4 +3032,122 @@ router.get('/debug-earnings', requireAuth, requireApprovedCreator, async (req, r
   }
 });
 
+// Admin: Create V2 tables in production database
+router.post('/admin/create-v2-tables', requireAuth, requireApprovedCreator, async (req, res) => {
+  try {
+    console.log('🔧 [ADMIN] Creating V2 tables in production database...');
+    
+    // Create V2 tables using raw SQL
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS short_links_v2 (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        short_code TEXT UNIQUE NOT NULL,
+        original_url TEXT NOT NULL,
+        impact_link TEXT,
+        brand_id TEXT,
+        creator_id TEXT NOT NULL,
+        clicks INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS links_v2 (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        short_link_id TEXT UNIQUE NOT NULL,
+        destination_url TEXT NOT NULL,
+        impact_link TEXT,
+        qr_code_url TEXT,
+        brand_id TEXT,
+        creator_id TEXT NOT NULL,
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        FOREIGN KEY (short_link_id) REFERENCES short_links_v2(id) ON DELETE CASCADE
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS brand_configs (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        name TEXT UNIQUE NOT NULL,
+        display_name TEXT NOT NULL,
+        impact_account_sid TEXT,
+        impact_auth_token TEXT,
+        impact_program_id TEXT,
+        default_commission_rate DOUBLE PRECISION DEFAULT 0.1,
+        custom_domain TEXT,
+        is_active BOOLEAN DEFAULT true,
+        settings JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS click_logs_v2 (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        short_link_id TEXT NOT NULL,
+        ip_address TEXT,
+        user_agent TEXT,
+        referrer TEXT,
+        country TEXT,
+        city TEXT,
+        device TEXT,
+        browser TEXT,
+        os TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        FOREIGN KEY (short_link_id) REFERENCES short_links_v2(id) ON DELETE CASCADE
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS performance_metrics_v2 (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        short_link_id TEXT NOT NULL,
+        generation_time INTEGER NOT NULL,
+        api_calls INTEGER NOT NULL,
+        cache_hits INTEGER NOT NULL,
+        errors INTEGER NOT NULL,
+        brand_id TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        FOREIGN KEY (short_link_id) REFERENCES short_links_v2(id) ON DELETE CASCADE
+      );
+    `;
+
+    // Create indexes
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_short_links_v2_short_code ON short_links_v2(short_code);`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_short_links_v2_creator_id ON short_links_v2(creator_id);`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_links_v2_creator_id ON links_v2(creator_id);`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_links_v2_brand_id ON links_v2(brand_id);`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_click_logs_v2_short_link_id ON click_logs_v2(short_link_id);`;
+    await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_performance_metrics_v2_created_at ON performance_metrics_v2(created_at);`;
+
+    // Verify tables were created
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name LIKE '%v2%'
+    `;
+
+    console.log('✅ [ADMIN] V2 tables created successfully:', tables);
+
+    res.json({
+      success: true,
+      message: 'V2 tables created successfully in production database',
+      tables: tables
+    });
+
+  } catch (error) {
+    console.error('❌ [ADMIN] Error creating V2 tables:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create V2 tables',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
