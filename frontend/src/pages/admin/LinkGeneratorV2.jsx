@@ -56,6 +56,36 @@ const LinkGeneratorV2 = () => {
     }
   };
 
+  const createV2Tables = async () => {
+    try {
+      console.log('🔧 [V2] Creating V2 tables...');
+      const response = await fetch('https://api.zylike.com/api/creator/admin/create-v2-tables', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      console.log('V2 Tables Creation Result:', data);
+      
+      if (data.success) {
+        console.log('✅ V2 tables created successfully!');
+        console.log('Tables created:', data.tables);
+        alert('V2 tables created successfully! You can now generate links.');
+        // Refresh the page to test V2
+        window.location.reload();
+      } else {
+        console.error('❌ Failed to create V2 tables:', data.message);
+        alert(`Failed to create V2 tables: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('❌ Error creating V2 tables:', error);
+      alert(`Error creating V2 tables: ${error.message}`);
+    }
+  };
+
   const handleGenerateLink = async () => {
     if (!destinationUrl) {
       alert('Please enter a destination URL');
@@ -193,6 +223,18 @@ const LinkGeneratorV2 = () => {
                   >
                     {isGenerating ? 'Generating...' : 'Generate Link'}
                   </Button>
+                  
+                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800 mb-2">
+                      <strong>Setup Required:</strong> If you're getting database errors, click the button below to create V2 tables.
+                    </p>
+                    <Button
+                      onClick={createV2Tables}
+                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+                    >
+                      🔧 Create V2 Tables
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
