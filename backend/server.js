@@ -162,23 +162,44 @@ async function handleShortRedirect(req, res) {
     }
     
     const { shortCode } = req.params;
-    const short = await prisma.shortLink.findUnique({ where: { shortCode } });
+    
+    // Try V1 short link first
+    let short = await prisma.shortLink.findUnique({ where: { shortCode } });
+    let isV2 = false;
+    
+    // If not found in V1, try V2 short link
+    if (!short) {
+      short = await prisma.shortLinkV2.findUnique({ where: { shortCode } });
+      if (short) {
+        isV2 = true;
+        console.log('✅ Found V2 short link:', shortCode);
+      }
+    }
     
     if (!short || !short.originalUrl) {
-      console.log('❌ Short link not found:', shortCode);
+      console.log('❌ Short link not found in V1 or V2:', shortCode);
       return res.status(404).send('Not found');
     }
     
     // Get the Impact.com tracking link from the main link record
-    const link = await prisma.link.findFirst({ 
-      where: { 
-        OR: [
-          { shortLink: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}` },
-          { shortLink: { contains: shortCode } },
-          { shortLink: { endsWith: shortCode } }
-        ]
-      } 
-    });
+    let link = null;
+    if (isV2) {
+      // For V2, get the link from the V2 table
+      link = await prisma.linkV2.findFirst({ 
+        where: { shortLinkId: short.id }
+      });
+    } else {
+      // For V1, use the existing logic
+      link = await prisma.link.findFirst({ 
+        where: { 
+          OR: [
+            { shortLink: `${process.env.SHORTLINK_BASE || 'https://s.zylike.com'}/${shortCode}` },
+            { shortLink: { contains: shortCode } },
+            { shortLink: { endsWith: shortCode } }
+          ]
+        } 
+      });
+    }
     
     console.log('🔍 Short link lookup:', {
       shortCode,
@@ -201,10 +222,17 @@ async function handleShortRedirect(req, res) {
     console.log('🔄 Redirecting to:', redirectUrl);
     
     // Update click count
-    await prisma.shortLink.update({ 
-      where: { shortCode }, 
-      data: { clicks: { increment: 1 } } 
-    });
+    if (isV2) {
+      await prisma.shortLinkV2.update({ 
+        where: { shortCode }, 
+        data: { clicks: { increment: 1 } } 
+      });
+    } else {
+      await prisma.shortLink.update({ 
+        where: { shortCode }, 
+        data: { clicks: { increment: 1 } } 
+      });
+    }
     // Best-effort click log (skip if table is missing to avoid noisy Prisma errors)
     try {
       let hasClickLogTable = false;
