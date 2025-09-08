@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const { getPrisma } = require('../utils/prisma');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { EmailService } = require('../services/emailService');
@@ -1388,6 +1389,78 @@ router.post('/cron/trigger-daily', requireAuth, requireAdmin, async (req, res) =
     res.status(500).json({
       success: false,
       message: 'Failed to trigger daily job',
+      error: error.message
+    });
+  }
+});
+
+// Emergency admin password reset endpoint
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and newPassword are required'
+      });
+    }
+
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    console.log(`🔧 Admin password reset requested for: ${email}`);
+
+    // Find the admin user
+    const admin = await prisma.creator.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin user not found'
+      });
+    }
+
+    // Check if user has admin role
+    if (!admin.adminRole || (admin.adminRole !== 'ADMIN' && admin.adminRole !== 'SUPER_ADMIN')) {
+      return res.status(403).json({
+        success: false,
+        message: 'User is not an admin'
+      });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Update the password
+    await prisma.creator.update({
+      where: { id: admin.id },
+      data: { password: hashedPassword }
+    });
+
+    console.log(`✅ Admin password reset successful for: ${email}`);
+
+    res.json({
+      success: true,
+      message: 'Password reset successful',
+      data: {
+        email: admin.email,
+        name: admin.name,
+        role: admin.adminRole
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error resetting admin password:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
       error: error.message
     });
   }
