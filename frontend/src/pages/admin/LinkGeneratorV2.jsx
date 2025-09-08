@@ -236,12 +236,45 @@ const LinkGeneratorV2 = () => {
   const fetchImpactPrograms = async () => {
     setLoadingPrograms(true);
     try {
-      const response = await apiFetch('/api/v2/links/admin/impact-programs', { token });
-      if (response.success) {
-        setAvailablePrograms(response.data);
-        console.log('📋 Available Impact.com programs:', response.data);
-      } else {
-        alert(`❌ Error: ${response.message}`);
+      console.log('🔑 Token available:', !!token);
+      console.log('🔑 Token value:', token ? token.substring(0, 20) + '...' : 'null');
+      
+      // Try apiFetch first
+      try {
+        const response = await apiFetch('/api/v2/links/admin/impact-programs', { token });
+        if (response.success) {
+          setAvailablePrograms(response.data);
+          console.log('📋 Available Impact.com programs:', response.data);
+          return;
+        } else {
+          alert(`❌ Error: ${response.message}`);
+          return;
+        }
+      } catch (apiError) {
+        console.log('🔄 apiFetch failed, trying direct fetch...', apiError);
+        
+        // Fallback to direct fetch
+        const directResponse = await fetch('https://api.zylike.com/api/v2/links/admin/impact-programs', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include'
+        });
+        
+        if (directResponse.ok) {
+          const data = await directResponse.json();
+          if (data.success) {
+            setAvailablePrograms(data.data);
+            console.log('📋 Available Impact.com programs (direct fetch):', data.data);
+          } else {
+            alert(`❌ Error: ${data.message}`);
+          }
+        } else {
+          const errorText = await directResponse.text();
+          throw new Error(`HTTP ${directResponse.status}: ${errorText}`);
+        }
       }
     } catch (error) {
       console.error('Error fetching Impact.com programs:', error);
@@ -256,7 +289,7 @@ const LinkGeneratorV2 = () => {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🚀 Link Generator V2 - v2.0.3 (FIXED)
+            🚀 Link Generator V2 - v2.0.4 (TOKEN FIX)
           </h1>
           <p className="text-gray-600">
             Modern, fast link generation with advanced features and analytics
