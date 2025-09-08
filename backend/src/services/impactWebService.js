@@ -277,15 +277,27 @@ class ImpactWebService {
         // Extract program information
         const programs = data.Campaigns || data.campaigns || data || [];
         
-        return programs.map(program => ({
-          id: program.Id || program.id,
-          name: program.Name || program.name || program.AdvertiserName || program.advertiserName,
-          advertiserName: program.AdvertiserName || program.advertiserName,
-          status: program.Status || program.status,
-          description: program.Description || program.description,
-          category: program.Category || program.category,
-          url: program.Url || program.url
-        }));
+        console.log('🔍 Raw Impact.com API response structure:', {
+          hasCampaigns: !!data.Campaigns,
+          hasCampaignsLower: !!data.campaigns,
+          isArray: Array.isArray(data),
+          firstProgram: programs[0] ? Object.keys(programs[0]) : 'No programs'
+        });
+        
+        return programs.map(program => {
+          console.log('🔍 Program object keys:', Object.keys(program));
+          console.log('🔍 Program object sample:', program);
+          
+          return {
+            id: program.Id || program.id || program.CampaignId || program.campaignId || program.ProgramId || program.programId,
+            name: program.Name || program.name || program.AdvertiserName || program.advertiserName,
+            advertiserName: program.AdvertiserName || program.advertiserName,
+            status: program.Status || program.status,
+            description: program.Description || program.description,
+            category: program.Category || program.category,
+            url: program.Url || program.url
+          };
+        });
       } else {
         const errorText = await response.text();
         console.error('❌ Impact.com API error:', {
