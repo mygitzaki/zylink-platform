@@ -178,7 +178,11 @@ class ImpactWebService {
         qp.set('MediaPartnerPropertyId', String(this.mediaPartnerPropertyId));
       }
 
-      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${this.programId}/TrackingLinks?${qp.toString()}`;
+      // Use provided programId or fall back to default
+      const programIdToUse = options.programId || this.programId;
+      console.log(`🎯 Using program ID: ${programIdToUse} (provided: ${options.programId}, default: ${this.programId})`);
+      
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Programs/${programIdToUse}/TrackingLinks?${qp.toString()}`;
       
       console.log('📡 Impact.com API request:', { url });
       

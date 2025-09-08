@@ -35,7 +35,20 @@ class LinkGeneratorV2 {
       }
       
       // V2: ONLY use Impact.com API - NO FALLBACK
-      const trackingResult = await this.impactService.createTrackingLink(destinationUrl, creatorId, { noFallback: true });
+      // Get brand-specific program ID if brand is specified
+      let programId = null;
+      if (brandId) {
+        const brand = await this.getBrandConfig(brandId);
+        if (brand && brand.impactProgramId) {
+          programId = brand.impactProgramId;
+          console.log(`🎯 Using brand-specific program ID: ${programId} for brand: ${brand.displayName}`);
+        }
+      }
+      
+      const trackingResult = await this.impactService.createTrackingLink(destinationUrl, creatorId, { 
+        noFallback: true,
+        programId: programId 
+      });
       
       if (trackingResult.success) {
         this.recordPerformance(startTime, 1, 0, 0, brandId);
@@ -94,13 +107,60 @@ class LinkGeneratorV2 {
     return null;
   }
 
+  // Auto-detect brand from URL
+  async detectBrandFromUrl(destinationUrl) {
+    try {
+      const url = new URL(destinationUrl);
+      const hostname = url.hostname.toLowerCase();
+      
+      console.log(`🔍 Auto-detecting brand from URL: ${hostname}`);
+      
+      // Get all available brands
+      const brands = await prisma.brandConfig.findMany({
+        where: { isActive: true, impactProgramId: { not: null } }
+      });
+      
+      // Check for domain matches
+      for (const brand of brands) {
+        const brandName = brand.name.toLowerCase();
+        const displayName = brand.displayName.toLowerCase();
+        
+        // Check if URL hostname contains brand name or vice versa
+        if (hostname.includes(brandName) || 
+            hostname.includes(displayName) ||
+            brandName.includes(hostname.replace('www.', '').split('.')[0]) ||
+            displayName.includes(hostname.replace('www.', '').split('.')[0])) {
+          console.log(`✅ Auto-detected brand: ${brand.displayName} for URL: ${hostname}`);
+          return brand;
+        }
+      }
+      
+      console.log(`⚠️ No brand auto-detected for URL: ${hostname}`);
+      return null;
+    } catch (error) {
+      console.error('❌ Error in brand auto-detection:', error);
+      return null;
+    }
+  }
+
   // Main link generation function with parallel processing
   async generateLink(destinationUrl, creatorId, brandId = null, options = {}) {
     const startTime = Date.now();
     const { generateQR = false, customShortCode = null } = options;
     
     try {
-      console.log(`🚀 [V2] Starting link generation for creator ${creatorId}, brand ${brandId || 'default'}`);
+      console.log(`🚀 [V2] Starting link generation for creator ${creatorId}, brand ${brandId || 'auto-detect'}`);
+      
+      // V2: Auto-detect brand if not specified
+      if (!brandId) {
+        const detectedBrand = await this.detectBrandFromUrl(destinationUrl);
+        if (detectedBrand) {
+          brandId = detectedBrand.id;
+          console.log(`🎯 Auto-detected brand: ${detectedBrand.displayName}`);
+        } else {
+          throw new Error(`Could not auto-detect brand from URL: ${destinationUrl}. Please select a brand manually.`);
+        }
+      }
       
       // V2: Validate brand configuration before proceeding
       if (brandId) {
