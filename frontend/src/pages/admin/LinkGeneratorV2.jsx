@@ -124,9 +124,16 @@ const LinkGeneratorV2 = () => {
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
   };
 
   return (
@@ -180,131 +187,94 @@ const LinkGeneratorV2 = () => {
         </div>
 
         {activeTab === 'generate' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <div className="p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <span className="text-2xl">⚡</span>
-                  Generate New Link
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Destination URL *
-                    </label>
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Create an affiliate link
+                </h2>
+                <div className="flex items-center justify-center gap-2 text-gray-600">
+                  <span>Paste item's Walmart URL</span>
+                  <div className="w-4 h-4 bg-gray-300 rounded-full flex items-center justify-center">
+                    <span className="text-xs text-gray-600">i</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <div className="flex gap-3">
                     <Input
                       type="url"
-                      placeholder="https://example.com"
-                      value={destinationUrl}
+                      placeholder="https://www.walmart.com/ip/..."
+                      value={generatedLink ? generatedLink.shortLink : destinationUrl}
                       onChange={(e) => setDestinationUrl(e.target.value)}
-                      className="w-full"
+                      className="flex-1 text-lg py-3 px-4 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0"
+                      readOnly={!!generatedLink}
                     />
+                    <Button
+                      onClick={generatedLink ? () => copyToClipboard(generatedLink.shortLink) : handleGenerateLink}
+                      disabled={isGenerating || (!destinationUrl && !generatedLink)}
+                      className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                        copySuccess
+                          ? 'bg-green-600 hover:bg-green-700 text-white'
+                          : generatedLink 
+                            ? 'bg-gray-800 hover:bg-gray-900 text-white' 
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      {isGenerating ? 'Generating...' : copySuccess ? 'Copied!' : generatedLink ? 'Copy' : 'Create'}
+                    </Button>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Custom Short Code (Optional)
-                    </label>
-                    <Input
-                      placeholder="my-custom-code"
-                      value={customShortCode}
-                      onChange={(e) => setCustomShortCode(e.target.value)}
-                      className="w-full"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Leave empty for auto-generated code
-                    </p>
+                {generatedLink && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-green-800 mb-2">
+                      <span className="text-lg">✅</span>
+                      <span className="font-semibold">Link Generated Successfully!</span>
+                    </div>
+                    <div className="text-sm text-green-700 space-y-1">
+                      <p><strong>Short Link:</strong> {generatedLink.shortLink}</p>
+                      <p><strong>Generation Time:</strong> {generatedLink.generationTime}ms</p>
+                      <p><strong>Method:</strong> {generatedLink.method}</p>
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        onClick={() => {
+                          setGeneratedLink(null);
+                          setDestinationUrl('');
+                          setCopySuccess(false);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 text-sm"
+                      >
+                        Generate New Link
+                      </Button>
+                    </div>
                   </div>
+                )}
 
-                  <Button
-                    onClick={handleGenerateLink}
-                    disabled={isGenerating || !destinationUrl}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    {isGenerating ? 'Generating...' : 'Generate Link'}
-                  </Button>
-                  
-                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800 mb-2">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">
+                    FTC regulations require you to disclose any affiliate link sharing to your audience.
+                  </p>
+                </div>
+
+                <div className="border-t border-gray-200 pt-6">
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800 mb-3">
                       <strong>Setup Required:</strong> If you're getting database errors, click the button below to create V2 tables.
                     </p>
                     <Button
                       onClick={createV2Tables}
-                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2"
                     >
                       🔧 Create V2 Tables
                     </Button>
                   </div>
                 </div>
               </div>
-            </Card>
-
-            {generatedLink && (
-              <Card>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <span className="text-2xl">🔗</span>
-                    Generated Link
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Short Link
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={generatedLink.shortLink || 'Generating...'}
-                          readOnly
-                          className="flex-1"
-                        />
-                        <Button
-                          onClick={() => copyToClipboard(generatedLink.shortLink)}
-                          className="px-4"
-                        >
-                          Copy
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Impact.com Tracking Link
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={generatedLink.impactLink || 'Generating...'}
-                          readOnly
-                          className="flex-1"
-                        />
-                        <Button
-                          onClick={() => copyToClipboard(generatedLink.impactLink)}
-                          className="px-4"
-                        >
-                          Copy
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-medium text-gray-700">Generation Time:</span>
-                        <br />
-                        <span className="text-green-600 font-mono">
-                          {generatedLink.generationTime ? `${generatedLink.generationTime}ms` : 'N/A'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700">Method:</span>
-                        <br />
-                        <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                          {generatedLink.method || 'V2'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
+            </div>
           </div>
         )}
 
