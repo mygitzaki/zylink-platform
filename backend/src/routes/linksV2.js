@@ -244,7 +244,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 // Fetch available Impact.com programs (V2)
 router.get('/admin/impact-programs', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const ImpactWebService = require('../../services/impactWebService');
+    const ImpactWebService = require('../services/impactWebService');
     const impact = new ImpactWebService();
     
     // Fetch campaigns/programs from Impact.com API
