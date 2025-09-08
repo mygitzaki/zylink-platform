@@ -242,10 +242,16 @@ const LinkGeneratorV2 = () => {
       // Try apiFetch first
       try {
         const response = await apiFetch('/api/v2/links/admin/impact-programs', { token });
-        if (response.success) {
-          setAvailablePrograms(response.data);
-          console.log('📋 Available Impact.com programs:', response.data);
-          return;
+      if (response.success) {
+        setAvailablePrograms(response.data);
+        console.log('📋 Available Impact.com programs:', response.data);
+        
+        // Log program IDs for easy reference
+        console.log('🔢 Program IDs for easy reference:');
+        response.data.forEach((program, index) => {
+          console.log(`${index + 1}. ${program.name || program.advertiserName}: ID = ${program.id || 'N/A'}`);
+        });
+        return;
         } else {
           alert(`❌ Error: ${response.message}`);
           return;
@@ -418,7 +424,7 @@ const LinkGeneratorV2 = () => {
                               <div className="text-gray-600">{program.name || program.advertiserName}</div>
                               {program.status && <div className="text-gray-500">Status: {program.status}</div>}
                               <div className="text-gray-400 text-xs mt-1">
-                                Full object: {JSON.stringify(program, null, 2)}
+                                Available fields: {Object.keys(program).join(', ')}
                               </div>
                             </div>
                           ))}
