@@ -116,11 +116,36 @@ class LinkGeneratorV2 {
       console.log(`🔍 Auto-detecting brand from URL: ${hostname}`);
       
       // Get all available brands
+      const prisma = getPrisma();
       const brands = await prisma.brandConfig.findMany({
         where: { isActive: true, impactProgramId: { not: null } }
       });
       
-      // Check for domain matches
+      // First, try to detect brand from product name in URL path
+      const urlPath = url.pathname.toLowerCase();
+      const urlSearch = url.search.toLowerCase();
+      const fullUrl = destinationUrl.toLowerCase();
+      
+      console.log(`🔍 Analyzing URL for product brands: ${urlPath}`);
+      
+      // Check for product-based brand matches (e.g., "roborock" in URL)
+      for (const brand of brands) {
+        const brandName = brand.name.toLowerCase();
+        const displayName = brand.displayName.toLowerCase();
+        
+        // Check if brand name appears in URL path or search params
+        if (urlPath.includes(brandName) || 
+            urlPath.includes(displayName) ||
+            urlSearch.includes(brandName) ||
+            urlSearch.includes(displayName) ||
+            fullUrl.includes(brandName) ||
+            fullUrl.includes(displayName)) {
+          console.log(`✅ Auto-detected brand from product: ${brand.displayName} (found "${brandName}" in URL)`);
+          return brand;
+        }
+      }
+      
+      // Fallback: Check for domain matches
       for (const brand of brands) {
         const brandName = brand.name.toLowerCase();
         const displayName = brand.displayName.toLowerCase();
@@ -130,7 +155,7 @@ class LinkGeneratorV2 {
             hostname.includes(displayName) ||
             brandName.includes(hostname.replace('www.', '').split('.')[0]) ||
             displayName.includes(hostname.replace('www.', '').split('.')[0])) {
-          console.log(`✅ Auto-detected brand: ${brand.displayName} for URL: ${hostname}`);
+          console.log(`✅ Auto-detected brand from domain: ${brand.displayName} for URL: ${hostname}`);
           return brand;
         }
       }
