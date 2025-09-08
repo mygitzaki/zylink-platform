@@ -229,6 +229,45 @@ const LinkGeneratorV2 = () => {
     }
   };
 
+  // Auto-configure all brands
+  const [autoConfiguring, setAutoConfiguring] = useState(false);
+  
+  const autoConfigureAllBrands = async () => {
+    setAutoConfiguring(true);
+    try {
+      const response = await apiFetch('/api/v2/links/admin/brands/auto-configure', {
+        method: 'POST',
+        token
+      });
+
+      if (response.success) {
+        const { configured, errors } = response.data;
+        
+        let message = `✅ Auto-configured ${configured.length} brands:\n\n`;
+        configured.forEach(item => {
+          message += `• ${item.brand} → Program ID ${item.programId} (${item.programName})\n`;
+        });
+        
+        if (errors.length > 0) {
+          message += `\n⚠️ ${errors.length} brands not configured:\n`;
+          errors.forEach(item => {
+            message += `• ${item.brand}: ${item.reason}\n`;
+          });
+        }
+        
+        alert(message);
+        fetchBrands(); // Refresh brands list
+      } else {
+        alert(`❌ Error: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error auto-configuring brands:', error);
+      alert('Error auto-configuring brands: ' + error.message);
+    } finally {
+      setAutoConfiguring(false);
+    }
+  };
+
   // Fetch available Impact.com programs
   const [availablePrograms, setAvailablePrograms] = useState([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -401,13 +440,22 @@ const LinkGeneratorV2 = () => {
                       <h4 className="text-sm font-medium text-blue-800">
                         🔍 Find Impact.com Program IDs
                       </h4>
-                      <button
-                        onClick={fetchImpactPrograms}
-                        disabled={loadingPrograms}
-                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-                      >
-                        {loadingPrograms ? 'Loading...' : 'Fetch Programs'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={fetchImpactPrograms}
+                          disabled={loadingPrograms}
+                          className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                        >
+                          {loadingPrograms ? 'Loading...' : 'Fetch Programs'}
+                        </button>
+                        <button
+                          onClick={autoConfigureAllBrands}
+                          disabled={autoConfiguring || loadingPrograms}
+                          className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+                        >
+                          {autoConfiguring ? 'Auto-Configuring...' : 'Auto-Configure All'}
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs text-blue-600 mb-2">
                       Click to fetch all available programs from your Impact.com account

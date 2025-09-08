@@ -266,6 +266,96 @@ router.get('/admin/impact-programs', requireAuth, requireAdmin, async (req, res)
   }
 });
 
+// Auto-configure all brands with Impact.com program IDs (V2)
+router.post('/admin/brands/auto-configure', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    // Fetch all brands from database
+    const brands = await prisma.brandConfig.findMany({
+      where: { isActive: true }
+    });
+
+    // Fetch all programs from Impact.com
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    const programs = await impact.getAvailablePrograms();
+
+    console.log(`🔍 Auto-configuring ${brands.length} brands with ${programs.length} Impact.com programs`);
+
+    const results = [];
+    const errors = [];
+
+    for (const brand of brands) {
+      try {
+        // Find matching program by name
+        const matchingProgram = programs.find(program => {
+          const programName = (program.name || program.advertiserName || '').toLowerCase();
+          const brandName = brand.displayName.toLowerCase();
+          
+          // Check for exact match or partial match
+          return programName.includes(brandName) || 
+                 brandName.includes(programName) ||
+                 programName.includes(brand.name.toLowerCase()) ||
+                 brand.name.toLowerCase().includes(programName);
+        });
+
+        if (matchingProgram && matchingProgram.id) {
+          // Update brand with program ID
+          const updatedBrand = await prisma.brandConfig.update({
+            where: { id: brand.id },
+            data: { impactProgramId: String(matchingProgram.id) }
+          });
+
+          results.push({
+            brand: brand.displayName,
+            programId: matchingProgram.id,
+            programName: matchingProgram.name || matchingProgram.advertiserName,
+            status: 'configured'
+          });
+
+          console.log(`✅ Auto-configured ${brand.displayName} with program ID ${matchingProgram.id}`);
+        } else {
+          errors.push({
+            brand: brand.displayName,
+            reason: 'No matching program found in Impact.com account'
+          });
+          console.log(`⚠️ No matching program found for ${brand.displayName}`);
+        }
+      } catch (error) {
+        errors.push({
+          brand: brand.displayName,
+          reason: error.message
+        });
+        console.error(`❌ Error configuring ${brand.displayName}:`, error);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Auto-configured ${results.length} brands successfully`,
+      data: {
+        configured: results,
+        errors: errors,
+        total: brands.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error in auto-configure brands:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to auto-configure brands',
+      error: error.message
+    });
+  }
+});
+
 // Update brand program ID (V2)
 router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
   try {
