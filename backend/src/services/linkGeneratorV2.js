@@ -102,6 +102,18 @@ class LinkGeneratorV2 {
     try {
       console.log(`🚀 [V2] Starting link generation for creator ${creatorId}, brand ${brandId || 'default'}`);
       
+      // V2: Validate brand configuration before proceeding
+      if (brandId) {
+        const brand = await this.getBrandConfig(brandId);
+        if (!brand) {
+          throw new Error(`Brand ${brandId} not found or inactive`);
+        }
+        if (!brand.impactProgramId) {
+          throw new Error(`Brand ${brand.displayName} is not configured with Impact.com program ID. Please configure the program ID in your Impact.com dashboard.`);
+        }
+        console.log(`✅ [V2] Brand ${brand.displayName} validated with program ID: ${brand.impactProgramId}`);
+      }
+      
       // Parallel processing: Generate short code and Impact link simultaneously
       const [shortCode, impactResult] = await Promise.all([
         this.generateUniqueShortCode(customShortCode),

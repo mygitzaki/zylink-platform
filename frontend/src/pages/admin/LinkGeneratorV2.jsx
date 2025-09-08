@@ -205,6 +205,9 @@ const LinkGeneratorV2 = () => {
     fetchBrands();
   }, []);
 
+  // Filter brands to only show those with program IDs configured
+  const availableBrands = brands.filter(brand => brand.impactProgramId);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -281,7 +284,7 @@ const LinkGeneratorV2 = () => {
                     value={selectedBrand?.id || ''}
                     onChange={(e) => {
                       console.log('🔄 Brand selection changed:', e.target.value);
-                      const brand = brands.find(b => b.id === e.target.value);
+                      const brand = availableBrands.find(b => b.id === e.target.value);
                       console.log('🎯 Selected brand:', brand);
                       setSelectedBrand(brand || null);
                     }}
@@ -289,7 +292,7 @@ const LinkGeneratorV2 = () => {
                     disabled={!!generatedLink}
                   >
                     <option value="">Auto-detect from URL</option>
-                    {brands.map((brand) => (
+                    {availableBrands.map((brand) => (
                       <option key={brand.id} value={brand.id}>
                         {brand.settings?.icon || '🏪'} {brand.displayName}
                       </option>
@@ -305,10 +308,10 @@ const LinkGeneratorV2 = () => {
                   )}
                 </div>
                 
-                {/* Debug Info */}
-                <div className="mt-2 text-xs text-gray-500">
-                  Brands loaded: {brands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
-                </div>
+                  {/* Debug Info */}
+                  <div className="mt-2 text-xs text-gray-500">
+                    Brands loaded: {brands.length} | Available: {availableBrands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
+                  </div>
                 {selectedBrand && (
                   <div className="mt-2 text-sm text-gray-600">
                     <span className="font-medium">Selected:</span> {selectedBrand.settings?.icon} {selectedBrand.displayName}
