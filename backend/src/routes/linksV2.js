@@ -241,6 +241,31 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Fetch available Impact.com programs (V2)
+router.get('/admin/impact-programs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const ImpactWebService = require('../../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Fetch campaigns/programs from Impact.com API
+    const programs = await impact.getAvailablePrograms();
+    
+    res.json({
+      success: true,
+      message: `Found ${programs.length} available programs`,
+      data: programs
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error fetching Impact.com programs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch Impact.com programs',
+      error: error.message
+    });
+  }
+});
+
 // Update brand program ID (V2)
 router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
   try {

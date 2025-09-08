@@ -231,6 +231,28 @@ const LinkGeneratorV2 = () => {
     }
   };
 
+  // Fetch available Impact.com programs
+  const [availablePrograms, setAvailablePrograms] = useState([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(false);
+
+  const fetchImpactPrograms = async () => {
+    setLoadingPrograms(true);
+    try {
+      const response = await apiFetch('/api/v2/links/admin/impact-programs');
+      if (response.success) {
+        setAvailablePrograms(response.data);
+        console.log('📋 Available Impact.com programs:', response.data);
+      } else {
+        alert(`❌ Error: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error fetching Impact.com programs:', error);
+      alert('Error fetching Impact.com programs: ' + error.message);
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
       <div className="max-w-6xl mx-auto">
@@ -336,6 +358,41 @@ const LinkGeneratorV2 = () => {
                     Brands loaded: {brands.length} | Available: {availableBrands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
                   </div>
                   
+                  {/* Fetch Impact.com Programs Button */}
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-blue-800">
+                        🔍 Find Impact.com Program IDs
+                      </h4>
+                      <button
+                        onClick={fetchImpactPrograms}
+                        disabled={loadingPrograms}
+                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                      >
+                        {loadingPrograms ? 'Loading...' : 'Fetch Programs'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-blue-600 mb-2">
+                      Click to fetch all available programs from your Impact.com account
+                    </p>
+                    
+                    {/* Display available programs */}
+                    {availablePrograms.length > 0 && (
+                      <div className="mt-3 max-h-40 overflow-y-auto">
+                        <h5 className="text-xs font-medium text-blue-800 mb-2">Available Programs:</h5>
+                        <div className="space-y-1">
+                          {availablePrograms.map(program => (
+                            <div key={program.id} className="text-xs bg-white p-2 rounded border">
+                              <div className="font-medium">ID: {program.id}</div>
+                              <div className="text-gray-600">{program.name || program.advertiserName}</div>
+                              {program.status && <div className="text-gray-500">Status: {program.status}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Brands without program IDs */}
                   {brands.filter(brand => !brand.impactProgramId).length > 0 && (
                     <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">

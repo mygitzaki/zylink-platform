@@ -254,6 +254,53 @@ class ImpactWebService {
 
   // (No normalization needed; return API URL as-is)
 
+  // Fetch available programs from Impact.com API
+  async getAvailablePrograms() {
+    try {
+      console.log('🔍 Fetching available programs from Impact.com...');
+      
+      const url = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Campaigns`;
+      console.log('📡 Impact.com API URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Impact.com programs fetched successfully:', data);
+        
+        // Extract program information
+        const programs = data.Campaigns || data.campaigns || data || [];
+        
+        return programs.map(program => ({
+          id: program.Id || program.id,
+          name: program.Name || program.name || program.AdvertiserName || program.advertiserName,
+          advertiserName: program.AdvertiserName || program.advertiserName,
+          status: program.Status || program.status,
+          description: program.Description || program.description,
+          category: program.Category || program.category,
+          url: program.Url || program.url
+        }));
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Impact.com API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Impact.com API error: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching Impact.com programs:', error);
+      throw error;
+    }
+  }
+
   // Simple fallback link generation
   generateFallbackLink(destinationUrl, creatorId) {
     const timestamp = Date.now();
