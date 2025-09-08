@@ -213,10 +213,8 @@ const LinkGeneratorV2 = () => {
     try {
       const response = await apiFetch(`/api/v2/links/admin/brands/${brandId}/program-id`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ impactProgramId: programId }),
+        token,
+        body: { impactProgramId: programId },
       });
 
       if (response.success) {
@@ -238,7 +236,7 @@ const LinkGeneratorV2 = () => {
   const fetchImpactPrograms = async () => {
     setLoadingPrograms(true);
     try {
-      const response = await apiFetch('/api/v2/links/admin/impact-programs');
+      const response = await apiFetch('/api/v2/links/admin/impact-programs', { token });
       if (response.success) {
         setAvailablePrograms(response.data);
         console.log('📋 Available Impact.com programs:', response.data);
