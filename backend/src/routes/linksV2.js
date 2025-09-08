@@ -288,7 +288,7 @@ router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async
 
     const updatedBrand = await prisma.brandConfig.update({
       where: { id: brandId },
-      data: { impactProgramId: parseInt(impactProgramId) }
+      data: { impactProgramId: String(impactProgramId) }
     });
 
     console.log(`✅ [V2] Updated brand ${updatedBrand.displayName} with program ID: ${impactProgramId}`);
