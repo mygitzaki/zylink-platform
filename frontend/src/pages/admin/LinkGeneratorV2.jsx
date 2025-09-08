@@ -867,19 +867,19 @@ const LinkGeneratorV2 = () => {
               <h3 className="font-bold mb-2">Discovery Results:</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-300">{discoveryResults.summary.created}</div>
+                  <div className="text-2xl font-bold text-green-300">{discoveryResults.summary?.created || 0}</div>
                   <div className="text-blue-100">Created</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-300">{discoveryResults.summary.updated}</div>
+                  <div className="text-2xl font-bold text-blue-300">{discoveryResults.summary?.updated || 0}</div>
                   <div className="text-blue-100">Updated</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-300">{discoveryResults.summary.skipped}</div>
+                  <div className="text-2xl font-bold text-yellow-300">{discoveryResults.summary?.skipped || 0}</div>
                   <div className="text-blue-100">Skipped</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-300">{discoveryResults.summary.failed}</div>
+                  <div className="text-2xl font-bold text-red-300">{discoveryResults.summary?.failed || 0}</div>
                   <div className="text-blue-100">Failed</div>
                 </div>
               </div>

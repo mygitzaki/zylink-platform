@@ -121,6 +121,11 @@ class LinkGeneratorV2 {
         where: { isActive: true, impactProgramId: { not: null } }
       });
       
+      console.log(`🔍 Available brands for detection: ${brands.length}`);
+      brands.forEach(brand => {
+        console.log(`  - ${brand.displayName} (${brand.name}) - Program ID: ${brand.impactProgramId}`);
+      });
+      
       // First, try to detect brand from product name in URL path
       const urlPath = url.pathname.toLowerCase();
       const urlSearch = url.search.toLowerCase();
@@ -150,12 +155,22 @@ class LinkGeneratorV2 {
         const brandName = brand.name.toLowerCase();
         const displayName = brand.displayName.toLowerCase();
         
+        // Extract domain name without subdomain (e.g., "coolway" from "coolway-us.com")
+        const domainName = hostname.replace('www.', '').split('.')[0];
+        const domainWithoutSuffix = domainName.split('-')[0]; // "coolway" from "coolway-us"
+        
         // Check if URL hostname contains brand name or vice versa
         if (hostname.includes(brandName) || 
             hostname.includes(displayName) ||
-            brandName.includes(hostname.replace('www.', '').split('.')[0]) ||
-            displayName.includes(hostname.replace('www.', '').split('.')[0])) {
-          console.log(`✅ Auto-detected brand from domain: ${brand.displayName} for URL: ${hostname}`);
+            brandName.includes(domainName) ||
+            brandName.includes(domainWithoutSuffix) ||
+            displayName.includes(domainName) ||
+            displayName.includes(domainWithoutSuffix) ||
+            domainName.includes(brandName) ||
+            domainWithoutSuffix.includes(brandName) ||
+            domainName.includes(displayName) ||
+            domainWithoutSuffix.includes(displayName)) {
+          console.log(`✅ Auto-detected brand from domain: ${brand.displayName} for URL: ${hostname} (matched: ${brandName})`);
           return brand;
         }
       }
