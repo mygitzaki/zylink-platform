@@ -34,7 +34,7 @@ class LinkGeneratorV2 {
         this.impactService = impact;
       }
       
-      // Use the same Impact.com API as V1 (always generate proper Impact.com links)
+      // V2: ONLY use Impact.com API - NO FALLBACK
       const trackingResult = await this.impactService.createTrackingLink(destinationUrl, creatorId);
       
       if (trackingResult.success) {
@@ -43,45 +43,22 @@ class LinkGeneratorV2 {
           success: true,
           trackingUrl: trackingResult.trackingUrl,
           originalUrl: destinationUrl,
-          method: 'impact_api_v1_compatible'
+          method: 'impact_api_only'
         };
       } else {
-        console.warn(`⚠️ Impact.com API failed, using fallback`);
-        return this.createFallbackLink(destinationUrl, creatorId, brandId);
+        // V2: NO FALLBACK - Fail if Impact.com API doesn't work
+        console.error(`❌ V2: Impact.com API failed - NO FALLBACK ALLOWED`);
+        this.recordPerformance(startTime, 0, 0, 1, brandId);
+        throw new Error(`Impact.com API failed for brand ${brandId || 'default'}. V2 requires Impact.com API to work.`);
       }
     } catch (error) {
-      console.error(`❌ Error creating Impact.com link:`, error);
-      return this.createFallbackLink(destinationUrl, creatorId, brandId);
+      console.error(`❌ V2: Error creating Impact.com link - NO FALLBACK:`, error);
+      this.recordPerformance(startTime, 0, 0, 1, brandId);
+      throw new Error(`V2 Link Generation Failed: ${error.message}. Only Impact.com API is supported in V2.`);
     }
   }
 
-  // Fallback link generation
-  createFallbackLink(destinationUrl, creatorId, brandId = null) {
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substr(2, 9);
-    const clickId = `zy_v2_${timestamp}_${randomId}`;
-    
-    try {
-      const url = new URL(destinationUrl);
-      url.searchParams.set('clickid', clickId);
-      url.searchParams.set('creator', creatorId);
-      if (brandId) url.searchParams.set('brand', brandId);
-      return {
-        success: true,
-        trackingUrl: url.toString(),
-        originalUrl: destinationUrl,
-        method: 'fallback'
-      };
-    } catch {
-      const sep = destinationUrl.includes('?') ? '&' : '?';
-      return {
-        success: true,
-        trackingUrl: `${destinationUrl}${sep}clickid=${clickId}&creator=${creatorId}`,
-        originalUrl: destinationUrl,
-        method: 'fallback'
-      };
-    }
-  }
+  // V2: NO FALLBACK METHOD - Only Impact.com API is supported
 
   // Generate shared ID for Impact.com
   generateSharedId(creatorId, brandId) {
