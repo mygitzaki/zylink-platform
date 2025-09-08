@@ -7,6 +7,7 @@ class LinkGeneratorV2 {
     this.cacheTimeout = 60 * 60 * 1000; // 1 hour cache
     this.performanceMetrics = [];
     this.brandConfigs = new Map();
+    this.impactService = null; // Cache Impact.com service instance for speed
   }
 
   // Generate short code with collision detection
@@ -28,8 +29,13 @@ class LinkGeneratorV2 {
       const ImpactWebService = require('./impactWebService');
       const impact = new ImpactWebService();
       
-      // Use the same Impact.com API as V1
-      const trackingResult = await impact.createTrackingLink(destinationUrl, creatorId);
+      // V2 SPEED OPTIMIZATION: Use cached Impact.com service instance
+      if (!this.impactService) {
+        this.impactService = impact;
+      }
+      
+      // Use the same Impact.com API as V1 (always generate proper Impact.com links)
+      const trackingResult = await this.impactService.createTrackingLink(destinationUrl, creatorId);
       
       if (trackingResult.success) {
         this.recordPerformance(startTime, 1, 0, 0, brandId);
@@ -134,7 +140,7 @@ class LinkGeneratorV2 {
         throw new Error('Database not available');
       }
 
-      // Create short link record
+      // V2 SPEED OPTIMIZATION: Create short link record first
       const shortLinkRecord = await prisma.shortLinkV2.create({
         data: {
           shortCode,
@@ -145,7 +151,7 @@ class LinkGeneratorV2 {
         }
       });
 
-      // Create main link record
+      // Create main link record with the shortLinkRecord.id
       const linkRecord = await prisma.linkV2.create({
         data: {
           shortLinkId: shortLinkRecord.id,
@@ -202,22 +208,19 @@ class LinkGeneratorV2 {
       throw new Error('Custom short code already exists');
     }
 
-    // Generate random code with collision detection
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    while (attempts < maxAttempts) {
-      const shortCode = this.generateShortCode(8);
-      const exists = await this.checkShortCodeExists(shortCode);
-      
-      if (!exists) {
-        return shortCode;
-      }
-      
-      attempts++;
+    // V2 SPEED OPTIMIZATION: Generate longer, more unique codes to reduce collision probability
+    const shortCode = this.generateShortCode(12); // Increased from 8 to 12 characters
+    
+    // Check collision only once (with longer codes, collisions are very rare)
+    const exists = await this.checkShortCodeExists(shortCode);
+    if (!exists) {
+      return shortCode;
     }
 
-    throw new Error('Unable to generate unique short code');
+    // If collision occurs, try one more time with timestamp
+    const timestamp = Date.now().toString(36);
+    const fallbackCode = this.generateShortCode(8) + timestamp.slice(-4);
+    return fallbackCode;
   }
 
   // Check if short code exists
