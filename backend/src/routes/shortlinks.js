@@ -5,48 +5,71 @@ const prisma = getPrisma();
 
 router.get('/s/:shortCode', async (req, res) => {
   const { shortCode } = req.params;
-  if (!prisma) return res.status(501).send('Shortlink storage not configured');
+  console.log(`🔍 Short link lookup: { shortCode: '${shortCode}' }`);
   
-  // Try V1 short link first
-  let short = await prisma.shortLink.findUnique({ where: { shortCode } });
-  
-  // If not found in V1, try V2 short link
-  if (!short) {
-    short = await prisma.shortLinkV2.findUnique({ where: { shortCode } });
-    if (short) {
-      // Convert V2 format to V1 format for compatibility
-      short = {
-        id: short.id,
-        shortCode: short.shortCode,
-        originalUrl: short.originalUrl,
-        clicks: short.clicks
-      };
-    }
+  if (!prisma) {
+    console.log('❌ Prisma not available');
+    return res.status(501).send('Shortlink storage not configured');
   }
   
-  if (!short || !short.originalUrl) return res.status(404).send('Not found');
-  
-  // Update clicks
-  if (short.id) {
-    try {
-      // Try V1 table first
-      await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
-    } catch {
-      // If V1 fails, try V2 table
-      try {
-        await prisma.shortLinkV2.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
-      } catch (error) {
-        console.warn('Could not update click count:', error.message);
+  try {
+    // Try V1 short link first
+    let short = await prisma.shortLink.findUnique({ where: { shortCode } });
+    console.log(`🔍 V1 lookup result:`, short ? 'Found' : 'Not found');
+    
+    // If not found in V1, try V2 short link
+    if (!short) {
+      short = await prisma.shortLinkV2.findUnique({ where: { shortCode } });
+      console.log(`🔍 V2 lookup result:`, short ? 'Found' : 'Not found');
+      if (short) {
+        console.log(`🔍 V2 short link data:`, {
+          id: short.id,
+          shortCode: short.shortCode,
+          originalUrl: short.originalUrl ? 'Present' : 'Missing',
+          clicks: short.clicks
+        });
+        // Convert V2 format to V1 format for compatibility
+        short = {
+          id: short.id,
+          shortCode: short.shortCode,
+          originalUrl: short.originalUrl,
+          clicks: short.clicks
+        };
       }
     }
+    
+    if (!short || !short.originalUrl) {
+      console.log('❌ Short link not found or missing originalUrl');
+      return res.status(404).send('Not found');
+    }
+    
+    // Update clicks
+    if (short.id) {
+      try {
+        // Try V1 table first
+        await prisma.shortLink.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
+      } catch {
+        // If V1 fails, try V2 table
+        try {
+          await prisma.shortLinkV2.update({ where: { shortCode }, data: { clicks: { increment: 1 } } });
+        } catch (error) {
+          console.warn('Could not update click count:', error.message);
+        }
+      }
+    }
+    
+    // Log click
+    try {
+      await prisma.clickLog.create({ data: { shortLinkId: short.id, ipAddress: req.ip, userAgent: req.headers['user-agent'] || '', referrer: req.headers.referer || '' } });
+    } catch {}
+    
+    console.log(`✅ Redirecting to: ${short.originalUrl}`);
+    res.redirect(short.originalUrl);
+    
+  } catch (error) {
+    console.error('❌ Error in short link redirect:', error);
+    res.status(500).send('Internal server error');
   }
-  
-  // Log click
-  try {
-    await prisma.clickLog.create({ data: { shortLinkId: short.id, ipAddress: req.ip, userAgent: req.headers['user-agent'] || '', referrer: req.headers.referer || '' } });
-  } catch {}
-  
-  res.redirect(short.originalUrl);
 });
 
 router.get('/:shortCode', async (req, res) => {
