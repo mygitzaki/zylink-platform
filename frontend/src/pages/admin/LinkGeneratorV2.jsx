@@ -230,16 +230,72 @@ const LinkGeneratorV2 = () => {
 
                 {generatedLink && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-green-800 mb-2">
+                    <div className="flex items-center gap-2 text-green-800 mb-4">
                       <span className="text-lg">✅</span>
                       <span className="font-semibold">Link Generated Successfully!</span>
                     </div>
-                    <div className="text-sm text-green-700 space-y-1">
-                      <p><strong>Short Link:</strong> {generatedLink.shortLink}</p>
-                      <p><strong>Generation Time:</strong> {generatedLink.generationTime}ms</p>
-                      <p><strong>Method:</strong> {generatedLink.method}</p>
+                    
+                    <div className="space-y-4">
+                      {/* Short Link */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Short Link
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={generatedLink.shortLink}
+                            readOnly
+                            className="flex-1 text-sm bg-white"
+                          />
+                          <Button
+                            onClick={() => copyToClipboard(generatedLink.shortLink)}
+                            className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm"
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Impact.com API Link */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Impact.com Tracking Link
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={generatedLink.impactLink}
+                            readOnly
+                            className="flex-1 text-sm bg-white"
+                          />
+                          <Button
+                            onClick={() => copyToClipboard(generatedLink.impactLink)}
+                            className="px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm"
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Generation Info */}
+                      <div className="grid grid-cols-2 gap-4 text-sm text-green-700">
+                        <div>
+                          <span className="font-medium">Generation Time:</span>
+                          <br />
+                          <span className="text-green-600 font-mono">
+                            {generatedLink.generationTime}ms
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Method:</span>
+                          <br />
+                          <span className="bg-green-100 px-2 py-1 rounded text-xs">
+                            {generatedLink.method}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-3">
+
+                    <div className="mt-4">
                       <Button
                         onClick={() => {
                           setGeneratedLink(null);
