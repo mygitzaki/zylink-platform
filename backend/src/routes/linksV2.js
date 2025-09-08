@@ -395,6 +395,150 @@ router.post('/admin/brands', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: Bulk create popular brands
+router.post('/admin/brands/bulk-create', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    const popularBrands = [
+      {
+        name: 'walmart',
+        displayName: 'Walmart',
+        impactAccountSid: process.env.IMPACT_ACCOUNT_SID,
+        impactAuthToken: process.env.IMPACT_AUTH_TOKEN,
+        impactProgramId: process.env.IMPACT_PROGRAM_ID,
+        defaultCommissionRate: 0.1,
+        customDomain: 'goto.walmart.com',
+        settings: {
+          category: 'retail',
+          description: 'Walmart affiliate program',
+          icon: '🛒'
+        }
+      },
+      {
+        name: 'roborock',
+        displayName: 'Roborock',
+        impactAccountSid: process.env.IMPACT_ACCOUNT_SID,
+        impactAuthToken: process.env.IMPACT_AUTH_TOKEN,
+        impactProgramId: null, // Will be set when we get the specific program ID
+        defaultCommissionRate: 0.08,
+        customDomain: 'roborockamazonseller.pxf.io',
+        settings: {
+          category: 'electronics',
+          description: 'Roborock smart home products',
+          icon: '🤖'
+        }
+      },
+      {
+        name: 'torras',
+        displayName: 'TORRAS',
+        impactAccountSid: process.env.IMPACT_ACCOUNT_SID,
+        impactAuthToken: process.env.IMPACT_AUTH_TOKEN,
+        impactProgramId: null,
+        defaultCommissionRate: 0.12,
+        customDomain: null,
+        settings: {
+          category: 'accessories',
+          description: 'TORRAS phone accessories',
+          icon: '📱'
+        }
+      },
+      {
+        name: 'dhgate',
+        displayName: 'DHgate',
+        impactAccountSid: process.env.IMPACT_ACCOUNT_SID,
+        impactAuthToken: process.env.IMPACT_AUTH_TOKEN,
+        impactProgramId: null,
+        defaultCommissionRate: 0.15,
+        customDomain: 'technitya.sjv.io',
+        settings: {
+          category: 'marketplace',
+          description: 'DHgate global marketplace',
+          icon: '🌐'
+        }
+      },
+      {
+        name: 'neakasa',
+        displayName: 'Neakasa',
+        impactAccountSid: process.env.IMPACT_ACCOUNT_SID,
+        impactAuthToken: process.env.IMPACT_AUTH_TOKEN,
+        impactProgramId: null,
+        defaultCommissionRate: 0.10,
+        customDomain: null,
+        settings: {
+          category: 'pet',
+          description: 'Neakasa pet products',
+          icon: '🐾'
+        }
+      },
+      {
+        name: 'technitya',
+        displayName: 'TechNitya',
+        impactAccountSid: process.env.IMPACT_ACCOUNT_SID,
+        impactAuthToken: process.env.IMPACT_AUTH_TOKEN,
+        impactProgramId: null,
+        defaultCommissionRate: 0.12,
+        customDomain: 'technitya.sjv.io',
+        settings: {
+          category: 'tech',
+          description: 'TechNitya technology products',
+          icon: '💻'
+        }
+      }
+    ];
+
+    const createdBrands = [];
+    const errors = [];
+
+    for (const brandData of popularBrands) {
+      try {
+        // Check if brand already exists
+        const existingBrand = await prisma.brandConfig.findUnique({
+          where: { name: brandData.name }
+        });
+
+        if (existingBrand) {
+          console.log(`⚠️ Brand ${brandData.name} already exists, skipping`);
+          continue;
+        }
+
+        const brand = await prisma.brandConfig.create({
+          data: brandData
+        });
+
+        createdBrands.push(brand);
+        console.log(`✅ Created brand: ${brand.displayName}`);
+      } catch (error) {
+        console.error(`❌ Error creating brand ${brandData.name}:`, error);
+        errors.push({ brand: brandData.name, error: error.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Created ${createdBrands.length} brands successfully`,
+      data: {
+        created: createdBrands,
+        errors: errors,
+        total: popularBrands.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error in bulk brand creation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create brands',
+      error: error.message
+    });
+  }
+});
+
 // Admin: Check and create V2 tables
 router.post('/admin/setup-tables', requireAuth, requireAdmin, async (req, res) => {
   try {

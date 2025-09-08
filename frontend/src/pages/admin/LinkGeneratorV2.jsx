@@ -105,6 +105,7 @@ const LinkGeneratorV2 = () => {
         token,
         body: {
           destinationUrl,
+          brandId: selectedBrand?.id || null,
           customShortCode: customShortCode || null,
         }
       });
@@ -126,6 +127,9 @@ const LinkGeneratorV2 = () => {
 
   const [copySuccess, setCopySuccess] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [brands, setBrands] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [loadingBrands, setLoadingBrands] = useState(false);
 
   const copyToClipboard = async (text) => {
     try {
@@ -152,6 +156,49 @@ const LinkGeneratorV2 = () => {
       console.error('Failed to copy: ', err);
     }
   };
+
+  // Fetch available brands
+  const fetchBrands = async () => {
+    setLoadingBrands(true);
+    try {
+      const response = await apiFetch('/api/v2/links/admin/brands', { token });
+      if (response.success) {
+        setBrands(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching brands:', error);
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+
+  // Create popular brands
+  const createPopularBrands = async () => {
+    try {
+      const response = await apiFetch('/api/v2/links/admin/brands/bulk-create', {
+        method: 'POST',
+        token
+      });
+      
+      if (response.success) {
+        console.log('✅ Brands created:', response.data);
+        // Refresh brands list
+        await fetchBrands();
+        alert(`Successfully created ${response.data.created.length} brands!`);
+      } else {
+        console.error('Failed to create brands:', response.message);
+        alert('Failed to create brands: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error creating brands:', error);
+      alert('Error creating brands: ' + error.message);
+    }
+  };
+
+  // Load brands on component mount
+  useEffect(() => {
+    fetchBrands();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
@@ -218,17 +265,62 @@ const LinkGeneratorV2 = () => {
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <div className="flex gap-3">
-                    <Input
-                      type="url"
-                      placeholder="https://www.walmart.com/ip/..."
-                      value={generatedLink ? generatedLink.shortLink : destinationUrl}
-                      onChange={(e) => setDestinationUrl(e.target.value)}
-                      className="flex-1 text-lg py-3 px-4 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0"
-                      readOnly={!!generatedLink}
-                    />
+            <div className="space-y-6">
+              {/* Brand Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Brand (Optional)
+                </label>
+                <div className="flex gap-3">
+                  <select
+                    value={selectedBrand?.id || ''}
+                    onChange={(e) => {
+                      const brand = brands.find(b => b.id === e.target.value);
+                      setSelectedBrand(brand || null);
+                    }}
+                    className="flex-1 py-3 px-4 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 bg-white"
+                    disabled={!!generatedLink}
+                  >
+                    <option value="">Auto-detect from URL</option>
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.settings?.icon || '🏪'} {brand.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  {brands.length === 0 && (
+                    <Button
+                      onClick={createPopularBrands}
+                      className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                    >
+                      Setup Brands
+                    </Button>
+                  )}
+                </div>
+                {selectedBrand && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <span className="font-medium">Selected:</span> {selectedBrand.settings?.icon} {selectedBrand.displayName}
+                    {selectedBrand.settings?.description && (
+                      <span className="ml-2 text-gray-500">- {selectedBrand.settings.description}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* URL Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Product URL
+                </label>
+                <div className="flex gap-3">
+                  <Input
+                    type="url"
+                    placeholder="https://www.walmart.com/ip/... or https://www.amazon.com/dp/..."
+                    value={generatedLink ? generatedLink.shortLink : destinationUrl}
+                    onChange={(e) => setDestinationUrl(e.target.value)}
+                    className="flex-1 text-lg py-3 px-4 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0"
+                    readOnly={!!generatedLink}
+                  />
                     <Button
                       onClick={generatedLink ? () => copyToClipboard(generatedLink.shortLink) : handleGenerateLink}
                       disabled={isGenerating || (!destinationUrl && !generatedLink)}
@@ -293,23 +385,34 @@ const LinkGeneratorV2 = () => {
                         </div>
                       </div>
 
-                      {/* Generation Info */}
-                      <div className="grid grid-cols-2 gap-4 text-sm text-green-700">
-                        <div>
-                          <span className="font-medium">Generation Time:</span>
-                          <br />
-                          <span className="text-green-600 font-mono">
-                            {generatedLink.generationTime}ms
-                          </span>
-                        </div>
-                        <div>
-                          <span className="font-medium">Method:</span>
-                          <br />
-                          <span className="bg-green-100 px-2 py-1 rounded text-xs">
-                            {generatedLink.method}
-                          </span>
-                        </div>
+                    {/* Generation Info */}
+                    <div className="grid grid-cols-2 gap-4 text-sm text-green-700">
+                      <div>
+                        <span className="font-medium">Generation Time:</span>
+                        <br />
+                        <span className="text-green-600 font-mono">
+                          {generatedLink.generationTime}ms
+                        </span>
                       </div>
+                      <div>
+                        <span className="font-medium">Method:</span>
+                        <br />
+                        <span className="bg-green-100 px-2 py-1 rounded text-xs">
+                          {generatedLink.method}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Brand Info */}
+                    {generatedLink.brandId && (
+                      <div className="text-sm text-green-700">
+                        <span className="font-medium">Brand:</span>
+                        <br />
+                        <span className="bg-green-100 px-2 py-1 rounded text-xs">
+                          {brands.find(b => b.id === generatedLink.brandId)?.displayName || 'Unknown Brand'}
+                        </span>
+                      </div>
+                    )}
                     </div>
 
                     <div className="mt-4 flex items-center justify-between">
