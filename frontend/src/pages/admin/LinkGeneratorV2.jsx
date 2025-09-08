@@ -207,6 +207,29 @@ const LinkGeneratorV2 = () => {
 
   // Filter brands to only show those with program IDs configured
   const availableBrands = brands.filter(brand => brand.impactProgramId);
+  
+  // Update brand program ID
+  const updateBrandProgramId = async (brandId, programId) => {
+    try {
+      const response = await apiFetch(`/api/v2/links/admin/brands/${brandId}/program-id`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ impactProgramId: programId }),
+      });
+
+      if (response.success) {
+        alert(`✅ ${response.message}`);
+        fetchBrands(); // Refresh brands list
+      } else {
+        alert(`❌ Error: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Error updating brand program ID:', error);
+      alert('Error updating brand program ID: ' + error.message);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
@@ -312,6 +335,51 @@ const LinkGeneratorV2 = () => {
                   <div className="mt-2 text-xs text-gray-500">
                     Brands loaded: {brands.length} | Available: {availableBrands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
                   </div>
+                  
+                  {/* Brands without program IDs */}
+                  {brands.filter(brand => !brand.impactProgramId).length > 0 && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <h4 className="text-sm font-medium text-yellow-800 mb-2">
+                        ⚠️ Brands Need Program ID Configuration
+                      </h4>
+                      <div className="space-y-2">
+                        {brands.filter(brand => !brand.impactProgramId).map(brand => (
+                          <div key={brand.id} className="flex items-center justify-between bg-white p-2 rounded border">
+                            <span className="text-sm">
+                              {brand.settings?.icon} {brand.displayName}
+                            </span>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                placeholder="Program ID"
+                                className="px-2 py-1 text-xs border rounded w-24"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const programId = e.target.value;
+                                    if (programId) {
+                                      updateBrandProgramId(brand.id, programId);
+                                      e.target.value = '';
+                                    }
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  const programId = prompt(`Enter Impact.com Program ID for ${brand.displayName}:`);
+                                  if (programId) {
+                                    updateBrandProgramId(brand.id, programId);
+                                  }
+                                }}
+                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                              >
+                                Set ID
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 {selectedBrand && (
                   <div className="mt-2 text-sm text-gray-600">
                     <span className="font-medium">Selected:</span> {selectedBrand.settings?.icon} {selectedBrand.displayName}

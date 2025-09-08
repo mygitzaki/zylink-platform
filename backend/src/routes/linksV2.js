@@ -241,6 +241,49 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Update brand program ID (V2)
+router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { brandId } = req.params;
+    const { impactProgramId } = req.body;
+
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    if (!impactProgramId) {
+      return res.status(400).json({
+        success: false,
+        message: 'impactProgramId is required'
+      });
+    }
+
+    const updatedBrand = await prisma.brandConfig.update({
+      where: { id: brandId },
+      data: { impactProgramId: parseInt(impactProgramId) }
+    });
+
+    console.log(`✅ [V2] Updated brand ${updatedBrand.displayName} with program ID: ${impactProgramId}`);
+
+    res.json({
+      success: true,
+      message: `Brand ${updatedBrand.displayName} updated with program ID ${impactProgramId}`,
+      data: updatedBrand
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error updating brand program ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update brand program ID',
+      error: error.message
+    });
+  }
+});
+
 // Get performance statistics (V2)
 router.get('/stats/performance', requireAuth, async (req, res) => {
   try {
