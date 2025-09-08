@@ -161,12 +161,17 @@ const LinkGeneratorV2 = () => {
   const fetchBrands = async () => {
     setLoadingBrands(true);
     try {
+      console.log('🔍 Fetching brands...');
       const response = await apiFetch('/api/v2/links/admin/brands', { token });
+      console.log('📊 Brands response:', response);
       if (response.success) {
         setBrands(response.data || []);
+        console.log('✅ Brands loaded:', response.data?.length || 0);
+      } else {
+        console.error('❌ Failed to fetch brands:', response.message);
       }
     } catch (error) {
-      console.error('Error fetching brands:', error);
+      console.error('❌ Error fetching brands:', error);
     } finally {
       setLoadingBrands(false);
     }
@@ -275,7 +280,9 @@ const LinkGeneratorV2 = () => {
                   <select
                     value={selectedBrand?.id || ''}
                     onChange={(e) => {
+                      console.log('🔄 Brand selection changed:', e.target.value);
                       const brand = brands.find(b => b.id === e.target.value);
+                      console.log('🎯 Selected brand:', brand);
                       setSelectedBrand(brand || null);
                     }}
                     className="flex-1 py-3 px-4 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 bg-white"
@@ -296,6 +303,11 @@ const LinkGeneratorV2 = () => {
                       Setup Brands
                     </Button>
                   )}
+                </div>
+                
+                {/* Debug Info */}
+                <div className="mt-2 text-xs text-gray-500">
+                  Brands loaded: {brands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
                 </div>
                 {selectedBrand && (
                   <div className="mt-2 text-sm text-gray-600">
