@@ -127,6 +127,8 @@ const LinkGeneratorV2 = () => {
 
   const [copySuccess, setCopySuccess] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryResults, setDiscoveryResults] = useState(null);
   const [brands, setBrands] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [loadingBrands, setLoadingBrands] = useState(false);
@@ -204,6 +206,43 @@ const LinkGeneratorV2 = () => {
   useEffect(() => {
     fetchBrands();
   }, []);
+
+  // Discover brands from Impact.com
+  const discoverBrands = async () => {
+    setDiscovering(true);
+    setDiscoveryResults(null);
+    try {
+      console.log('🚀 Starting brand discovery...');
+      
+      const response = await apiFetch('/api/v2/links/admin/brands/discover', {
+        method: 'POST',
+        token
+      });
+      
+      if (response.success) {
+        setDiscoveryResults(response.data);
+        console.log('✅ Brand discovery completed:', response.data);
+        
+        // Refresh brands list
+        await fetchBrands();
+        
+        alert(`🎉 Brand Discovery Complete!\n\n` +
+              `📊 Summary:\n` +
+              `• ${response.data.summary.created} new brands created\n` +
+              `• ${response.data.summary.updated} brands updated\n` +
+              `• ${response.data.summary.skipped} brands skipped\n` +
+              `• ${response.data.summary.failed} failed\n\n` +
+              `Total: ${response.data.processed} brands processed`);
+      } else {
+        alert(`❌ Brand discovery failed: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('❌ Error in brand discovery:', error);
+      alert('❌ Error in brand discovery: ' + error.message);
+    } finally {
+      setDiscovering(false);
+    }
+  };
 
   // Filter brands to only show those with program IDs configured
   const availableBrands = brands.filter(brand => brand.impactProgramId);
@@ -797,33 +836,55 @@ const LinkGeneratorV2 = () => {
           </div>
         )}
 
-        <div className="mt-8">
-          <Card>
-            <div className="p-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  🎉 V2 System Fully Operational!
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  The Link Generator V2 system is now fully functional with database integration.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="font-medium text-green-800">✅ Database Ready</div>
-                    <div className="text-green-600">All V2 tables created</div>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="font-medium text-blue-800">⚡ Fast Generation</div>
-                    <div className="text-blue-600">Optimized for speed</div>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <div className="font-medium text-purple-800">🔧 Modern Features</div>
-                    <div className="text-purple-600">Advanced analytics & tracking</div>
-                  </div>
+        <div className="mt-8 bg-blue-500 rounded-xl shadow-lg p-6 text-white">
+          <h2 className="text-2xl font-bold mb-4">
+            Autonomous Brand Management
+          </h2>
+          
+          <p className="mb-6">
+            Automatically discover and configure all brands from your Impact.com account.
+          </p>
+          
+          <div className="flex flex-wrap gap-4">
+            <button
+              onClick={discoverBrands}
+              disabled={discovering}
+              className="px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold disabled:opacity-50"
+            >
+              {discovering ? 'Discovering...' : 'Auto-Discover All Brands'}
+            </button>
+            
+            <button
+              onClick={() => alert('Analytics feature coming soon!')}
+              className="px-6 py-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500"
+            >
+              View Analytics
+            </button>
+          </div>
+          
+          {discoveryResults && (
+            <div className="mt-4 bg-white/10 rounded-lg p-4">
+              <h3 className="font-bold mb-2">Discovery Results:</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-300">{discoveryResults.summary.created}</div>
+                  <div className="text-blue-100">Created</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-300">{discoveryResults.summary.updated}</div>
+                  <div className="text-blue-100">Updated</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-300">{discoveryResults.summary.skipped}</div>
+                  <div className="text-blue-100">Skipped</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-300">{discoveryResults.summary.failed}</div>
+                  <div className="text-blue-100">Failed</div>
                 </div>
               </div>
             </div>
-          </Card>
+          )}
         </div>
       </div>
     </div>

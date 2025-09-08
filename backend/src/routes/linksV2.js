@@ -837,4 +837,169 @@ router.post('/admin/setup-tables', requireAuth, requireAdmin, async (req, res) =
   }
 });
 
+// 🚀 AUTONOMOUS BRAND DISCOVERY SYSTEM
+
+// Discover all brands from Impact.com and auto-configure them
+router.post('/admin/brands/discover', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    console.log('🚀 Starting brand discovery from Impact.com...');
+
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Get all programs from Impact.com
+    const programs = await impact.getAvailablePrograms();
+    console.log(`📋 Found ${programs.length} programs from Impact.com`);
+    
+    const results = [];
+    const errors = [];
+    
+    for (const program of programs) {
+      try {
+        if (!program.id || !program.name) {
+          console.log(`⚠️ Skipping program without ID or name:`, program);
+          continue;
+        }
+        
+        // Extract clean brand name
+        const brandName = extractBrandName(program.name || program.advertiserName);
+        
+        if (brandName) {
+          // Check if brand already exists
+          const existingBrand = await prisma.brandConfig.findFirst({
+            where: {
+              OR: [
+                { name: brandName.toLowerCase() },
+                { displayName: brandName },
+                { impactProgramId: String(program.id) }
+              ]
+            }
+          });
+          
+          if (existingBrand) {
+            // Update existing brand if needed
+            if (!existingBrand.impactProgramId) {
+              await prisma.brandConfig.update({
+                where: { id: existingBrand.id },
+                data: { 
+                  impactProgramId: String(program.id),
+                  settings: {
+                    ...existingBrand.settings,
+                    programName: program.name,
+                    advertiserName: program.advertiserName,
+                    discoveredAt: new Date().toISOString()
+                  }
+                }
+              });
+              
+              results.push({
+                brand: brandName,
+                programId: program.id,
+                status: 'updated',
+                action: 'Added program ID'
+              });
+            } else {
+              results.push({
+                brand: brandName,
+                programId: program.id,
+                status: 'skipped',
+                action: 'Already configured'
+              });
+            }
+          } else {
+            // Create new brand
+            await prisma.brandConfig.create({
+              data: {
+                name: brandName.toLowerCase(),
+                displayName: brandName,
+                impactProgramId: String(program.id),
+                impactAccountSid: impact.accountSid,
+                impactAuthToken: impact.authToken,
+                defaultCommissionRate: 0.05,
+                isActive: true,
+                settings: {
+                  autoDetect: true,
+                  programName: program.name,
+                  advertiserName: program.advertiserName,
+                  status: program.status,
+                  discoveredAt: new Date().toISOString()
+                }
+              }
+            });
+            
+            results.push({
+              brand: brandName,
+              programId: program.id,
+              status: 'created',
+              action: 'New brand discovered'
+            });
+          }
+          
+          console.log(`✅ Processed brand: ${brandName} (Program ID: ${program.id})`);
+        }
+      } catch (error) {
+        errors.push({
+          brand: program.name || 'Unknown',
+          programId: program.id,
+          reason: error.message
+        });
+        console.error(`❌ Error processing brand:`, error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Brand discovery completed: ${results.length} brands processed`,
+      data: {
+        discovered: programs.length,
+        processed: results.length,
+        results: results,
+        errors: errors,
+        summary: {
+          created: results.filter(r => r.status === 'created').length,
+          updated: results.filter(r => r.status === 'updated').length,
+          skipped: results.filter(r => r.status === 'skipped').length,
+          failed: errors.length
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [V2] Error in brand discovery:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to discover brands',
+      error: error.message
+    });
+  }
+});
+
+// Helper function to extract clean brand name
+function extractBrandName(programName) {
+  if (!programName) return null;
+  
+  const cleanName = programName
+    .replace(/\s+(Affiliate|Program|Campaign|Network|Partnership).*$/i, '')
+    .replace(/\s+(Inc|LLC|Corp|Corporation|Ltd|Limited).*$/i, '')
+    .replace(/\s+(Store|Shop|Official|Brand).*$/i, '')
+    .replace(/\s+-\s+.*$/, '')
+    .replace(/\s+\(.*\)$/, '')
+    .trim();
+  
+  // Filter out generic marketplace terms
+  const genericTerms = ['amazon', 'ebay', 'walmart', 'target', 'best buy', 'home depot'];
+  if (genericTerms.includes(cleanName.toLowerCase())) {
+    return null;
+  }
+  
+  return cleanName;
+}
+
 module.exports = router;
