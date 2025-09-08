@@ -412,11 +412,14 @@ const LinkGeneratorV2 = () => {
                       <div className="mt-3 max-h-40 overflow-y-auto">
                         <h5 className="text-xs font-medium text-blue-800 mb-2">Available Programs:</h5>
                         <div className="space-y-1">
-                          {availablePrograms.map(program => (
-                            <div key={program.id} className="text-xs bg-white p-2 rounded border">
-                              <div className="font-medium">ID: {program.id}</div>
+                          {availablePrograms.map((program, index) => (
+                            <div key={program.id || index} className="text-xs bg-white p-2 rounded border">
+                              <div className="font-medium">ID: {program.id || 'N/A'}</div>
                               <div className="text-gray-600">{program.name || program.advertiserName}</div>
                               {program.status && <div className="text-gray-500">Status: {program.status}</div>}
+                              <div className="text-gray-400 text-xs mt-1">
+                                Full object: {JSON.stringify(program, null, 2)}
+                              </div>
                             </div>
                           ))}
                         </div>
