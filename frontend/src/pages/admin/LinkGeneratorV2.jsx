@@ -125,12 +125,29 @@ const LinkGeneratorV2 = () => {
   };
 
   const [copySuccess, setCopySuccess] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
+      
+      // Start countdown
+      setCountdown(3);
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            // Auto-reset to link generation
+            setGeneratedLink(null);
+            setDestinationUrl('');
+            setCopySuccess(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } catch (err) {
       console.error('Failed to copy: ', err);
     }
@@ -295,17 +312,24 @@ const LinkGeneratorV2 = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4">
+                    <div className="mt-4 flex items-center justify-between">
                       <Button
                         onClick={() => {
                           setGeneratedLink(null);
                           setDestinationUrl('');
                           setCopySuccess(false);
+                          setCountdown(0);
                         }}
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 text-sm"
                       >
                         Generate New Link
                       </Button>
+                      
+                      {countdown > 0 && (
+                        <div className="text-sm text-gray-600">
+                          Auto-reset in <span className="font-mono font-bold text-blue-600">{countdown}</span> seconds
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
