@@ -230,7 +230,13 @@ class ImpactWebService {
     } catch (error) {
       console.error('❌ Error creating Impact.com tracking link:', error);
       
-      // Use fallback method if API fails
+      // Check if fallback is disabled (for V2)
+      if (options.noFallback) {
+        console.error('❌ V2: Fallback disabled - Impact.com API must work');
+        throw new Error(`Impact.com API failed: ${error.message}. V2 requires Impact.com API to work.`);
+      }
+      
+      // Use fallback method if API fails (V1 only)
       console.log('🔄 Using fallback link generation...');
       const fallbackDeepLink = this.sanitizeDeepLink 
         ? this.sanitizeDestinationUrl(destinationUrl)

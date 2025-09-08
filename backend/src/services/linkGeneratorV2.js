@@ -35,7 +35,7 @@ class LinkGeneratorV2 {
       }
       
       // V2: ONLY use Impact.com API - NO FALLBACK
-      const trackingResult = await this.impactService.createTrackingLink(destinationUrl, creatorId);
+      const trackingResult = await this.impactService.createTrackingLink(destinationUrl, creatorId, { noFallback: true });
       
       if (trackingResult.success) {
         this.recordPerformance(startTime, 1, 0, 0, brandId);
