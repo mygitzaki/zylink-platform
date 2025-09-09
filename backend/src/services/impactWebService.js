@@ -19,7 +19,9 @@ class ImpactWebService {
     this.cache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
     this.lastCallTime = 0;
-    this.minCallInterval = 3000; // 3 seconds between calls
+    this.minCallInterval = 1000; // 1 second between calls (safe default)
+    this.maxConcurrentCalls = 2; // Maximum concurrent API calls
+    this.activeCalls = 0;
     
     // Validate required credentials
     this.validateCredentials();
@@ -67,8 +69,15 @@ class ImpactWebService {
     this.cleanupCache();
   }
 
-  // Simple rate limiting to prevent API overload
+  // Intelligent rate limiting with concurrency control
   async waitForRateLimit() {
+    // Wait if we have too many concurrent calls
+    while (this.activeCalls >= this.maxConcurrentCalls) {
+      console.log(`[ImpactWebService] ⏳ Too many concurrent calls (${this.activeCalls}/${this.maxConcurrentCalls}), waiting...`);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Wait for minimum interval between calls
     const now = Date.now();
     const timeSinceLastCall = now - this.lastCallTime;
     
@@ -79,6 +88,12 @@ class ImpactWebService {
     }
     
     this.lastCallTime = Date.now();
+    this.activeCalls++;
+  }
+
+  // Release concurrency control
+  releaseCall() {
+    this.activeCalls = Math.max(0, this.activeCalls - 1);
   }
 
   cleanupCache() {
@@ -647,6 +662,9 @@ class ImpactWebService {
       
       console.log(`[ImpactWebService] ❌ API failed after ${retryCount + 1} attempts: ${error.message}`);
       return { success: false, error: error.message, actions: [], totalResults: 0 };
+    } finally {
+      // Always release the call lock
+      this.releaseCall();
     }
   }
 
@@ -995,6 +1013,9 @@ class ImpactWebService {
     } catch (error) {
       console.error('❌ Error fetching performance by SubId:', error);
       return { success: false, error: error.message };
+    } finally {
+      // Always release the call lock
+      this.releaseCall();
     }
   }
 
