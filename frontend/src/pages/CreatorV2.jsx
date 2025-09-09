@@ -201,23 +201,9 @@ const CreatorV2 = () => {
         setGeneratedLink(response.data);
         console.log('✅ V2 Link generated successfully:', response.data);
         
-        // Start countdown and refresh data
-        setCountdown(3);
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              setGeneratedLink(null);
-              setDestinationUrl('');
-              setCustomShortCode('');
-              setSelectedBrand(null);
-              loadUserLinks();
-              loadStats();
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+        // Refresh user links and stats
+        loadUserLinks();
+        loadStats();
       } else {
         setError(response.message || 'Failed to generate link');
         console.error('❌ Link generation failed:', response.message);
@@ -518,15 +504,6 @@ const CreatorV2 = () => {
                   <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                     <h3 className="text-lg font-semibold text-green-800 mb-3">✅ Link Generated Successfully!</h3>
                     
-                    {/* Countdown */}
-                    {countdown > 0 && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-center">
-                        <div className="text-2xl font-bold text-blue-600 mb-1">
-                          {countdown}
-                        </div>
-                        <p className="text-blue-800 text-sm">Returning to generation in {countdown} seconds...</p>
-                      </div>
-                    )}
 
                     <div className="space-y-3">
                       {/* Short Link */}
@@ -537,12 +514,12 @@ const CreatorV2 = () => {
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            value={generatedLink.shortUrl}
+                            value={generatedLink.shortLink || ''}
                             readOnly
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
                           />
                           <Button
-                            onClick={() => copyToClipboard(generatedLink.shortUrl)}
+                            onClick={() => copyToClipboard(generatedLink.shortLink)}
                             className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm"
                           >
                             {copySuccess ? 'Copied!' : 'Copy'}
@@ -558,12 +535,12 @@ const CreatorV2 = () => {
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            value={generatedLink.trackingUrl}
+                            value={generatedLink.impactLink || ''}
                             readOnly
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-xs"
                           />
                           <Button
-                            onClick={() => copyToClipboard(generatedLink.trackingUrl)}
+                            onClick={() => copyToClipboard(generatedLink.impactLink)}
                             className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm"
                           >
                             {copySuccess ? 'Copied!' : 'Copy'}
@@ -579,6 +556,22 @@ const CreatorV2 = () => {
                           <p><strong>Created:</strong> {new Date(generatedLink.createdAt).toLocaleString()}</p>
                           <p><strong>Short Code:</strong> {generatedLink.shortCode}</p>
                         </div>
+                      </div>
+
+                      {/* Generate New Link Button */}
+                      <div className="pt-4 border-t border-green-200">
+                        <Button
+                          onClick={() => {
+                            setGeneratedLink(null);
+                            setDestinationUrl('');
+                            setCustomShortCode('');
+                            setSelectedBrand(null);
+                            setError(null);
+                          }}
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2"
+                        >
+                          Generate New Link
+                        </Button>
                       </div>
                     </div>
                   </div>
