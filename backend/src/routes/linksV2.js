@@ -1002,4 +1002,227 @@ function extractBrandName(programName) {
   return cleanName;
 }
 
+// ===== CREATOR-SPECIFIC ENDPOINTS (No Admin Required) =====
+
+// Creator: Get all brands (read-only access)
+router.get('/creator/brands', requireAuth, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    const brands = await prisma.brandConfig.findMany({
+      where: { isActive: true },
+      orderBy: { displayName: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      message: `Found ${brands.length} available brands`,
+      data: brands
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error fetching brands for creator:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch brands',
+      error: error.message
+    });
+  }
+});
+
+// Creator: Fetch available Impact.com programs (read-only access)
+router.get('/creator/impact-programs', requireAuth, async (req, res) => {
+  try {
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Fetch campaigns/programs from Impact.com API
+    const programs = await impact.getAvailablePrograms();
+    
+    res.json({
+      success: true,
+      message: `Found ${programs.length} available programs`,
+      data: programs
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error fetching Impact.com programs for creator:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch Impact.com programs',
+      error: error.message
+    });
+  }
+});
+
+// Creator: Auto-configure all brands (limited access)
+router.post('/creator/brands/auto-configure', requireAuth, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    console.log('🔧 [V2] Creator auto-configuring brands...');
+    
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Get all brands that need configuration
+    const brands = await prisma.brandConfig.findMany({
+      where: { 
+        isActive: true,
+        impactProgramId: null 
+      }
+    });
+
+    if (brands.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No brands need configuration',
+        data: { configured: [], errors: [] }
+      });
+    }
+
+    // Get available programs
+    const programs = await impact.getAvailablePrograms();
+    
+    const configured = [];
+    const errors = [];
+
+    for (const brand of brands) {
+      try {
+        // Find matching program
+        const matchingProgram = programs.find(program => {
+          const programName = (program.name || program.advertiserName || '').toLowerCase();
+          const brandName = brand.name.toLowerCase();
+          return programName.includes(brandName) || brandName.includes(programName);
+        });
+
+        if (matchingProgram) {
+          await prisma.brandConfig.update({
+            where: { id: brand.id },
+            data: { impactProgramId: matchingProgram.id }
+          });
+          
+          configured.push({
+            brand: brand.displayName,
+            programId: matchingProgram.id,
+            programName: matchingProgram.name || matchingProgram.advertiserName
+          });
+        } else {
+          errors.push({
+            brand: brand.displayName,
+            reason: 'No matching program found'
+          });
+        }
+      } catch (error) {
+        errors.push({
+          brand: brand.displayName,
+          reason: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Auto-configured ${configured.length} brands`,
+      data: { configured, errors }
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error auto-configuring brands for creator:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Auto-configuration failed',
+      error: error.message
+    });
+  }
+});
+
+// Creator: Create popular brands (limited access)
+router.post('/creator/brands/bulk-create', requireAuth, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    const popularBrands = [
+      { name: 'walmart', displayName: 'Walmart', icon: '🏪', impactProgramId: null },
+      { name: 'amazon', displayName: 'Amazon', icon: '📦', impactProgramId: null },
+      { name: 'target', displayName: 'Target', icon: '🎯', impactProgramId: null },
+      { name: 'bestbuy', displayName: 'Best Buy', icon: '💻', impactProgramId: null },
+      { name: 'homedepot', displayName: 'Home Depot', icon: '🔨', impactProgramId: null },
+      { name: 'lowes', displayName: 'Lowe\'s', icon: '🏠', impactProgramId: null },
+      { name: 'macys', displayName: 'Macy\'s', icon: '👗', impactProgramId: null },
+      { name: 'nordstrom', displayName: 'Nordstrom', icon: '👔', impactProgramId: null },
+      { name: 'costco', displayName: 'Costco', icon: '🛒', impactProgramId: null },
+      { name: 'samsclub', displayName: 'Sam\'s Club', icon: '🏢', impactProgramId: null }
+    ];
+
+    const created = [];
+    const skipped = [];
+
+    for (const brandData of popularBrands) {
+      try {
+        // Check if brand already exists
+        const existing = await prisma.brandConfig.findFirst({
+          where: { name: brandData.name }
+        });
+
+        if (existing) {
+          skipped.push(brandData.name);
+          continue;
+        }
+
+        // Create new brand
+        const brand = await prisma.brandConfig.create({
+          data: {
+            name: brandData.name,
+            displayName: brandData.displayName,
+            impactAccountSid: process.env.IMPACT_ACCOUNT_SID || '',
+            impactAuthToken: process.env.IMPACT_AUTH_TOKEN || '',
+            impactProgramId: brandData.impactProgramId,
+            defaultCommissionRate: 0.05, // 5% default
+            isActive: true,
+            settings: {
+              icon: brandData.icon,
+              description: `Affiliate program for ${brandData.displayName}`
+            }
+          }
+        });
+
+        created.push(brand);
+      } catch (error) {
+        console.error(`❌ [V2] Error creating brand ${brandData.name}:`, error);
+        skipped.push(brandData.name);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Created ${created.length} brands, skipped ${skipped.length}`,
+      data: { created, skipped }
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error creating popular brands for creator:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create popular brands',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

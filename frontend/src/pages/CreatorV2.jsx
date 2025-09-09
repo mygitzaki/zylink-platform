@@ -38,7 +38,7 @@ const CreatorV2 = () => {
     setLoadingBrands(true);
     try {
       console.log('🔍 Fetching brands...');
-      const response = await apiFetch('/api/v2/links/admin/brands', { token });
+      const response = await apiFetch('/api/v2/links/creator/brands', { token });
       console.log('📊 Brands response:', response);
       if (response.success) {
         setBrands(response.data || []);
@@ -85,7 +85,7 @@ const CreatorV2 = () => {
   // Brand management functions
   const createPopularBrands = async () => {
     try {
-      const response = await apiFetch('/api/v2/links/admin/brands/bulk-create', {
+      const response = await apiFetch('/api/v2/links/creator/brands/bulk-create', {
         method: 'POST',
         token
       });
@@ -110,30 +110,29 @@ const CreatorV2 = () => {
     try {
       console.log('🚀 Starting brand discovery...');
       
-      const response = await apiFetch('/api/v2/links/admin/brands/discover', {
+      // For creators, we'll use auto-configure instead of full discovery
+      const response = await apiFetch('/api/v2/links/creator/brands/auto-configure', {
         method: 'POST',
         token
       });
       
       if (response.success) {
         setDiscoveryResults(response.data);
-        console.log('✅ Brand discovery completed:', response.data);
+        console.log('✅ Brand auto-configuration completed:', response.data);
         
         await fetchBrands();
         
-        alert(`🎉 Brand Discovery Complete!\n\n` +
+        alert(`🎉 Brand Auto-Configuration Complete!\n\n` +
               `📊 Summary:\n` +
-              `• ${response.data.summary.created} new brands created\n` +
-              `• ${response.data.summary.updated} brands updated\n` +
-              `• ${response.data.summary.skipped} brands skipped\n` +
-              `• ${response.data.summary.failed} failed\n\n` +
-              `Total: ${response.data.processed} brands processed`);
+              `• ${response.data.configured.length} brands configured\n` +
+              `• ${response.data.errors.length} brands failed\n\n` +
+              `Total: ${response.data.configured.length + response.data.errors.length} brands processed`);
       } else {
-        alert(`❌ Brand discovery failed: ${response.message}`);
+        alert(`❌ Brand auto-configuration failed: ${response.message}`);
       }
     } catch (error) {
-      console.error('❌ Error in brand discovery:', error);
-      alert('❌ Error in brand discovery: ' + error.message);
+      console.error('❌ Error in brand auto-configuration:', error);
+      alert('❌ Error in brand auto-configuration: ' + error.message);
     } finally {
       setDiscovering(false);
     }
@@ -142,7 +141,7 @@ const CreatorV2 = () => {
   const autoConfigureAllBrands = async () => {
     setAutoConfiguring(true);
     try {
-      const response = await apiFetch('/api/v2/links/admin/brands/auto-configure', {
+      const response = await apiFetch('/api/v2/links/creator/brands/auto-configure', {
         method: 'POST',
         token
       });
@@ -253,7 +252,7 @@ const CreatorV2 = () => {
       console.log('🔑 Token available:', !!token);
       console.log('🔑 Token value:', token ? token.substring(0, 20) + '...' : 'null');
       
-      const response = await apiFetch('/api/v2/links/admin/impact-programs', { token });
+      const response = await apiFetch('/api/v2/links/creator/impact-programs', { token });
       if (response.success) {
         setAvailablePrograms(response.data);
         console.log('📋 Available Impact.com programs:', response.data);
