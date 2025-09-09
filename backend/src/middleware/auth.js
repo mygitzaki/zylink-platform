@@ -14,10 +14,27 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-  if (!req.user.role || (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN')) {
+  console.log('🔐 [Auth] Checking admin access for user:', {
+    userId: req.user?.id,
+    email: req.user?.email,
+    role: req.user?.role,
+    adminRole: req.user?.adminRole,
+    hasUser: !!req.user
+  });
+  
+  if (!req.user) {
+    console.log('❌ [Auth] No user found in request');
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  // Check both role and adminRole fields
+  const userRole = req.user.role || req.user.adminRole;
+  if (!userRole || (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
+    console.log('❌ [Auth] User role not admin:', { role: req.user.role, adminRole: req.user.adminRole });
     return res.status(403).json({ message: 'Forbidden' });
   }
+  
+  console.log('✅ [Auth] Admin access granted');
   next();
 }
 
