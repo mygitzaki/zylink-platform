@@ -21,7 +21,8 @@ function requireAdmin(req, res, next) {
     email: req.user?.email,
     role: req.user?.role,
     adminRole: req.user?.adminRole,
-    hasUser: !!req.user
+    hasUser: !!req.user,
+    fullUser: req.user
   });
   
   if (!req.user) {
@@ -31,8 +32,15 @@ function requireAdmin(req, res, next) {
   
   // Check both role and adminRole fields
   const userRole = req.user.role || req.user.adminRole;
+  console.log('🔍 [Auth] Role check:', { 
+    userRole, 
+    isAdmin: userRole === 'ADMIN', 
+    isSuperAdmin: userRole === 'SUPER_ADMIN',
+    isValid: userRole === 'ADMIN' || userRole === 'SUPER_ADMIN'
+  });
+  
   if (!userRole || (userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN')) {
-    console.log('❌ [Auth] User role not admin:', { role: req.user.role, adminRole: req.user.adminRole });
+    console.log('❌ [Auth] User role not admin:', { role: req.user.role, adminRole: req.user.adminRole, userRole });
     return res.status(403).json({ message: 'Forbidden' });
   }
   

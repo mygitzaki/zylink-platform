@@ -1302,6 +1302,9 @@ router.post('/creator/brands/bulk-create', requireAuth, async (req, res) => {
 
 // Test endpoint to debug authentication
 router.get('/admin/test-auth', requireAdmin, async (req, res) => {
+  console.log('🎯 [Test Auth] Endpoint hit successfully!');
+  console.log('👤 [Test Auth] User:', req.user);
+  
   res.json({
     success: true,
     message: 'Admin authentication working',
