@@ -229,7 +229,7 @@ const CreatorV2 = () => {
   // Show all brands, but mark those without program IDs
   const availableBrands = brands.filter(brand => brand.isActive !== false);
 
-  // Fetch available Impact.com programs
+  // Fetch available affiliate programs
   const [availablePrograms, setAvailablePrograms] = useState([]);
 
   const fetchImpactPrograms = async () => {
@@ -241,7 +241,7 @@ const CreatorV2 = () => {
       const response = await apiFetch('/api/v2/links/creator/impact-programs', { token });
       if (response.success) {
         setAvailablePrograms(response.data);
-        console.log('📋 Available Impact.com programs:', response.data);
+        console.log('📋 Available affiliate programs:', response.data);
         
         // Log program IDs for easy reference
         console.log('🔢 Program IDs for easy reference:');
@@ -252,8 +252,8 @@ const CreatorV2 = () => {
         alert(`❌ Error: ${response.message}`);
       }
     } catch (error) {
-      console.error('Error fetching Impact.com programs:', error);
-      alert('Error fetching Impact.com programs: ' + error.message);
+      console.error('Error fetching affiliate programs:', error);
+      alert('Error fetching affiliate programs: ' + error.message);
     } finally {
       setLoadingPrograms(false);
     }
@@ -365,11 +365,11 @@ const CreatorV2 = () => {
                     Brands loaded: {brands.length} | Available: {availableBrands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
                   </div>
                   
-                  {/* Fetch Impact.com Programs Button */}
+                  {/* Fetch Affiliate Programs Button */}
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-medium text-blue-800">
-                        🔍 Find Impact.com Program IDs
+                        🔍 Find Program IDs
                       </h4>
                       <div className="flex gap-2">
                         <button

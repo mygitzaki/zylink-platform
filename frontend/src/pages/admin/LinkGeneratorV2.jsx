@@ -207,7 +207,7 @@ const LinkGeneratorV2 = () => {
     fetchBrands();
   }, []);
 
-  // Discover brands from Impact.com
+  // Discover brands from affiliate network
   const discoverBrands = async () => {
     setDiscovering(true);
     setDiscoveryResults(null);
@@ -307,7 +307,7 @@ const LinkGeneratorV2 = () => {
     }
   };
 
-  // Fetch available Impact.com programs
+  // Fetch available affiliate programs
   const [availablePrograms, setAvailablePrograms] = useState([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
 
@@ -322,7 +322,7 @@ const LinkGeneratorV2 = () => {
         const response = await apiFetch('/api/v2/links/admin/impact-programs', { token });
       if (response.success) {
         setAvailablePrograms(response.data);
-        console.log('📋 Available Impact.com programs:', response.data);
+        console.log('📋 Available affiliate programs:', response.data);
         
         // Log program IDs for easy reference
         console.log('🔢 Program IDs for easy reference:');
@@ -351,7 +351,7 @@ const LinkGeneratorV2 = () => {
           const data = await directResponse.json();
           if (data.success) {
             setAvailablePrograms(data.data);
-            console.log('📋 Available Impact.com programs (direct fetch):', data.data);
+            console.log('📋 Available affiliate programs (direct fetch):', data.data);
           } else {
             alert(`❌ Error: ${data.message}`);
           }
@@ -361,8 +361,8 @@ const LinkGeneratorV2 = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching Impact.com programs:', error);
-      alert('Error fetching Impact.com programs: ' + error.message);
+      console.error('Error fetching affiliate programs:', error);
+      alert('Error fetching affiliate programs: ' + error.message);
     } finally {
       setLoadingPrograms(false);
     }
@@ -473,11 +473,11 @@ const LinkGeneratorV2 = () => {
                     Brands loaded: {brands.length} | Available: {availableBrands.length} | Selected: {selectedBrand?.displayName || 'None'} | Loading: {loadingBrands ? 'Yes' : 'No'}
                   </div>
                   
-                  {/* Fetch Impact.com Programs Button */}
+                  {/* Fetch Affiliate Programs Button */}
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-medium text-blue-800">
-                        🔍 Find Impact.com Program IDs
+                        🔍 Find Program IDs
                       </h4>
                       <div className="flex gap-2">
                         <button
@@ -497,7 +497,7 @@ const LinkGeneratorV2 = () => {
                       </div>
                     </div>
                     <p className="text-xs text-blue-600 mb-2">
-                      Click to fetch all available programs from your Impact.com account
+                      Click to fetch all available programs from your affiliate account
                     </p>
                     
                     {/* Display available programs */}
@@ -549,7 +549,7 @@ const LinkGeneratorV2 = () => {
                               />
                               <button
                                 onClick={() => {
-                                  const programId = prompt(`Enter Impact.com Program ID for ${brand.displayName}:`);
+                                  const programId = prompt(`Enter Program ID for ${brand.displayName}:`);
                                   if (programId) {
                                     updateBrandProgramId(brand.id, programId);
                                   }
@@ -632,10 +632,10 @@ const LinkGeneratorV2 = () => {
                         </div>
                       </div>
 
-                      {/* Impact.com API Link */}
+                      {/* Affiliate Tracking Link */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Impact.com Tracking Link
+                          Affiliate Tracking Link
                         </label>
                         <div className="flex gap-2">
                           <Input
@@ -842,7 +842,7 @@ const LinkGeneratorV2 = () => {
           </h2>
           
           <p className="mb-6">
-            Automatically discover and configure all brands from your Impact.com account.
+            Automatically discover and configure all brands from your affiliate account.
           </p>
           
           <div className="flex flex-wrap gap-4">

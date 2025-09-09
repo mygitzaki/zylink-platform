@@ -208,7 +208,7 @@ const BrandManagement = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Impact.com Program ID
+                  Program ID
                 </label>
                 <Input
                   value={formData.impactProgramId}
