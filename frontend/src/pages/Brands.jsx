@@ -60,184 +60,232 @@ const Brands = () => {
       }
     });
 
+  const getBrandUrl = (brand) => {
+    if (brand.domain) {
+      // Add https:// if not present
+      const domain = brand.domain.startsWith('http') ? brand.domain : `https://${brand.domain}`;
+      return domain;
+    }
+    // Fallback to common brand URLs based on name
+    const name = brand.displayName.toLowerCase();
+    if (name.includes('amazon')) return 'https://amazon.com';
+    if (name.includes('walmart')) return 'https://walmart.com';
+    if (name.includes('target')) return 'https://target.com';
+    if (name.includes('best buy')) return 'https://bestbuy.com';
+    if (name.includes('home depot')) return 'https://homedepot.com';
+    if (name.includes('lowes')) return 'https://lowes.com';
+    if (name.includes('macy')) return 'https://macys.com';
+    if (name.includes('nordstrom')) return 'https://nordstrom.com';
+    if (name.includes('costco')) return 'https://costco.com';
+    if (name.includes('sam')) return 'https://samsclub.com';
+    return null;
+  };
+
+  const handleBrandClick = (brand) => {
+    const url = getBrandUrl(brand);
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const getStatusBadge = (brand) => {
     if (brand.impactProgramId) {
       return (
         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-          ✅ Configured
+          ✅ Ready
         </span>
       );
     } else {
       return (
         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-          ⚠️ Needs Setup
+          ⚠️ Setup Needed
         </span>
       );
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Available Brands</h1>
-          <p className="text-gray-600 mt-1">
-            Browse and discover brands available for link generation
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Discover Brands
+          </h1>
+          <p className="text-xl text-gray-600 mb-6">
+            Click on any brand to visit their website
           </p>
-          <div className="mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full inline-block">
+          <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 text-sm rounded-full">
             🔒 Secret Feature - Access via direct URL
           </div>
         </div>
-        <div className="text-sm text-gray-500">
-          {filteredAndSortedBrands.length} of {brands.length} brands
+
+        {/* Search and Filters */}
+        <div className="mb-8">
+          <Card className="p-6 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search Brands
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Search by name or domain..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Brands</option>
+                  <option value="configured">Ready</option>
+                  <option value="unconfigured">Setup Needed</option>
+                </select>
+              </div>
+
+              {/* Sort By */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sort By
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="name">Name (A-Z)</option>
+                  <option value="programId">Program ID</option>
+                  <option value="created">Recently Added</option>
+                </select>
+              </div>
+            </div>
+          </Card>
         </div>
-      </div>
 
-      {/* Search and Filters */}
-      <Card className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search Brands
-            </label>
-            <Input
-              type="text"
-              placeholder="Search by name or domain..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Configuration Status
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Brands</option>
-              <option value="configured">Configured</option>
-              <option value="unconfigured">Needs Setup</option>
-            </select>
-          </div>
-
-          {/* Sort By */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sort By
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="name">Name (A-Z)</option>
-              <option value="programId">Program ID</option>
-              <option value="created">Recently Added</option>
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      {/* Brands Grid */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="text-gray-500">Loading brands...</div>
-        </div>
-      ) : filteredAndSortedBrands.length === 0 ? (
-        <Card className="p-12 text-center">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No brands found</h3>
+        {/* Stats */}
+        <div className="mb-8 text-center">
           <p className="text-gray-600">
-            {searchTerm || filterStatus !== 'all' 
-              ? 'Try adjusting your search or filter criteria'
-              : 'No brands are currently available'
-            }
+            Showing <span className="font-semibold text-blue-600">{filteredAndSortedBrands.length}</span> of{' '}
+            <span className="font-semibold text-gray-900">{brands.length}</span> brands
           </p>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedBrands.map((brand) => (
-            <Card key={brand.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center">
-                  <span className="text-3xl mr-3">{brand.settings?.icon || '🏪'}</span>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {brand.displayName}
-                    </h3>
-                    {brand.domain && (
-                      <p className="text-sm text-gray-500">{brand.domain}</p>
+        </div>
+
+        {/* Brands Grid */}
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-500">Loading brands...</p>
+          </div>
+        ) : filteredAndSortedBrands.length === 0 ? (
+          <Card className="p-20 text-center bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <div className="text-8xl mb-6">🔍</div>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-4">No brands found</h3>
+            <p className="text-gray-600 text-lg">
+              {searchTerm || filterStatus !== 'all' 
+                ? 'Try adjusting your search or filter criteria'
+                : 'No brands are currently available'
+              }
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredAndSortedBrands.map((brand) => {
+              const brandUrl = getBrandUrl(brand);
+              return (
+                <Card 
+                  key={brand.id} 
+                  className={`group cursor-pointer transition-all duration-300 transform hover:scale-105 hover:shadow-2xl ${
+                    brandUrl ? 'hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50' : 'opacity-60 cursor-not-allowed'
+                  } bg-white/90 backdrop-blur-sm border-0 shadow-lg`}
+                  onClick={() => brandUrl && handleBrandClick(brand)}
+                >
+                  <div className="p-6">
+                    {/* Brand Icon and Name */}
+                    <div className="text-center mb-4">
+                      <div className="text-6xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                        {brand.settings?.icon || '🏪'}
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {brand.displayName}
+                      </h3>
+                      {brand.domain && (
+                        <p className="text-sm text-gray-500 mt-1">{brand.domain}</p>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    {brand.settings?.description && (
+                      <p className="text-sm text-gray-600 text-center mb-4 line-clamp-2">
+                        {brand.settings.description}
+                      </p>
+                    )}
+
+                    {/* Status Badge */}
+                    <div className="flex justify-center mb-4">
+                      {getStatusBadge(brand)}
+                    </div>
+
+                    {/* Click to Visit */}
+                    {brandUrl ? (
+                      <div className="text-center">
+                        <div className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-full group-hover:bg-blue-700 transition-colors">
+                          <span className="mr-2">🌐</span>
+                          Visit Website
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <div className="inline-flex items-center px-4 py-2 bg-gray-400 text-white text-sm font-medium rounded-full">
+                          <span className="mr-2">❌</span>
+                          No URL Available
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-                {getStatusBadge(brand)}
-              </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
-              {brand.settings?.description && (
-                <p className="text-sm text-gray-600 mb-4">
-                  {brand.settings.description}
-                </p>
-              )}
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Program ID:</span>
-                  <span className="font-mono text-gray-900">
-                    {brand.impactProgramId || 'Not configured'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Status:</span>
-                  <span className={brand.isActive ? 'text-green-600' : 'text-red-600'}>
-                    {brand.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <Button
-                  onClick={() => window.location.href = '/link-generator'}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={!brand.impactProgramId}
-                >
-                  {brand.impactProgramId ? 'Generate Link' : 'Setup Required'}
-                </Button>
-              </div>
-            </Card>
-          ))}
+        {/* Quick Actions */}
+        <div className="mt-12 text-center">
+          <Card className="p-8 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <h3 className="text-2xl font-semibold text-gray-900 mb-6">Quick Actions</h3>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button
+                onClick={() => window.location.href = '/link-generator'}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                🚀 Link Generator
+              </Button>
+              <Button
+                onClick={() => window.location.href = '/creator-v2'}
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-3 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                🚀 V2 Generator
+              </Button>
+              <Button
+                onClick={loadBrands}
+                className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-8 py-3 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                🔄 Refresh
+              </Button>
+            </div>
+          </Card>
         </div>
-      )}
-
-      {/* Quick Actions */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => window.location.href = '/link-generator'}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
-          >
-            🚀 Go to Link Generator
-          </Button>
-          <Button
-            onClick={() => window.location.href = '/creator-v2'}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            🚀 Try V2 Link Generator
-          </Button>
-          <Button
-            onClick={loadBrands}
-            className="bg-gray-600 hover:bg-gray-700 text-white"
-          >
-            🔄 Refresh Brands
-          </Button>
-        </div>
-      </Card>
+      </div>
     </div>
   );
 };
