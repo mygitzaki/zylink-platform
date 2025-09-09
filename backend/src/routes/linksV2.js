@@ -356,48 +356,7 @@ router.post('/admin/brands/auto-configure', requireAuth, requireAdmin, async (re
   }
 });
 
-// Update brand program ID (V2)
-router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const { brandId } = req.params;
-    const { impactProgramId } = req.body;
-
-    if (!prisma) {
-      return res.status(503).json({
-        success: false,
-        message: 'Database not available'
-      });
-    }
-
-    if (!impactProgramId) {
-      return res.status(400).json({
-        success: false,
-        message: 'impactProgramId is required'
-      });
-    }
-
-    const updatedBrand = await prisma.brandConfig.update({
-      where: { id: brandId },
-      data: { impactProgramId: String(impactProgramId) }
-    });
-
-    console.log(`✅ [V2] Updated brand ${updatedBrand.displayName} with program ID: ${impactProgramId}`);
-
-    res.json({
-      success: true,
-      message: `Brand ${updatedBrand.displayName} updated with program ID ${impactProgramId}`,
-      data: updatedBrand
-    });
-
-  } catch (error) {
-    console.error('❌ [V2] Error updating brand program ID:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update brand program ID',
-      error: error.message
-    });
-  }
-});
+// Update brand program ID (V2) - MOVED TO END OF FILE TO AVOID ROUTE CONFLICT
 
 // Get performance statistics (V2)
 router.get('/stats/performance', requireAuth, async (req, res) => {
@@ -1412,6 +1371,11 @@ router.post('/admin/brands', requireAdmin, async (req, res) => {
 // Admin: Update brand
 router.put('/admin/brands/:brandId', requireAdmin, async (req, res) => {
   try {
+    console.log('🔄 [Admin] Brand update request:', {
+      brandId: req.params.brandId,
+      body: req.body
+    });
+
     if (!prisma) {
       return res.status(503).json({ 
         success: false, 
@@ -1421,6 +1385,16 @@ router.put('/admin/brands/:brandId', requireAdmin, async (req, res) => {
 
     const { brandId } = req.params;
     const { displayName, domain, impactProgramId, isActive, isVisibleToCreators, settings } = req.body;
+
+    console.log('🔄 [Admin] Updating brand with data:', {
+      brandId,
+      displayName,
+      domain,
+      impactProgramId,
+      isActive,
+      isVisibleToCreators,
+      settings
+    });
 
     const brand = await prisma.brandConfig.update({
       where: { id: brandId },
@@ -1433,6 +1407,8 @@ router.put('/admin/brands/:brandId', requireAdmin, async (req, res) => {
         settings: settings || {}
       }
     });
+
+    console.log('✅ [Admin] Brand updated successfully:', brand);
 
     res.json({
       success: true,
@@ -1474,6 +1450,49 @@ router.delete('/admin/brands/:brandId', requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete brand',
+      error: error.message
+    });
+  }
+});
+
+// Update brand program ID (V2) - Specific route moved here to avoid conflict
+router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { brandId } = req.params;
+    const { impactProgramId } = req.body;
+
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+
+    if (!impactProgramId) {
+      return res.status(400).json({
+        success: false,
+        message: 'impactProgramId is required'
+      });
+    }
+
+    const updatedBrand = await prisma.brandConfig.update({
+      where: { id: brandId },
+      data: { impactProgramId: String(impactProgramId) }
+    });
+
+    console.log(`✅ [V2] Updated brand ${updatedBrand.displayName} with program ID: ${impactProgramId}`);
+
+    res.json({
+      success: true,
+      message: `Brand ${updatedBrand.displayName} updated with program ID ${impactProgramId}`,
+      data: updatedBrand
+    });
+
+  } catch (error) {
+    console.error('❌ [V2] Error updating brand program ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update brand program ID',
       error: error.message
     });
   }
