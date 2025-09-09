@@ -29,6 +29,7 @@ import HistoricalAnalytics from './pages/admin/HistoricalAnalytics'
 import SystemSettings from './pages/admin/SystemSettings'
 import PayoutQueue from './pages/admin/PayoutQueue'
 import BrandManagement from './pages/admin/BrandManagement'
+import TestAuth from './pages/admin/TestAuth'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForgotPassword from './pages/ForgotPassword'
@@ -368,6 +369,7 @@ export default function App() {
             <Route path="/admin/pending-applications" element={<RequireAdmin><PendingApplications /></RequireAdmin>} />
             <Route path="/admin/creators" element={<RequireAdmin><CreatorManagement /></RequireAdmin>} />
             <Route path="/admin/brand-management" element={<RequireAdmin><BrandManagement /></RequireAdmin>} />
+            <Route path="/admin/test-auth" element={<RequireAdmin><TestAuth /></RequireAdmin>} />
             <Route path="/admin/email-management" element={<RequireAdmin><EmailCenter /></RequireAdmin>} />
             <Route path="/admin/link-generator-v2" element={<RequireAdmin><LinkGeneratorV2 /></RequireAdmin>} />
             <Route path="/admin/payout-queue" element={<RequireAdmin><PayoutQueue /></RequireAdmin>} />
