@@ -1300,6 +1300,19 @@ router.post('/creator/brands/bulk-create', requireAuth, async (req, res) => {
 
 // ===== ADMIN BRAND MANAGEMENT ENDPOINTS =====
 
+// Test endpoint to debug authentication
+router.get('/admin/test-auth', requireAdmin, async (req, res) => {
+  res.json({
+    success: true,
+    message: 'Admin authentication working',
+    user: {
+      id: req.user.id,
+      role: req.user.role,
+      adminRole: req.user.adminRole
+    }
+  });
+});
+
 // Admin: Get all brands (full access)
 router.get('/admin/brands', requireAdmin, async (req, res) => {
   try {
