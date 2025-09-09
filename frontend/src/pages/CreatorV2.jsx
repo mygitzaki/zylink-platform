@@ -240,8 +240,8 @@ const CreatorV2 = () => {
     }
   };
 
-  // Filter brands to only show those with program IDs configured
-  const availableBrands = brands.filter(brand => brand.impactProgramId);
+  // Show all brands, but mark those without program IDs
+  const availableBrands = brands.filter(brand => brand.isActive !== false);
 
   // Fetch available Impact.com programs
   const [availablePrograms, setAvailablePrograms] = useState([]);
@@ -360,6 +360,7 @@ const CreatorV2 = () => {
                     {availableBrands.map((brand) => (
                       <option key={brand.id} value={brand.id}>
                         {brand.settings?.icon || '🏪'} {brand.displayName}
+                        {!brand.impactProgramId && ' (Needs Program ID)'}
                       </option>
                     ))}
                   </select>
