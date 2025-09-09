@@ -79,6 +79,7 @@ const BrandManagement = () => {
 
   const handleUpdateBrand = async (e) => {
     e.preventDefault();
+    console.log('🔄 Updating brand:', editingBrand.id, formData);
     setLoading(true);
     try {
       const response = await apiFetch(`/api/v2/links/admin/brands/${editingBrand.id}`, {
@@ -87,7 +88,10 @@ const BrandManagement = () => {
         body: formData
       });
       
+      console.log('📡 Update response:', response);
+      
       if (response.success) {
+        console.log('✅ Brand updated successfully');
         setEditingBrand(null);
         setFormData({
           displayName: '',
@@ -102,9 +106,13 @@ const BrandManagement = () => {
           }
         });
         loadBrands();
+      } else {
+        console.error('❌ Update failed:', response.message);
+        alert(`Update failed: ${response.message}`);
       }
     } catch (error) {
-      console.error('Error updating brand:', error);
+      console.error('❌ Error updating brand:', error);
+      alert(`Error updating brand: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -133,7 +141,9 @@ const BrandManagement = () => {
   };
 
   const startEdit = (brand) => {
+    console.log('🔧 Starting edit for brand:', brand);
     setEditingBrand(brand);
+    setShowCreateForm(false); // Make sure create form is closed
     setFormData({
       displayName: brand.displayName || '',
       domain: brand.domain || '',
@@ -145,6 +155,13 @@ const BrandManagement = () => {
         description: brand.settings?.description || '',
         color: brand.settings?.color || '#3B82F6'
       }
+    });
+    console.log('🔧 Form data set:', {
+      displayName: brand.displayName || '',
+      domain: brand.domain || '',
+      impactProgramId: brand.impactProgramId || '',
+      isActive: brand.isActive !== false,
+      isVisibleToCreators: brand.isVisibleToCreators !== false
     });
   };
 
@@ -179,10 +196,17 @@ const BrandManagement = () => {
 
       {/* Create/Edit Form */}
       {(showCreateForm || editingBrand) && (
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            {editingBrand ? 'Edit Brand' : 'Create New Brand'}
+        <Card className="p-6 border-2 border-blue-200 bg-blue-50">
+          <h2 className="text-xl font-semibold mb-4 text-blue-800">
+            {editingBrand ? `Edit Brand: ${editingBrand.displayName}` : 'Create New Brand'}
           </h2>
+          {editingBrand && (
+            <div className="mb-4 p-3 bg-blue-100 rounded-lg">
+              <p className="text-sm text-blue-700">
+                Editing brand ID: {editingBrand.id}
+              </p>
+            </div>
+          )}
           <form onSubmit={editingBrand ? handleUpdateBrand : handleCreateBrand} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
