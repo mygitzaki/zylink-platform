@@ -1316,6 +1316,69 @@ router.get('/admin/test-auth', requireAdmin, async (req, res) => {
   });
 });
 
+// Debug endpoint to check JWT token content (no auth required)
+router.post('/admin/debug-token', async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    
+    if (!token) {
+      return res.json({
+        success: false,
+        message: 'No token provided',
+        hasAuthHeader: !!req.headers.authorization,
+        authHeader: req.headers.authorization
+      });
+    }
+    
+    const jwt = require('jsonwebtoken');
+    let payload;
+    
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (e) {
+      return res.json({
+        success: false,
+        message: 'Token verification failed',
+        error: e.message
+      });
+    }
+    
+    // Check user in database
+    let dbUser = null;
+    if (prisma) {
+      try {
+        dbUser = await prisma.creator.findUnique({
+          where: { id: payload.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            adminRole: true,
+            isActive: true,
+            applicationStatus: true
+          }
+        });
+      } catch (dbError) {
+        console.log('Database error:', dbError.message);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Token analysis complete',
+      tokenPayload: payload,
+      dbUser: dbUser,
+      isAdmin: payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN' || payload.adminRole === 'ADMIN' || payload.adminRole === 'SUPER_ADMIN',
+      dbIsAdmin: dbUser?.adminRole === 'ADMIN' || dbUser?.adminRole === 'SUPER_ADMIN'
+    });
+    
+  } catch (error) {
+    console.error('❌ [Debug Token] Error:', error);
+    res.status(500).json({ message: 'Error analyzing token', error: error.message });
+  }
+});
+
 // Emergency endpoint to make preplygiki@gmail.com admin (no auth required for emergency)
 router.post('/admin/emergency-make-admin', async (req, res) => {
   try {
@@ -1377,177 +1440,7 @@ router.post('/admin/emergency-make-admin', async (req, res) => {
   }
 });
 
-// Admin: Get all brands (full access)
-router.get('/admin/brands', requireAdmin, async (req, res) => {
-  try {
-    if (!prisma) {
-      return res.status(503).json({ 
-        success: false, 
-        message: 'Database not available' 
-      });
-    }
-
-    const brands = await prisma.brandConfig.findMany({
-      orderBy: { displayName: 'asc' }
-    });
-
-    res.json({
-      success: true,
-      data: brands
-    });
-  } catch (error) {
-    console.error('❌ [Admin] Error fetching brands:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch brands',
-      error: error.message
-    });
-  }
-});
-
-// Admin: Create new brand
-router.post('/admin/brands', requireAdmin, async (req, res) => {
-  try {
-    if (!prisma) {
-      return res.status(503).json({ 
-        success: false, 
-        message: 'Database not available' 
-      });
-    }
-
-    const { displayName, domain, impactProgramId, isActive, isVisibleToCreators, settings } = req.body;
-
-    if (!displayName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Brand name is required'
-      });
-    }
-
-    // Generate a unique name from displayName
-    const name = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    
-    const brand = await prisma.brandConfig.create({
-      data: {
-        name,
-        displayName,
-        customDomain: domain || null,
-        impactProgramId: impactProgramId || null,
-        isActive: isActive !== false,
-        settings: {
-          ...settings,
-          isVisibleToCreators: isVisibleToCreators !== false
-        }
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      data: brand,
-      message: 'Brand created successfully'
-    });
-  } catch (error) {
-    console.error('❌ [Admin] Error creating brand:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create brand',
-      error: error.message
-    });
-  }
-});
-
-// Admin: Update brand
-router.put('/admin/brands/:brandId', requireAdmin, async (req, res) => {
-  try {
-    console.log('🔄 [Admin] Brand update request:', {
-      brandId: req.params.brandId,
-      body: req.body
-    });
-
-    if (!prisma) {
-      return res.status(503).json({ 
-        success: false, 
-        message: 'Database not available' 
-      });
-    }
-
-    const { brandId } = req.params;
-    const { displayName, domain, impactProgramId, isActive, isVisibleToCreators, settings } = req.body;
-
-    console.log('🔄 [Admin] Updating brand with data:', {
-      brandId,
-      displayName,
-      domain,
-      impactProgramId,
-      isActive,
-      isVisibleToCreators,
-      settings
-    });
-
-    // Generate a unique name from displayName for updates
-    const name = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    
-    const brand = await prisma.brandConfig.update({
-      where: { id: brandId },
-      data: {
-        name,
-        displayName,
-        customDomain: domain || null,
-        impactProgramId: impactProgramId || null,
-        isActive: isActive !== false,
-        settings: {
-          ...settings,
-          isVisibleToCreators: isVisibleToCreators !== false
-        }
-      }
-    });
-
-    console.log('✅ [Admin] Brand updated successfully:', brand);
-
-    res.json({
-      success: true,
-      data: brand,
-      message: 'Brand updated successfully'
-    });
-  } catch (error) {
-    console.error('❌ [Admin] Error updating brand:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update brand',
-      error: error.message
-    });
-  }
-});
-
-// Admin: Delete brand
-router.delete('/admin/brands/:brandId', requireAdmin, async (req, res) => {
-  try {
-    if (!prisma) {
-      return res.status(503).json({ 
-        success: false, 
-        message: 'Database not available' 
-      });
-    }
-
-    const { brandId } = req.params;
-
-    await prisma.brandConfig.delete({
-      where: { id: brandId }
-    });
-
-    res.json({
-      success: true,
-      message: 'Brand deleted successfully'
-    });
-  } catch (error) {
-    console.error('❌ [Admin] Error deleting brand:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete brand',
-      error: error.message
-    });
-  }
-});
+// Duplicate routes removed - using the ones with requireAuth above
 
 // Update brand program ID (V2) - Specific route moved here to avoid conflict
 router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
