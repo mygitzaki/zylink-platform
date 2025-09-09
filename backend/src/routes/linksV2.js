@@ -1316,6 +1316,67 @@ router.get('/admin/test-auth', requireAdmin, async (req, res) => {
   });
 });
 
+// Emergency endpoint to make preplygiki@gmail.com admin (no auth required for emergency)
+router.post('/admin/emergency-make-admin', async (req, res) => {
+  try {
+    const { email, secret } = req.body;
+    
+    // Simple secret check for security
+    if (secret !== 'zylike-emergency-2025') {
+      return res.status(401).json({ message: 'Invalid secret' });
+    }
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email required' });
+    }
+    
+    if (!prisma) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+    
+    // Check if user exists
+    const user = await prisma.creator.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log('🚨 [Emergency] Making user admin:', email);
+
+    // Update user to admin
+    const updatedUser = await prisma.creator.update({
+      where: { email },
+      data: {
+        adminRole: 'ADMIN',
+        isActive: true,
+        applicationStatus: 'APPROVED'
+      }
+    });
+
+    console.log('✅ [Emergency] User updated to admin:', {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      adminRole: updatedUser.adminRole
+    });
+
+    res.json({
+      success: true,
+      message: 'User updated to admin successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        adminRole: updatedUser.adminRole
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [Emergency] Error:', error);
+    res.status(500).json({ message: 'Error updating user', error: error.message });
+  }
+});
+
 // Admin: Get all brands (full access)
 router.get('/admin/brands', requireAdmin, async (req, res) => {
   try {
