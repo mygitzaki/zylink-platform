@@ -198,20 +198,23 @@ class LinkGeneratorV2 {
           brandId = detectedBrand.id;
           console.log(`🎯 Auto-detected brand: ${detectedBrand.displayName}`);
         } else {
-          throw new Error(`Could not auto-detect brand from URL: ${destinationUrl}. Please select a brand manually.`);
+          console.log(`⚠️ No brand auto-detected for URL: ${destinationUrl}. Proceeding with default configuration.`);
+          // Don't throw error, proceed with default configuration
         }
       }
       
-      // V2: Validate brand configuration before proceeding
+      // V2: Validate brand configuration if brand is specified
       if (brandId) {
         const brand = await this.getBrandConfig(brandId);
         if (!brand) {
-          throw new Error(`Brand ${brandId} not found or inactive`);
+          console.log(`⚠️ Brand ${brandId} not found or inactive. Proceeding with default configuration.`);
+          brandId = null; // Reset to default
+        } else if (!brand.impactProgramId) {
+          console.log(`⚠️ Brand ${brand.displayName} is not configured with Impact.com program ID. Proceeding with default configuration.`);
+          brandId = null; // Reset to default
+        } else {
+          console.log(`✅ [V2] Brand ${brand.displayName} validated with program ID: ${brand.impactProgramId}`);
         }
-        if (!brand.impactProgramId) {
-          throw new Error(`Brand ${brand.displayName} is not configured with Impact.com program ID. Please configure the program ID in your Impact.com dashboard.`);
-        }
-        console.log(`✅ [V2] Brand ${brand.displayName} validated with program ID: ${brand.impactProgramId}`);
       }
       
       // Parallel processing: Generate short code and Impact link simultaneously
