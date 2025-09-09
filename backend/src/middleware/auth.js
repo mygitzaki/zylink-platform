@@ -6,9 +6,11 @@ function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ message: 'Missing token' });
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('🔑 [Auth] JWT payload:', payload);
     req.user = payload;
     return next();
   } catch (e) {
+    console.log('❌ [Auth] JWT verification failed:', e.message);
     return res.status(401).json({ message: 'Invalid token' });
   }
 }
