@@ -1442,6 +1442,106 @@ router.post('/admin/emergency-make-admin', async (req, res) => {
 
 // Duplicate routes removed - using the ones with requireAuth above
 
+// Admin: Update brand
+router.put('/admin/brands/:brandId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('🔄 [Admin] Brand update request:', {
+      brandId: req.params.brandId,
+      body: req.body
+    });
+
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not available' 
+      });
+    }
+
+    const { brandId } = req.params;
+    const { displayName, domain, impactProgramId, isActive, isVisibleToCreators, settings } = req.body;
+
+    if (!displayName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Brand name is required'
+      });
+    }
+
+    console.log('🔄 [Admin] Updating brand with data:', {
+      brandId,
+      displayName,
+      domain,
+      impactProgramId,
+      isActive,
+      isVisibleToCreators,
+      settings
+    });
+
+    // Generate a unique name from displayName for updates
+    const name = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
+    const brand = await prisma.brandConfig.update({
+      where: { id: brandId },
+      data: {
+        name,
+        displayName,
+        customDomain: domain || null,
+        impactProgramId: impactProgramId || null,
+        isActive: isActive !== false,
+        settings: {
+          ...settings,
+          isVisibleToCreators: isVisibleToCreators !== false
+        }
+      }
+    });
+
+    console.log('✅ [Admin] Brand updated successfully:', brand);
+
+    res.json({
+      success: true,
+      data: brand,
+      message: 'Brand updated successfully'
+    });
+  } catch (error) {
+    console.error('❌ [Admin] Error updating brand:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update brand',
+      error: error.message
+    });
+  }
+});
+
+// Admin: Delete brand
+router.delete('/admin/brands/:brandId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not available' 
+      });
+    }
+
+    const { brandId } = req.params;
+
+    await prisma.brandConfig.delete({
+      where: { id: brandId }
+    });
+
+    res.json({
+      success: true,
+      message: 'Brand deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ [Admin] Error deleting brand:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete brand',
+      error: error.message
+    });
+  }
+});
+
 // Update brand program ID (V2) - Specific route moved here to avoid conflict
 router.put('/admin/brands/:brandId/program-id', requireAuth, requireAdmin, async (req, res) => {
   try {
