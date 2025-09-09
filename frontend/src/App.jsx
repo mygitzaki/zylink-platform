@@ -27,6 +27,7 @@ import PerformanceAnalytics from './pages/admin/PerformanceAnalytics'
 import HistoricalAnalytics from './pages/admin/HistoricalAnalytics'
 import SystemSettings from './pages/admin/SystemSettings'
 import PayoutQueue from './pages/admin/PayoutQueue'
+import BrandManagement from './pages/admin/BrandManagement'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import ForgotPassword from './pages/ForgotPassword'
@@ -67,6 +68,7 @@ function Nav() {
   const adminNavItems = [
     { path: '/admin', label: 'Overview', icon: '🏠' },
     { path: '/admin/creators', label: 'Creators', icon: '👥' },
+    { path: '/admin/brand-management', label: 'Brands', icon: '🏪' },
     { path: '/admin/email-management', label: 'Email Center', icon: '📧' },
     { path: '/admin/link-generator-v2', label: 'Link Generator V2', icon: '🚀' },
     { path: '/admin/payout-queue', label: 'Payouts', icon: '💳' },
@@ -363,6 +365,7 @@ export default function App() {
             <Route path="/admin" element={<RequireAdmin><AdminOverview /></RequireAdmin>} />
             <Route path="/admin/pending-applications" element={<RequireAdmin><PendingApplications /></RequireAdmin>} />
             <Route path="/admin/creators" element={<RequireAdmin><CreatorManagement /></RequireAdmin>} />
+            <Route path="/admin/brand-management" element={<RequireAdmin><BrandManagement /></RequireAdmin>} />
             <Route path="/admin/email-management" element={<RequireAdmin><EmailCenter /></RequireAdmin>} />
             <Route path="/admin/link-generator-v2" element={<RequireAdmin><LinkGeneratorV2 /></RequireAdmin>} />
             <Route path="/admin/payout-queue" element={<RequireAdmin><PayoutQueue /></RequireAdmin>} />

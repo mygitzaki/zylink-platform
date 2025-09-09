@@ -1015,7 +1015,10 @@ router.get('/creator/brands', requireAuth, async (req, res) => {
     }
 
     const brands = await prisma.brandConfig.findMany({
-      where: { isActive: true },
+      where: { 
+        isActive: true,
+        isVisibleToCreators: true 
+      },
       orderBy: { displayName: 'asc' }
     });
 
@@ -1220,6 +1223,151 @@ router.post('/creator/brands/bulk-create', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create popular brands',
+      error: error.message
+    });
+  }
+});
+
+// ===== ADMIN BRAND MANAGEMENT ENDPOINTS =====
+
+// Admin: Get all brands (full access)
+router.get('/admin/brands', requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not available' 
+      });
+    }
+
+    const brands = await prisma.brandConfig.findMany({
+      orderBy: { displayName: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: brands
+    });
+  } catch (error) {
+    console.error('❌ [Admin] Error fetching brands:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch brands',
+      error: error.message
+    });
+  }
+});
+
+// Admin: Create new brand
+router.post('/admin/brands', requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not available' 
+      });
+    }
+
+    const { displayName, domain, impactProgramId, isActive, isVisibleToCreators, settings } = req.body;
+
+    if (!displayName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Brand name is required'
+      });
+    }
+
+    const brand = await prisma.brandConfig.create({
+      data: {
+        displayName,
+        domain: domain || null,
+        impactProgramId: impactProgramId || null,
+        isActive: isActive !== false,
+        isVisibleToCreators: isVisibleToCreators !== false,
+        settings: settings || {}
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: brand,
+      message: 'Brand created successfully'
+    });
+  } catch (error) {
+    console.error('❌ [Admin] Error creating brand:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create brand',
+      error: error.message
+    });
+  }
+});
+
+// Admin: Update brand
+router.put('/admin/brands/:brandId', requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not available' 
+      });
+    }
+
+    const { brandId } = req.params;
+    const { displayName, domain, impactProgramId, isActive, isVisibleToCreators, settings } = req.body;
+
+    const brand = await prisma.brandConfig.update({
+      where: { id: brandId },
+      data: {
+        displayName,
+        domain: domain || null,
+        impactProgramId: impactProgramId || null,
+        isActive: isActive !== false,
+        isVisibleToCreators: isVisibleToCreators !== false,
+        settings: settings || {}
+      }
+    });
+
+    res.json({
+      success: true,
+      data: brand,
+      message: 'Brand updated successfully'
+    });
+  } catch (error) {
+    console.error('❌ [Admin] Error updating brand:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update brand',
+      error: error.message
+    });
+  }
+});
+
+// Admin: Delete brand
+router.delete('/admin/brands/:brandId', requireAdmin, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not available' 
+      });
+    }
+
+    const { brandId } = req.params;
+
+    await prisma.brandConfig.delete({
+      where: { id: brandId }
+    });
+
+    res.json({
+      success: true,
+      message: 'Brand deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ [Admin] Error deleting brand:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete brand',
       error: error.message
     });
   }
