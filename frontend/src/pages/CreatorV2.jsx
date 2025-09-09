@@ -189,11 +189,11 @@ const CreatorV2 = () => {
     try {
       const response = await apiFetch('/api/v2/links/generate', {
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           destinationUrl: destinationUrl.trim(),
           brandId: selectedBrand?.id || null,
           customShortCode: customShortCode || null
-        }),
+        },
         token
       });
 
