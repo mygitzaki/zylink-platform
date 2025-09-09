@@ -11,6 +11,8 @@ const BrandManagement = () => {
   const [loading, setLoading] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedBrands, setSelectedBrands] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [formData, setFormData] = useState({
     displayName: '',
     domain: '',
@@ -41,6 +43,102 @@ const BrandManagement = () => {
       console.error('Error loading brands:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Bulk selection functions
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedBrands(new Set(brands.map(brand => brand.id)));
+    } else {
+      setSelectedBrands(new Set());
+    }
+  };
+
+  const handleSelectBrand = (brandId, checked) => {
+    const newSelected = new Set(selectedBrands);
+    if (checked) {
+      newSelected.add(brandId);
+    } else {
+      newSelected.delete(brandId);
+    }
+    setSelectedBrands(newSelected);
+  };
+
+  const isAllSelected = selectedBrands.size === brands.length && brands.length > 0;
+  const isIndeterminate = selectedBrands.size > 0 && selectedBrands.size < brands.length;
+
+  // Bulk visibility toggle
+  const handleBulkVisibilityToggle = async (isVisible) => {
+    if (selectedBrands.size === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      const promises = Array.from(selectedBrands).map(brandId => {
+        const brand = brands.find(b => b.id === brandId);
+        if (!brand) return Promise.resolve();
+
+        return apiFetch(`/api/v2/links/admin/brands/${brandId}`, {
+          method: 'PUT',
+          token,
+          body: {
+            displayName: brand.displayName,
+            domain: brand.customDomain,
+            impactProgramId: brand.impactProgramId,
+            isActive: brand.isActive,
+            isVisibleToCreators: isVisible,
+            settings: {
+              ...brand.settings,
+              isVisibleToCreators: isVisible
+            }
+          }
+        });
+      });
+
+      await Promise.all(promises);
+      
+      // Refresh the brands list
+      await loadBrands();
+      setSelectedBrands(new Set());
+      
+      alert(`Successfully updated ${selectedBrands.size} brand(s) visibility to ${isVisible ? 'Visible' : 'Hidden'}`);
+    } catch (error) {
+      console.error('Error updating brand visibility:', error);
+      alert('Error updating brand visibility. Please try again.');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedBrands.size === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedBrands.size} brand(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const promises = Array.from(selectedBrands).map(brandId => 
+        apiFetch(`/api/v2/links/admin/brands/${brandId}`, {
+          method: 'DELETE',
+          token
+        })
+      );
+
+      await Promise.all(promises);
+      
+      // Refresh the brands list
+      await loadBrands();
+      setSelectedBrands(new Set());
+      
+      alert(`Successfully deleted ${selectedBrands.size} brand(s)`);
+    } catch (error) {
+      console.error('Error deleting brands:', error);
+      alert('Error deleting brands. Please try again.');
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -324,7 +422,45 @@ const BrandManagement = () => {
 
       {/* Brands List */}
       <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">All Brands ({brands.length})</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">All Brands ({brands.length})</h2>
+          {selectedBrands.size > 0 && (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-600">
+                {selectedBrands.size} selected
+              </span>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => handleBulkVisibilityToggle(true)}
+                  disabled={bulkActionLoading}
+                  className="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1"
+                >
+                  {bulkActionLoading ? 'Updating...' : 'Make Visible'}
+                </Button>
+                <Button
+                  onClick={() => handleBulkVisibilityToggle(false)}
+                  disabled={bulkActionLoading}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white text-sm px-3 py-1"
+                >
+                  {bulkActionLoading ? 'Updating...' : 'Make Hidden'}
+                </Button>
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={bulkActionLoading}
+                  className="bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-1"
+                >
+                  {bulkActionLoading ? 'Deleting...' : 'Delete Selected'}
+                </Button>
+                <Button
+                  onClick={() => setSelectedBrands(new Set())}
+                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm px-3 py-1"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
         
         {loading ? (
           <div className="text-center py-8">
@@ -339,6 +475,17 @@ const BrandManagement = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={input => {
+                        if (input) input.indeterminate = isIndeterminate;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Brand
                   </th>
@@ -361,7 +508,15 @@ const BrandManagement = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {brands.map((brand) => (
-                  <tr key={brand.id} className="hover:bg-gray-50">
+                  <tr key={brand.id} className={`hover:bg-gray-50 ${selectedBrands.has(brand.id) ? 'bg-blue-50' : ''}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedBrands.has(brand.id)}
+                        onChange={(e) => handleSelectBrand(brand.id, e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <span className="text-2xl mr-3">{brand.settings?.icon || '🏪'}</span>
