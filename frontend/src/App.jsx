@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import { useState } from 'react'
+import { hasFeatureAccess } from './utils/featureFlags'
 
 import Login from './pages/Login'
 import LinkGenerator from './pages/LinkGenerator'
@@ -9,6 +10,7 @@ import MyLinks from './pages/MyLinks'
 import Analytics from './pages/Analytics'
 import Earnings from './pages/Earnings'
 import AnalyticsV2 from './pages/AnalyticsV2'
+import CreatorV2 from './pages/CreatorV2'
 import PaymentSetup from './pages/PaymentSetup'
 import Signup from './pages/Signup'
 import Settings from './pages/Settings'
@@ -56,6 +58,11 @@ function Nav() {
     { path: '/payment-setup', label: 'Payment', icon: '💳' },
     { path: '/referrals', label: 'Referrals', icon: '👥' }
   ]
+
+  // Add V2 link for users with feature access
+  if (hasFeatureAccess(user, 'CREATOR_V2')) {
+    creatorNavItems.push({ path: '/creator-v2', label: 'V2 Beta', icon: '🚀' })
+  }
 
   const adminNavItems = [
     { path: '/admin', label: 'Overview', icon: '🏠' },
@@ -343,6 +350,7 @@ export default function App() {
             <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
             <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
             <Route path="/analytics-v2" element={<RequireAuth><AnalyticsV2 /></RequireAuth>} />
+            <Route path="/creator-v2" element={<RequireAuth><CreatorV2 /></RequireAuth>} />
             <Route path="/payment-setup" element={<RequireAuth><PaymentSetup /></RequireAuth>} />
             <Route path="/payouts" element={<RequireAuth><Payouts /></RequireAuth>} />
             <Route path="/referrals" element={<RequireAuth><Referrals /></RequireAuth>} />
