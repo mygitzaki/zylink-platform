@@ -55,7 +55,6 @@ function Nav() {
 
   const creatorNavItems = [
     { path: '/link-generator', label: 'Links', icon: '🔗' },
-    { path: '/brands', label: 'Brands', icon: '🏪' },
     { path: '/analytics', label: 'Analytics', icon: '📊' },
     { path: '/earnings', label: 'Earnings', icon: '💰' },
     { path: '/payment-setup', label: 'Payment', icon: '💳' },

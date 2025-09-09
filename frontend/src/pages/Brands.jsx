@@ -84,6 +84,9 @@ const Brands = () => {
           <p className="text-gray-600 mt-1">
             Browse and discover brands available for link generation
           </p>
+          <div className="mt-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full inline-block">
+            🔒 Secret Feature - Access via direct URL
+          </div>
         </div>
         <div className="text-sm text-gray-500">
           {filteredAndSortedBrands.length} of {brands.length} brands
