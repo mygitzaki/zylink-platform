@@ -11,6 +11,7 @@ import Analytics from './pages/Analytics'
 import Earnings from './pages/Earnings'
 import AnalyticsV2 from './pages/AnalyticsV2'
 import CreatorV2 from './pages/CreatorV2'
+import Brands from './pages/Brands'
 import PaymentSetup from './pages/PaymentSetup'
 import Signup from './pages/Signup'
 import Settings from './pages/Settings'
@@ -54,6 +55,7 @@ function Nav() {
 
   const creatorNavItems = [
     { path: '/link-generator', label: 'Links', icon: '🔗' },
+    { path: '/brands', label: 'Brands', icon: '🏪' },
     { path: '/analytics', label: 'Analytics', icon: '📊' },
     { path: '/earnings', label: 'Earnings', icon: '💰' },
     { path: '/payment-setup', label: 'Payment', icon: '💳' },
@@ -348,6 +350,7 @@ export default function App() {
             <Route path="/application-pending" element={<ApplicationPending />} />
             <Route path="/creator-application" element={<CreatorApplication />} />
             <Route path="/link-generator" element={<RequireAuth><LinkGenerator /></RequireAuth>} />
+            <Route path="/brands" element={<RequireAuth><Brands /></RequireAuth>} />
             <Route path="/my-links" element={<RequireAuth><MyLinks /></RequireAuth>} />
             <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
             <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />

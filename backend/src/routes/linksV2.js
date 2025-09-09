@@ -1004,6 +1004,112 @@ function extractBrandName(programName) {
 
 // ===== CREATOR-SPECIFIC ENDPOINTS (No Admin Required) =====
 
+// Creator: Search brands with filters
+router.get('/creator/brands/search', requireAuth, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    const { q, status, sortBy = 'name', limit = 50 } = req.query;
+    
+    let whereClause = { 
+      isActive: true,
+      isVisibleToCreators: true 
+    };
+
+    // Search filter
+    if (q) {
+      whereClause.OR = [
+        { displayName: { contains: q, mode: 'insensitive' } },
+        { domain: { contains: q, mode: 'insensitive' } },
+        { 'settings.description': { contains: q, mode: 'insensitive' } }
+      ];
+    }
+
+    // Status filter
+    if (status === 'configured') {
+      whereClause.impactProgramId = { not: null };
+    } else if (status === 'unconfigured') {
+      whereClause.impactProgramId = null;
+    }
+
+    // Sort options
+    let orderBy = { displayName: 'asc' };
+    if (sortBy === 'programId') {
+      orderBy = { impactProgramId: 'asc' };
+    } else if (sortBy === 'created') {
+      orderBy = { createdAt: 'desc' };
+    }
+
+    const brands = await prisma.brandConfig.findMany({
+      where: whereClause,
+      orderBy,
+      take: parseInt(limit)
+    });
+
+    res.json({
+      success: true,
+      data: brands,
+      total: brands.length,
+      filters: { q, status, sortBy, limit }
+    });
+
+  } catch (error) {
+    console.error('❌ [Creator] Error searching brands:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search brands',
+      error: error.message
+    });
+  }
+});
+
+// Creator: Get brand by ID
+router.get('/creator/brands/:brandId', requireAuth, async (req, res) => {
+  try {
+    if (!prisma) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database not configured'
+      });
+    }
+
+    const { brandId } = req.params;
+
+    const brand = await prisma.brandConfig.findFirst({
+      where: { 
+        id: brandId,
+        isActive: true,
+        isVisibleToCreators: true 
+      }
+    });
+
+    if (!brand) {
+      return res.status(404).json({
+        success: false,
+        message: 'Brand not found or not available'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: brand
+    });
+
+  } catch (error) {
+    console.error('❌ [Creator] Error fetching brand:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch brand',
+      error: error.message
+    });
+  }
+});
+
 // Creator: Get all brands (read-only access)
 router.get('/creator/brands', requireAuth, async (req, res) => {
   try {
