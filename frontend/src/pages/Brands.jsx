@@ -37,7 +37,7 @@ const Brands = () => {
     .filter(brand => {
       // Search filter
       const matchesSearch = brand.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (brand.domain && brand.domain.toLowerCase().includes(searchTerm.toLowerCase()));
+                           (brand.customDomain && brand.customDomain.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Status filter
       const hasProgramId = !!brand.impactProgramId;
@@ -61,9 +61,9 @@ const Brands = () => {
     });
 
   const getBrandUrl = (brand) => {
-    if (brand.domain) {
+    if (brand.customDomain) {
       // Add https:// if not present
-      const domain = brand.domain.startsWith('http') ? brand.domain : `https://${brand.domain}`;
+      const domain = brand.customDomain.startsWith('http') ? brand.customDomain : `https://${brand.customDomain}`;
       return domain;
     }
     // Fallback to common brand URLs based on name
@@ -219,8 +219,8 @@ const Brands = () => {
                       <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                         {brand.displayName}
                       </h3>
-                      {brand.domain && (
-                        <p className="text-sm text-gray-500 mt-1">{brand.domain}</p>
+                      {brand.customDomain && (
+                        <p className="text-sm text-gray-500 mt-1">{brand.customDomain}</p>
                       )}
                     </div>
 

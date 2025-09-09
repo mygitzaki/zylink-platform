@@ -378,7 +378,7 @@ const BrandManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {brand.domain || '-'}
+                      {brand.customDomain || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {brand.impactProgramId || (
@@ -396,11 +396,11 @@ const BrandManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        brand.isVisibleToCreators 
+                        brand.settings?.isVisibleToCreators !== false
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {brand.isVisibleToCreators ? 'Visible' : 'Hidden'}
+                        {brand.settings?.isVisibleToCreators !== false ? 'Visible' : 'Hidden'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

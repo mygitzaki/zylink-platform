@@ -1079,12 +1079,17 @@ router.get('/creator/brands', requireAuth, async (req, res) => {
       });
     }
 
-    const brands = await prisma.brandConfig.findMany({
+    const allBrands = await prisma.brandConfig.findMany({
       where: { 
-        isActive: true,
-        isVisibleToCreators: true 
+        isActive: true
       },
       orderBy: { displayName: 'asc' }
+    });
+
+    // Filter brands that are visible to creators
+    const brands = allBrands.filter(brand => {
+      const settings = brand.settings || {};
+      return settings.isVisibleToCreators !== false;
     });
 
     res.json({
@@ -1342,14 +1347,20 @@ router.post('/admin/brands', requireAdmin, async (req, res) => {
       });
     }
 
+    // Generate a unique name from displayName
+    const name = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
     const brand = await prisma.brandConfig.create({
       data: {
+        name,
         displayName,
-        domain: domain || null,
+        customDomain: domain || null,
         impactProgramId: impactProgramId || null,
         isActive: isActive !== false,
-        isVisibleToCreators: isVisibleToCreators !== false,
-        settings: settings || {}
+        settings: {
+          ...settings,
+          isVisibleToCreators: isVisibleToCreators !== false
+        }
       }
     });
 
@@ -1396,15 +1407,21 @@ router.put('/admin/brands/:brandId', requireAdmin, async (req, res) => {
       settings
     });
 
+    // Generate a unique name from displayName for updates
+    const name = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
     const brand = await prisma.brandConfig.update({
       where: { id: brandId },
       data: {
+        name,
         displayName,
-        domain: domain || null,
+        customDomain: domain || null,
         impactProgramId: impactProgramId || null,
         isActive: isActive !== false,
-        isVisibleToCreators: isVisibleToCreators !== false,
-        settings: settings || {}
+        settings: {
+          ...settings,
+          isVisibleToCreators: isVisibleToCreators !== false
+        }
       }
     });
 
