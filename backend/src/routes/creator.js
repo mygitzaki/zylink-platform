@@ -877,7 +877,10 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
         return collected;
       };
 
-      let actions = await fetchAll('PENDING');
+      // Fetch both PENDING and APPROVED actions to show all earnings
+      let pendingActions = await fetchAll('PENDING');
+      let approvedActions = await fetchAll('APPROVED');
+      let actions = [...pendingActions, ...approvedActions];
       const getActionDate = (a) => new Date(a.EventDate || a.CreatedDate || a.CreationDate || a.LockingDate || a.EventTime || now);
       const startBound = new Date(`${startDateYmd}T00:00:00Z`);
       const endBound = new Date(`${endDateYmd}T23:59:59Z`);
