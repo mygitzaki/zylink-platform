@@ -701,59 +701,73 @@ class ImpactWebService {
   }
 
   async exportReportAndDownloadJson(idOrHandle, query) {
-    // Schedule export
-    const qp = new URLSearchParams(query || {});
-    // Strongly request JSON
-    qp.set('ResultFormat', 'JSON');
-    const scheduleUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/${encodeURIComponent(idOrHandle)}?${qp.toString()}`;
-    const headers = {
-      'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
-      'Accept': 'application/json'
-    };
-
-    const resp = await fetch(scheduleUrl, { method: 'GET', headers });
-    if (!resp.ok) {
-      return { success: false, status: resp.status, error: await resp.text() };
-    }
-    const job = await resp.json();
-    const jobStatusUrl = `${this.apiBaseUrl}${job.QueuedUri}`;
-    const resultUrl = `${this.apiBaseUrl}${job.ResultUri}`;
-
-    // Poll job status
-    const started = Date.now();
-    const timeoutMs = 30000; // 30s safety
-    // Basic exponential backoff
-    let delay = 500;
-    while (Date.now() - started < timeoutMs) {
-      try {
-        const s = await fetch(jobStatusUrl, { method: 'GET', headers });
-        if (s.ok) {
-          const st = await s.json();
-          const status = (st.Status || '').toUpperCase();
-          if (status === 'COMPLETED' || status === 'FINISHED' || status === 'DONE') break;
-          if (status === 'FAILED') return { success: false, error: 'Report job failed' };
-        }
-      } catch {}
-      await new Promise(r => setTimeout(r, delay));
-      delay = Math.min(2000, delay * 1.5);
-    }
-
-    // Download JSON
-    const dl = await fetch(resultUrl, { method: 'GET', headers });
-    if (!dl.ok) return { success: false, status: dl.status, error: await dl.text() };
-    // Some accounts return application/json, others return text JSON; parse robustly
-    const text = await dl.text();
     try {
-      const json = JSON.parse(text);
-      return { success: true, json };
-    } catch {
-      // Attempt to wrap CSV-to-JSON quickly (not expected since ResultFormat=JSON)
-      return { success: false, error: 'Non-JSON result from ReportExport' };
+      // Wait for rate limiting
+      await this.waitForRateLimit();
+      
+      // Schedule export
+      const qp = new URLSearchParams(query || {});
+      // Strongly request JSON
+      qp.set('ResultFormat', 'JSON');
+      const scheduleUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/ReportExport/${encodeURIComponent(idOrHandle)}?${qp.toString()}`;
+      const headers = {
+        'Authorization': `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+        'Accept': 'application/json'
+      };
+
+      const resp = await fetch(scheduleUrl, { method: 'GET', headers });
+      if (!resp.ok) {
+        return { success: false, status: resp.status, error: await resp.text() };
+      }
+      const job = await resp.json();
+      const jobStatusUrl = `${this.apiBaseUrl}${job.QueuedUri}`;
+      const resultUrl = `${this.apiBaseUrl}${job.ResultUri}`;
+
+      // Poll job status
+      const started = Date.now();
+      const timeoutMs = 30000; // 30s safety
+      // Basic exponential backoff
+      let delay = 500;
+      while (Date.now() - started < timeoutMs) {
+        try {
+          const s = await fetch(jobStatusUrl, { method: 'GET', headers });
+          if (s.ok) {
+            const st = await s.json();
+            const status = (st.Status || '').toUpperCase();
+            if (status === 'COMPLETED' || status === 'FINISHED' || status === 'DONE') break;
+            if (status === 'FAILED') return { success: false, error: 'Report job failed' };
+          }
+        } catch {}
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(2000, delay * 1.5);
+      }
+
+      // Download JSON
+      const dl = await fetch(resultUrl, { method: 'GET', headers });
+      if (!dl.ok) return { success: false, status: dl.status, error: await dl.text() };
+      // Some accounts return application/json, others return text JSON; parse robustly
+      const text = await dl.text();
+      try {
+        const json = JSON.parse(text);
+        return { success: true, json };
+      } catch {
+        // Attempt to wrap CSV-to-JSON quickly (not expected since ResultFormat=JSON)
+        return { success: false, error: 'Non-JSON result from ReportExport' };
+      }
+    } catch (error) {
+      console.error('[Export Report] Error:', error.message);
+      return { success: false, error: error.message };
+    } finally {
+      // Always release the call lock
+      this.releaseCall();
     }
   }
 
   async getPendingFromActionListingReport(options = {}) {
     try {
+      // Wait for rate limiting
+      await this.waitForRateLimit();
+      
       const { subId1, startDate, endDate } = options;
       const id = await this.resolveActionListingReportId();
       // Use exact filter keys per MetaData for mp_action_listing_fast
@@ -830,6 +844,9 @@ class ImpactWebService {
     } catch (error) {
       console.error('[Impact Reports] Error:', error.message);
       return { success: false, error: error.message };
+    } finally {
+      // Always release the call lock
+      this.releaseCall();
     }
   }
 
