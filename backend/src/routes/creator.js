@@ -1023,7 +1023,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       const rawDays = Number(req.query.days) || 30;
       requestedDays = Math.max(1, Math.min(90, rawDays));
         effectiveDays = requestedDays;
-      endDate = fmt(now);
+      
+      // FIXED: Include the current day by adding 1 day to end date
+      const endDateObj = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+      endDate = fmt(endDateObj);
       
       // FIXED: Subtract (days - 1) to include the current day in the range
       // 30 days = today + 29 previous days = 30 days total
@@ -1694,7 +1697,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     
     // Use the same simple, proven date calculation as earnings-summary
       effectiveDays = requestedDays;
-      endDate = now.toISOString().split('T')[0];
+      // FIXED: Include the current day by adding 1 day to end date
+      const endDateObj = new Date(now.getTime() + (24 * 60 * 60 * 1000));
+      endDate = endDateObj.toISOString().split('T')[0];
       // FIXED: Subtract (days - 1) to include the current day in the range
       startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
       startDate = startDateObj.toISOString().split('T')[0];
