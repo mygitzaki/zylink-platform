@@ -654,12 +654,57 @@ class ImpactWebService {
         });
       }
       
+      // CRITICAL FIX: Manual filtering since Impact.com API doesn't properly filter by SubId1 or date range
+      let filteredActions = data.Actions || data.Results || [];
+      
+      // Filter by SubId1 if provided
+      if (subId1) {
+        const beforeFilter = filteredActions.length;
+        filteredActions = filteredActions.filter(action => action.SubId1 === subId1);
+        console.log(`[ImpactWebService] 🔍 SubId1 Filter: ${beforeFilter} -> ${filteredActions.length} actions (filtered for SubId1: ${subId1})`);
+      }
+      
+      // Filter by date range if provided
+      if (startDate && endDate) {
+        const beforeDateFilter = filteredActions.length;
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        
+        filteredActions = filteredActions.filter(action => {
+          if (!action.EventDate) return false;
+          const actionDate = new Date(action.EventDate);
+          return actionDate >= startDateObj && actionDate <= endDateObj;
+        });
+        console.log(`[ImpactWebService] 📅 Date Filter: ${beforeDateFilter} -> ${filteredActions.length} actions (filtered for dates: ${startDate} to ${endDate})`);
+      }
+      
+      // Filter by ActionStatus if provided
+      if (status) {
+        const beforeStatusFilter = filteredActions.length;
+        filteredActions = filteredActions.filter(action => action.ActionStatus === status);
+        console.log(`[ImpactWebService] 🎯 Status Filter: ${beforeStatusFilter} -> ${filteredActions.length} actions (filtered for status: ${status})`);
+      }
+      
+      // Filter by ActionType if provided
+      if (actionType) {
+        const beforeTypeFilter = filteredActions.length;
+        filteredActions = filteredActions.filter(action => action.ActionType === actionType);
+        console.log(`[ImpactWebService] 🏷️ Type Filter: ${beforeTypeFilter} -> ${filteredActions.length} actions (filtered for type: ${actionType})`);
+      }
+      
+      // Filter by CampaignId if provided
+      if (campaignId) {
+        const beforeCampaignFilter = filteredActions.length;
+        filteredActions = filteredActions.filter(action => action.CampaignId === String(campaignId));
+        console.log(`[ImpactWebService] 🎪 Campaign Filter: ${beforeCampaignFilter} -> ${filteredActions.length} actions (filtered for campaign: ${campaignId})`);
+      }
+
       const result = {
         success: true,
-        totalResults: data.TotalResults || data.TotalRecords || 0,
+        totalResults: filteredActions.length, // Use filtered count instead of API total
         page,
         pageSize,
-        actions: data.Actions || data.Results || [],
+        actions: filteredActions,
         raw: data
       };
 
