@@ -1096,7 +1096,8 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
         const detailedActions = await impact.getAllActionsDetailed({
           startDate: startDate,
           endDate: endDate,
-          subId1: correctSubId1
+          subId1: correctSubId1,
+          actionType: 'SALE'
         });
         
         // DEBUG: Check what the API actually returned
