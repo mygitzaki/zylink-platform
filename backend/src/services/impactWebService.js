@@ -724,7 +724,7 @@ class ImpactWebService {
           subId1,
           campaignId,
           page: currentPage,
-          pageSize: 1000 // Use max page size for efficiency
+          pageSize: 2000 // Use actual max page size from API
         });
 
         if (!pageResult.success) {
@@ -741,11 +741,18 @@ class ImpactWebService {
         // Update total results from first page
         if (currentPage === 1) {
           totalResults = pageResult.totalResults;
+          // If totalResults is 0, use the raw data total
+          if (totalResults === 0 && pageResult.raw && pageResult.raw['@total']) {
+            totalResults = parseInt(pageResult.raw['@total']) || 0;
+            console.log(`[ImpactWebService] 🔧 Using raw total: ${totalResults}`);
+          }
         }
 
         // Check if there are more pages
-        const totalPages = Math.ceil(totalResults / 1000);
-        hasMorePages = currentPage < totalPages && pageResult.actions.length === 1000;
+        const totalPages = Math.ceil(totalResults / 2000);
+        hasMorePages = currentPage < totalPages && pageResult.actions.length === 2000;
+        
+        console.log(`[ImpactWebService] 📊 Page ${currentPage}: ${pageResult.actions.length} actions, Total: ${totalResults}, Pages: ${totalPages}, HasMore: ${hasMorePages}`);
         
         currentPage++;
         
