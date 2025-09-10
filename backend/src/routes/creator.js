@@ -763,7 +763,7 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
     
     // Get creator's actual Impact.com SubId1 from database, or compute it
     try {
-      // First, try to get the actual Impact.com SubId1 if stored
+      // Get creator data
       const creatorWithSubId = await prisma.creator.findUnique({ 
         where: { id: req.user.id }, 
         select: { 
@@ -772,26 +772,16 @@ router.get('/pending-earnings', requireAuth, requireApprovedCreator, async (req,
         } 
       });
       
-      if (creatorWithSubId?.impactSubId) {
-        // Use the stored Impact.com SubId1
-        correctSubId1 = creatorWithSubId.impactSubId;
-        console.log(`[Pending Earnings] Using stored Impact.com SubId1: ${correctSubId1}`);
-      } else {
-        // Fallback to computed SubId1 (for backward compatibility)
-        correctSubId1 = impact.computeObfuscatedSubId(req.user.id);
-        console.log(`[Pending Earnings] Using computed SubId1: ${correctSubId1}`);
-        
-        // Log warning about missing SubId1 mapping
-        console.warn(`[Pending Earnings] WARNING: No Impact.com SubId1 stored for user ${req.user.id}. Consider updating the database.`);
-      }
+      // Use centralized SubId1 resolver for consistency
+      correctSubId1 = await impact.resolveSubId1(req.user.id, creatorWithSubId);
       
       // Update commission rate
       rate = creatorWithSubId?.commissionRate ?? 70;
       
     } catch (dbError) {
       console.error('[Pending Earnings] Database error:', dbError.message);
-      // Fallback to computed SubId1
-      correctSubId1 = impact.computeObfuscatedSubId(req.user.id);
+      // Fallback to centralized resolver
+      correctSubId1 = await impact.resolveSubId1(req.user.id, null);
       rate = 70; // Default rate
     }
     

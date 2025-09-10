@@ -116,6 +116,31 @@ class ImpactWebService {
     }
   }
 
+  // Centralized SubId1 resolver - ensures consistency across all endpoints
+  async resolveSubId1(creatorId, creator = null) {
+    try {
+      // Priority 1: Use stored SubId1 from database if available
+      if (creator?.impactSubId) {
+        console.log(`[SubId1 Resolver] Using stored SubId1: ${creator.impactSubId}`);
+        return creator.impactSubId;
+      }
+      
+      // Priority 2: Compute obfuscated SubId1
+      const computed = this.computeObfuscatedSubId(creatorId);
+      if (computed && computed !== 'default') {
+        console.log(`[SubId1 Resolver] Using computed SubId1: ${computed}`);
+        return computed;
+      }
+      
+      // Priority 3: Fallback to creator ID
+      console.log(`[SubId1 Resolver] Using fallback SubId1: ${creatorId}`);
+      return creatorId;
+    } catch (error) {
+      console.error('[SubId1 Resolver] Error:', error.message);
+      return String(creatorId || 'default');
+    }
+  }
+
   composeSharedId(options = {}) {
     try {
       const mode = String(process.env.IMPACT_SHAREDID_MODE || '').toLowerCase();
