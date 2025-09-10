@@ -1093,11 +1093,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
         console.log(`[Earnings Summary] 📚 ImpactWebService will convert to proper ISO 8601 format`);
         
         // Get detailed actions to filter for commissionable only (same as analytics-enhanced)
-        const detailedActions = await impact.getActionsDetailed({
+        const detailedActions = await impact.getAllActionsDetailed({
           startDate: startDate,
           endDate: endDate,
-          subId1: correctSubId1,
-          pageSize: 1000
+          subId1: correctSubId1
         });
         
         // DEBUG: Check what the API actually returned
@@ -1784,20 +1783,18 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         let realConversions = 0;
         let realRevenue = 0;
         
-        console.log(`[Analytics Enhanced] 🔍 Calling getActionsDetailed with:`, {
+        console.log(`[Analytics Enhanced] 🔍 Calling getAllActionsDetailed with:`, {
           startDate: startDate + 'T00:00:00Z',
           endDate: endDate + 'T23:59:59Z',
           subId1: correctSubId1,
-          actionType: 'SALE',
-          pageSize: 1000
+          actionType: 'SALE'
         });
         
-        const detailedActions = await impact.getActionsDetailed({
+        const detailedActions = await impact.getAllActionsDetailed({
           startDate: startDate + 'T00:00:00Z',
           endDate: endDate + 'T23:59:59Z',
           subId1: correctSubId1,
-          actionType: 'SALE',
-          pageSize: 1000
+          actionType: 'SALE'
         });
         
         console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
@@ -1908,12 +1905,11 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         console.log(`[Analytics Enhanced] 🔍 Fetching all actions for ${requestedDays} days to group by day...`);
         
         // Fetch all actions for the entire period at once (more efficient)
-        const allActions = await impact.getActionsDetailed({
+        const allActions = await impact.getAllActionsDetailed({
           startDate: startDate + 'T00:00:00Z',
           endDate: endDate + 'T23:59:59Z',
           subId1: correctSubId1,
-          actionType: 'SALE',
-          pageSize: 1000
+          actionType: 'SALE'
         });
         
         if (allActions.success && allActions.actions) {

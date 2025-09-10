@@ -693,6 +693,106 @@ class ImpactWebService {
     }
   }
 
+  // NEW: Get ALL actions with proper pagination
+  async getAllActionsDetailed(options = {}) {
+    try {
+      const {
+        startDate,
+        endDate,
+        status,
+        actionType,
+        subId1,
+        campaignId,
+        maxPages = 10 // Safety limit to prevent infinite loops
+      } = options;
+
+      console.log(`[ImpactWebService] 🔄 Fetching ALL pages for SubId1: ${subId1}`);
+      
+      let allActions = [];
+      let currentPage = 1;
+      let totalResults = 0;
+      let hasMorePages = true;
+
+      while (hasMorePages && currentPage <= maxPages) {
+        console.log(`[ImpactWebService] 📄 Fetching page ${currentPage}...`);
+        
+        const pageResult = await this.getActionsDetailed({
+          startDate,
+          endDate,
+          status,
+          actionType,
+          subId1,
+          campaignId,
+          page: currentPage,
+          pageSize: 1000 // Use max page size for efficiency
+        });
+
+        if (!pageResult.success) {
+          console.log(`[ImpactWebService] ❌ Page ${currentPage} failed: ${pageResult.error}`);
+          break;
+        }
+
+        // Add actions from this page
+        if (pageResult.actions && pageResult.actions.length > 0) {
+          allActions = allActions.concat(pageResult.actions);
+          console.log(`[ImpactWebService] ✅ Page ${currentPage}: ${pageResult.actions.length} actions (total: ${allActions.length})`);
+        }
+
+        // Update total results from first page
+        if (currentPage === 1) {
+          totalResults = pageResult.totalResults;
+        }
+
+        // Check if there are more pages
+        const totalPages = Math.ceil(totalResults / 1000);
+        hasMorePages = currentPage < totalPages && pageResult.actions.length === 1000;
+        
+        currentPage++;
+        
+        // Small delay between pages to be respectful to the API
+        if (hasMorePages) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      console.log(`[ImpactWebService] 🎯 Fetched ${allActions.length} total actions across ${currentPage - 1} pages`);
+      
+      // Filter by SubId1 if provided (since API filtering might not be perfect)
+      let filteredActions = allActions;
+      if (subId1) {
+        const beforeFilter = filteredActions.length;
+        filteredActions = filteredActions.filter(action => action.SubId1 === subId1);
+        console.log(`[ImpactWebService] 🔍 SubId1 Filter: ${beforeFilter} -> ${filteredActions.length} actions`);
+      }
+
+      // Filter by date range if provided
+      if (startDate && endDate) {
+        const beforeDateFilter = filteredActions.length;
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        
+        filteredActions = filteredActions.filter(action => {
+          if (!action.EventDate) return false;
+          const actionDate = new Date(action.EventDate);
+          return actionDate >= startDateObj && actionDate <= endDateObj;
+        });
+        console.log(`[ImpactWebService] 📅 Date Filter: ${beforeDateFilter} -> ${filteredActions.length} actions`);
+      }
+
+      return {
+        success: true,
+        totalResults: filteredActions.length,
+        totalPages: currentPage - 1,
+        actions: filteredActions,
+        raw: { totalFetched: allActions.length, totalFiltered: filteredActions.length }
+      };
+
+    } catch (error) {
+      console.error(`[ImpactWebService] ❌ getAllActionsDetailed failed: ${error.message}`);
+      return { success: false, error: error.message, actions: [], totalResults: 0 };
+    }
+  }
+
   // --- Reports API helpers (Action Listing) ---
   async listReports() {
     try {
