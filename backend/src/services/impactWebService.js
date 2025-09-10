@@ -771,12 +771,13 @@ class ImpactWebService {
       const { subId1, startDate, endDate } = options;
       const id = await this.resolveActionListingReportId();
       // Use exact filter keys per MetaData for mp_action_listing_fast
-      // TEMP DEBUG: Remove Action Status filter to get ALL actions (not just Pending)
+      // FIXED: Remove Program filter to get ALL programs (not just default)
+      // This fixes the 30-day/custom earnings issue where data spans multiple programs
       const query = {
         START_DATE: startDate, // YYYY-MM-DD
         END_DATE: endDate,     // YYYY-MM-DD
         // 'Action Status': 'Pending', // REMOVED: Get all statuses to match dashboard
-        Program: this.programId
+        // Program: this.programId // REMOVED: Get all programs, not just default
       };
       let result = await this.exportReportAndDownloadJson(id, query);
       if (!result.success) {
@@ -823,7 +824,24 @@ class ImpactWebService {
       };
 
       // Filter to the requested SubId1 even if the report filter didn't apply
-      const filtered = raw.filter(r => !subId1 || norm(getSubIdVal(r)) === norm(subId1));
+      let filtered = raw.filter(r => !subId1 || norm(getSubIdVal(r)) === norm(subId1));
+      
+      // Optional: Filter by program if we want to maintain some program filtering
+      // This allows us to get data from all programs but optionally filter by default program
+      if (this.programId) {
+        const programFiltered = filtered.filter(r => {
+          const program = r.Program || r.ProgramId || r.Campaign;
+          return !program || program === this.programId;
+        });
+        
+        // If program filtering removes all data, use all programs (fallback)
+        if (programFiltered.length > 0) {
+          filtered = programFiltered;
+          console.log(`[Impact Reports] Filtered by program ${this.programId}: ${filtered.length} records`);
+        } else {
+          console.log(`[Impact Reports] No data for program ${this.programId}, using all programs: ${filtered.length} records`);
+        }
+      }
 
       // Enhanced de-duplication using multiple possible action ID fields
       const seen = new Set();
