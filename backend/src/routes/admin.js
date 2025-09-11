@@ -1572,7 +1572,7 @@ router.post('/reset-impact-counters', async (req, res) => {
   try {
     console.log('🚨 [ADMIN] Emergency reset of Impact.com API counters...');
     
-    const { ImpactWebService } = require('../services/impactWebService');
+    const ImpactWebService = require('../services/impactWebService');
     const impactService = new ImpactWebService();
     
     impactService.resetCounters();
