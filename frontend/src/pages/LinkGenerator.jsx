@@ -199,33 +199,7 @@ export default function LinkGenerator() {
     }
   }
 
-  if (dataLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Container className="py-4 sm:py-6 lg:py-8">
-          <div className="space-y-8 animate-fadeIn">
-            {/* Hero skeleton */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <Skeleton variant="text" className="w-1/3 h-8" />
-              </div>
-              <Skeleton variant="text" className="w-1/2 h-4" />
-              
-              {/* Stats skeleton */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton.Metric key={i} />
-                ))}
-              </div>
-            </div>
-            
-            {/* Link form skeleton */}
-            <Skeleton.LinkForm />
-          </div>
-        </Container>
-      </div>
-    )
-  }
+  // REMOVED: dataLoading check since we no longer load dashboard data
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
