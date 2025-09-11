@@ -1466,6 +1466,36 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// List all brands endpoint
+router.get('/list-brands', async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ message: 'Database not configured' });
+    }
+    
+    const brands = await prisma.brandConfig.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        impactProgramId: true,
+        isActive: true
+      }
+    });
+    
+    res.json({
+      success: true,
+      brands: brands
+    });
+    
+  } catch (error) {
+    console.error('❌ Error listing brands:', error);
+    res.status(500).json({ message: 'Failed to list brands', error: error.message });
+  }
+});
+
 // Test auto-detection endpoint
 router.post('/test-auto-detection', async (req, res) => {
   try {
