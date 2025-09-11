@@ -15,65 +15,14 @@ export default function LinkGenerator() {
   const [productUrl, setProductUrl] = useState('')
   const [generatedLink, setGeneratedLink] = useState(null)
   const [urlValidation, setUrlValidation] = useState({ isValid: true, message: '' })
-  const [dashboardData, setDashboardData] = useState({
-    totalLinks: 0,
-    recentLinks: []
-  })
-  const [dataLoading, setDataLoading] = useState(true)
+  // REMOVED: dashboardData state and dataLoading state
+  // These were used for slow API calls that caused 408 timeouts
 
   // Load dashboard data on component mount
-  useEffect(() => {
-    if (token) {
-      loadDashboardData()
-    }
-  }, [token])
+  // REMOVED: useEffect that loaded dashboard data to prevent slow API calls
 
-  const loadDashboardData = async () => {
-    try {
-      setDataLoading(true)
-      
-              // Try direct API calls first to bypass Vercel rewrite issues
-        let analyticsRes, linksRes
-        
-        try {
-          console.log('🌐 Loading dashboard data via API calls to:', API_BASE)
-          const [analyticsPromise, linksPromise] = [
-            fetch(`${API_BASE}/api/creator/analytics`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            }),
-            fetch(`${API_BASE}/api/creator/links`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            })
-          ]
-          
-          const [analyticsResponse, linksResponse] = await Promise.all([
-            analyticsPromise, linksPromise
-          ])
-          
-          analyticsRes = await analyticsResponse.json()
-          linksRes = await linksResponse.json()
-          
-          console.log('✅ Direct API calls successful')
-        } catch (directError) {
-          console.log('⚠️ Direct API calls failed, using fallback...')
-          
-          // Fallback to apiFetch
-          [analyticsRes, linksRes] = await Promise.all([
-            apiFetch('/api/creator/analytics', { token }),
-            apiFetch('/api/creator/links', { token })
-          ])
-        }
-      
-      setDashboardData({
-        totalLinks: linksRes.links?.length || 0,
-        recentLinks: linksRes.links?.slice(0, 3) || []
-      })
-    } catch (err) {
-      console.error('Failed to load dashboard data:', err)
-    } finally {
-      setDataLoading(false)
-    }
-  }
+  // REMOVED: loadDashboardData function to prevent slow API calls
+  // This was causing 408 timeouts and making the page load slowly
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -432,114 +381,11 @@ export default function LinkGenerator() {
           </Card>
         )}
 
-        {/* Quick Actions - Enhanced Mobile Responsive Style */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 max-w-6xl mx-auto">
-          <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-2 group">
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">View Analytics</h3>
-                  <p className="text-gray-600 text-sm sm:text-base lg:text-lg">Deep dive into performance</p>
-                </div>
-                <Button 
-                  onClick={() => handleQuickAction('analytics')}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base lg:text-lg"
-                >
-                  View Analytics
-                </Button>
-              </div>
-            </div>
-          </Card>
+        {/* REMOVED: Quick Actions section to prevent slow API calls
+            This included Analytics and Referral cards that were causing 408 timeouts */}
 
-          <Card className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 sm:hover:-translate-y-2 group">
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Referral Program</h3>
-                  <p className="text-gray-600 text-sm sm:text-base lg:text-lg">Invite friends, earn 10%</p>
-                </div>
-                <Button 
-                  onClick={() => handleQuickAction('referrals')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold py-3 sm:py-4 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base lg:text-lg"
-                >
-                  Invite Friends
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Recent Links - Enhanced Mobile Responsive Style */}
-        {dashboardData.recentLinks.length > 0 && (
-          <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-2xl mb-8 sm:mb-12 max-w-6xl mx-auto">
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-                <div className="flex items-center space-x-3 sm:space-x-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Recent Links</h3>
-                </div>
-                <Button
-                  onClick={() => handleQuickAction('manage-links')}
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base"
-                >
-                  View All →
-                </Button>
-              </div>
-              
-              <div className="space-y-3 sm:space-y-4">
-                {dashboardData.recentLinks.map((link, index) => (
-                  <div key={link.id} className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
-                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs sm:text-sm font-bold">{index + 1}</span>
-                          </div>
-                          <p className="text-gray-900 font-semibold truncate text-sm sm:text-base lg:text-lg">{truncateUrl(link.shortLink || link.impactLink, 50)}</p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-600">
-                          <span className="flex items-center space-x-1">
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>{link.clicks || 0} clicks</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                            <span>${Number(link.revenue || 0).toFixed(2)} earned</span>
-                          </span>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => copyToClipboard(link.shortLink || link.impactLink, 'Link')}
-                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base"
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
+        {/* REMOVED: Recent Links section to prevent slow API calls
+            This section depended on dashboardData which required API calls */}
 
       </Container>
     </div>
