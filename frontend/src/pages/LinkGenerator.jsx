@@ -15,14 +15,37 @@ export default function LinkGenerator() {
   const [productUrl, setProductUrl] = useState('')
   const [generatedLink, setGeneratedLink] = useState(null)
   const [urlValidation, setUrlValidation] = useState({ isValid: true, message: '' })
-  // REMOVED: dashboardData state and dataLoading state
-  // These were used for slow API calls that caused 408 timeouts
+  const [dashboardData, setDashboardData] = useState({
+    totalLinks: 0,
+    recentLinks: []
+  })
+  const [dataLoading, setDataLoading] = useState(false)
 
-  // Load dashboard data on component mount
-  // REMOVED: useEffect that loaded dashboard data to prevent slow API calls
+  // Load recent links on component mount (lightweight)
+  useEffect(() => {
+    if (token) {
+      loadRecentLinks()
+    }
+  }, [token])
 
-  // REMOVED: loadDashboardData function to prevent slow API calls
-  // This was causing 408 timeouts and making the page load slowly
+  // Load only recent links (lightweight, no analytics)
+  const loadRecentLinks = async () => {
+    try {
+      setDataLoading(true)
+      
+      const linksRes = await apiFetch('/api/creator/links', { token })
+      
+      setDashboardData({
+        totalLinks: linksRes.links?.length || 0,
+        recentLinks: linksRes.links?.slice(0, 3) || []
+      })
+    } catch (err) {
+      console.error('Failed to load recent links:', err)
+      // Don't show error to user, just silently fail
+    } finally {
+      setDataLoading(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -52,7 +75,8 @@ export default function LinkGenerator() {
       setSuccess('Link generated successfully!')
       setProductUrl('')
       
-      // REMOVED: loadDashboardData call since we no longer load dashboard data
+      // Refresh recent links to show the new link
+      await loadRecentLinks()
       
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
@@ -357,8 +381,67 @@ export default function LinkGenerator() {
         {/* REMOVED: Quick Actions section to prevent slow API calls
             This included Analytics and Referral cards that were causing 408 timeouts */}
 
-        {/* REMOVED: Recent Links section to prevent slow API calls
-            This section depended on dashboardData which required API calls */}
+        {/* Recent Links - Lightweight version without analytics */}
+        {dashboardData.recentLinks.length > 0 && (
+          <Card className="bg-white/90 backdrop-blur-sm border border-white/20 shadow-2xl mb-8 sm:mb-12 max-w-6xl mx-auto">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl flex items-center justify-center">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Recent Links</h3>
+                </div>
+                <Button
+                  onClick={() => handleQuickAction('manage-links')}
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base"
+                >
+                  View All →
+                </Button>
+              </div>
+              
+              <div className="space-y-3 sm:space-y-4">
+                {dashboardData.recentLinks.map((link, index) => (
+                  <div key={link.id} className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md sm:rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-xs sm:text-sm font-bold">{index + 1}</span>
+                          </div>
+                          <p className="text-gray-900 font-semibold truncate text-sm sm:text-base lg:text-lg">{truncateUrl(link.shortLink || link.impactLink, 50)}</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-600">
+                          <span className="flex items-center space-x-1">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>{link.clicks || 0} clicks</span>
+                          </span>
+                          <span className="flex items-center space-x-1">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                            <span>${Number(link.revenue || 0).toFixed(2)} earned</span>
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => copyToClipboard(link.shortLink || link.impactLink, 'Link')}
+                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-sm sm:text-base"
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
 
       </Container>
     </div>
