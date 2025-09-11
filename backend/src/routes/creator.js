@@ -1758,35 +1758,23 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
-        // OPTIMIZED: Make API calls in parallel to reduce timeout risk
-        console.log(`[Analytics Enhanced] 🚀 Making parallel API calls to reduce timeout risk...`);
+        // Step 1: Get REAL clicks from Performance by SubId report
+        console.log(`[Analytics Enhanced] 🔍 Calling getPerformanceBySubId with:`, {
+          startDate,
+          endDate,
+          subId1: correctSubId1
+        });
         
-        const [performanceData, detailedActions] = await Promise.all([
-          // Step 1: Get REAL clicks from Performance by SubId report
-          impact.getPerformanceBySubId({
-            startDate,
-            endDate,
-            subId1: correctSubId1
-          }),
-          // Step 2: Get COMMISSIONABLE sales only from Actions API
-          impact.getAllActionsDetailed({
-            startDate: startDate + 'T00:00:00Z',
-            endDate: endDate + 'T23:59:59Z',
-            subId1: correctSubId1,
-            actionType: 'SALE'
-          })
-        ]);
+        const performanceData = await impact.getPerformanceBySubId({
+          startDate,
+          endDate,
+          subId1: correctSubId1
+        });
         
         console.log(`[Analytics Enhanced] 📊 Performance API response:`, {
           success: performanceData.success,
           data: performanceData.data,
           error: performanceData.error
-        });
-        
-        console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
-          success: detailedActions.success,
-          actionsCount: detailedActions.actions?.length || 0,
-          error: detailedActions.error
         });
         
         let realClicks = 0;
@@ -1797,8 +1785,23 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] ❌ Performance API failed:`, performanceData.error);
         }
         
+        // Step 2: Get COMMISSIONABLE sales only from Actions API
         let realConversions = 0;
         let realRevenue = 0;
+        
+        console.log(`[Analytics Enhanced] 🔍 Calling getAllActionsDetailed with:`, {
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE'
+        });
+        
+        const detailedActions = await impact.getAllActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE'
+        });
         
         if (detailedActions.success && detailedActions.actions) {
           // Filter for this creator's actions
@@ -1899,11 +1902,15 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     let dailyData = {};
     if (hasImpactData && correctSubId1) {
       try {
-        console.log(`[Analytics Enhanced] 🔍 Reusing actions data from previous call for earnings trend...`);
+        console.log(`[Analytics Enhanced] 🔍 Fetching all actions for ${requestedDays} days to group by day...`);
         
-        // OPTIMIZED: Reuse the detailedActions data from the parallel call above
-        // instead of making another API call
-        const allActions = detailedActions; // Reuse data from parallel call
+        // Fetch all actions for the entire period at once (more efficient)
+        const allActions = await impact.getAllActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE'
+        });
         
         if (allActions.success && allActions.actions) {
           console.log(`[Analytics Enhanced] ✅ Fetched ${allActions.actions.length} total actions for period`);

@@ -64,7 +64,7 @@ app.use((req, res, next) => {
 });
 
 // 🛡️ Safety middleware (before everything else)
-app.use(requestTimeout(60000)); // 60 second timeout for analytics endpoints
+app.use(requestTimeout(30000)); // 30 second timeout
 app.use(requestLogger);
 app.use(memoryMonitor);
 
