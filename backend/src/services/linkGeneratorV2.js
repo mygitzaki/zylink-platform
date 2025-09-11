@@ -39,9 +39,12 @@ class LinkGeneratorV2 {
       let programId = null;
       if (brandId) {
         const brand = await this.getBrandConfig(brandId);
-        if (brand && brand.impactProgramId) {
-          programId = brand.impactProgramId;
-          console.log(`🎯 Using brand-specific program ID: ${programId} for brand: ${brand.displayName}`);
+        if (brand) {
+          // Use brand's impactProgramId or fallback to default for Walmart
+          programId = brand.impactProgramId || (brand.name === 'walmart' ? process.env.IMPACT_PROGRAM_ID : null);
+          if (programId) {
+            console.log(`🎯 Using brand-specific program ID: ${programId} for brand: ${brand.displayName}`);
+          }
         }
       }
       
@@ -115,21 +118,54 @@ class LinkGeneratorV2 {
       
       console.log(`🔍 Auto-detecting brand from URL: ${hostname}`);
       
+      // Extract URL components for analysis
+      const urlPath = url.pathname;        // e.g., "/products/item"
+      const urlSearch = url.search;        // e.g., "?param=value"  
+      const fullUrl = url.href;            // e.g., "https://www.walmart.com/products/item"
+      
       // Get all available brands
       const prisma = getPrisma();
-      const brands = await prisma.brandConfig.findMany({
-        where: { isActive: true, impactProgramId: { not: null } }
+      const allBrands = await prisma.brandConfig.findMany({
+        where: { isActive: true }
+      });
+      
+      // Filter brands that have valid impactProgramId OR can use default program ID
+      const brands = allBrands.filter(brand => {
+        // Include brands with valid impactProgramId
+        if (brand.impactProgramId && brand.impactProgramId !== null && brand.impactProgramId !== '') {
+          return true;
+        }
+        // Include brands that can use the default program ID (like Walmart)
+        if (brand.name === 'walmart' && process.env.IMPACT_PROGRAM_ID) {
+          return true;
+        }
+        return false;
       });
       
       console.log(`🔍 Available brands for detection: ${brands.length}`);
       brands.forEach(brand => {
-        console.log(`  - ${brand.displayName} (${brand.name}) - Program ID: ${brand.impactProgramId}`);
+        const programId = brand.impactProgramId || (brand.name === 'walmart' ? process.env.IMPACT_PROGRAM_ID : 'none');
+        console.log(`  - ${brand.displayName} (${brand.name}) - Program ID: ${programId}`);
       });
       
-      // First, try to detect brand from product name in URL path
-      const urlPath = url.pathname.toLowerCase();
-      const urlSearch = url.search.toLowerCase();
-      const fullUrl = destinationUrl.toLowerCase();
+      // Check if Walmart is in the results
+      const walmartBrand = brands.find(brand => brand.name === 'walmart');
+      if (walmartBrand) {
+        const programId = walmartBrand.impactProgramId || process.env.IMPACT_PROGRAM_ID;
+        console.log(`✅ Walmart found in detection results: ${walmartBrand.displayName} (${walmartBrand.name}) - Program ID: ${programId}`);
+      } else {
+        console.log(`❌ Walmart NOT found in detection results`);
+        // Check if Walmart is in allBrands but filtered out
+        const walmartInAll = allBrands.find(brand => brand.name === 'walmart');
+        if (walmartInAll) {
+          console.log(`🔍 Walmart found in allBrands but filtered out: impactProgramId = "${walmartInAll.impactProgramId}"`);
+        } else {
+          console.log(`❌ Walmart NOT found in allBrands either`);
+        }
+      }
+      
+      console.log(`🔍 URL analysis: hostname="${hostname}", path="${urlPath}", search="${urlSearch}"`);
+      console.log(`🔍 Full URL: "${fullUrl}"`);
       
       console.log(`🔍 Analyzing URL for product brands: ${urlPath}`);
       
