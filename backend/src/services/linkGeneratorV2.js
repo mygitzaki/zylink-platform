@@ -201,17 +201,22 @@ class LinkGeneratorV2 {
         
         // General domain matching for all other brands
         if (!this.isWalmartBrand(brand)) {
-          // Check if URL hostname contains brand name or vice versa
-          if (hostname.includes(brandName) || 
-              hostname.includes(displayName) ||
-              brandName.includes(domainName) ||
-              brandName.includes(domainWithoutSuffix) ||
-              displayName.includes(domainName) ||
-              displayName.includes(domainWithoutSuffix) ||
-              domainName.includes(brandName) ||
-              domainWithoutSuffix.includes(brandName) ||
-              domainName.includes(displayName) ||
-              domainWithoutSuffix.includes(displayName)) {
+          // Skip brands with empty or invalid names
+          if (!brandName || brandName.trim() === '' || !displayName || displayName.trim() === '') {
+            continue;
+          }
+          
+          // More precise domain matching
+          const exactDomainMatch = hostname === `${brandName}.com` || 
+                                 hostname === `www.${brandName}.com` ||
+                                 hostname === `${domainName}.com` ||
+                                 hostname === `www.${domainName}.com`;
+          
+          const partialDomainMatch = (hostname.includes(brandName) && brandName.length > 3) ||
+                                   (hostname.includes(domainName) && domainName.length > 3) ||
+                                   (brandName.includes(domainName) && domainName.length > 3);
+          
+          if (exactDomainMatch || partialDomainMatch) {
             console.log(`✅ Auto-detected brand from domain: ${brand.displayName} for URL: ${hostname} (matched: ${brandName})`);
             return brand;
           }
