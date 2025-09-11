@@ -1758,18 +1758,28 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
-        // Step 1: Get REAL clicks from Performance by SubId report
-        console.log(`[Analytics Enhanced] 🔍 Calling getPerformanceBySubId with:`, {
-          startDate,
-          endDate,
-          subId1: correctSubId1
-        });
+        // Step 1: Get REAL clicks from Performance by SubId report with timeout protection
+        console.log(`[Analytics Enhanced] 🔍 Calling getPerformanceBySubId with timeout protection...`);
         
-        const performanceData = await impact.getPerformanceBySubId({
-          startDate,
-          endDate,
-          subId1: correctSubId1
-        });
+        let performanceData;
+        try {
+          // Add 20-second timeout to prevent server timeout
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Performance API timeout after 20 seconds')), 20000)
+          );
+          
+          performanceData = await Promise.race([
+            impact.getPerformanceBySubId({
+              startDate,
+              endDate,
+              subId1: correctSubId1
+            }),
+            timeoutPromise
+          ]);
+        } catch (timeoutError) {
+          console.log(`[Analytics Enhanced] ⚠️ Performance API timed out, using fallback`);
+          performanceData = { success: false, data: { clicks: 0 }, error: 'Timeout' };
+        }
         
         console.log(`[Analytics Enhanced] 📊 Performance API response:`, {
           success: performanceData.success,
@@ -1785,23 +1795,32 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] ❌ Performance API failed:`, performanceData.error);
         }
         
-        // Step 2: Get COMMISSIONABLE sales only from Actions API
+        // Step 2: Get COMMISSIONABLE sales only from Actions API with timeout protection
         let realConversions = 0;
         let realRevenue = 0;
         
-        console.log(`[Analytics Enhanced] 🔍 Calling getAllActionsDetailed with:`, {
-          startDate: startDate + 'T00:00:00Z',
-          endDate: endDate + 'T23:59:59Z',
-          subId1: correctSubId1,
-          actionType: 'SALE'
-        });
+        console.log(`[Analytics Enhanced] 🔍 Calling getAllActionsDetailed with timeout protection...`);
         
-        const detailedActions = await impact.getAllActionsDetailed({
-          startDate: startDate + 'T00:00:00Z',
-          endDate: endDate + 'T23:59:59Z',
-          subId1: correctSubId1,
-          actionType: 'SALE'
-        });
+        let detailedActions;
+        try {
+          // Add 20-second timeout to prevent server timeout
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Actions API timeout after 20 seconds')), 20000)
+          );
+          
+          detailedActions = await Promise.race([
+            impact.getAllActionsDetailed({
+              startDate: startDate + 'T00:00:00Z',
+              endDate: endDate + 'T23:59:59Z',
+              subId1: correctSubId1,
+              actionType: 'SALE'
+            }),
+            timeoutPromise
+          ]);
+        } catch (timeoutError) {
+          console.log(`[Analytics Enhanced] ⚠️ Actions API timed out, using fallback`);
+          detailedActions = { success: false, actions: [], error: 'Timeout' };
+        }
         
         console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
           success: detailedActions.success,
