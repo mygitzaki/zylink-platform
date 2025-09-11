@@ -1567,6 +1567,31 @@ router.post('/test-auto-detection', async (req, res) => {
   }
 });
 
+// Emergency reset for Impact.com API counters
+router.post('/reset-impact-counters', async (req, res) => {
+  try {
+    console.log('🚨 [ADMIN] Emergency reset of Impact.com API counters...');
+    
+    const { ImpactWebService } = require('../services/impactWebService');
+    const impactService = new ImpactWebService();
+    
+    impactService.resetCounters();
+    
+    res.json({ 
+      success: true, 
+      message: 'Impact.com API counters reset successfully',
+      counters: {
+        activeCalls: impactService.activeCalls,
+        lastCallTime: impactService.lastCallTime
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error resetting Impact.com counters:', error);
+    res.status(500).json({ message: 'Failed to reset counters', error: error.message });
+  }
+});
+
 // Update Walmart display name endpoint (one-time fix - no auth required)
 router.post('/fix-walmart-display', async (req, res) => {
   try {
