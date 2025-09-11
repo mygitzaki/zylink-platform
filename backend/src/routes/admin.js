@@ -1466,6 +1466,58 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// Update Walmart display name endpoint
+router.post('/update-walmart-display-name', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('🔧 [ADMIN] Updating Walmart display name...');
+    
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ message: 'Database not configured' });
+    }
+    
+    // Find the Walmart brand (could be "walmart" or "walmart creator")
+    const walmartBrand = await prisma.brandConfig.findFirst({
+      where: {
+        OR: [
+          { name: 'walmart' },
+          { name: 'walmart creator' },
+          { displayName: { contains: 'walmart', mode: 'insensitive' } }
+        ]
+      }
+    });
+    
+    if (!walmartBrand) {
+      return res.status(404).json({ message: 'Walmart brand not found in database' });
+    }
+    
+    console.log(`📋 Found Walmart brand: ${walmartBrand.name} -> ${walmartBrand.displayName}`);
+    
+    // Update the display name to just "Walmart"
+    const updated = await prisma.brandConfig.update({
+      where: { id: walmartBrand.id },
+      data: { displayName: 'Walmart' }
+    });
+    
+    console.log(`✅ Updated display name to: "${updated.displayName}"`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Walmart display name updated successfully',
+      brand: {
+        id: updated.id,
+        name: updated.name,
+        displayName: updated.displayName,
+        impactProgramId: updated.impactProgramId
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error updating Walmart display name:', error);
+    res.status(500).json({ message: 'Failed to update Walmart display name', error: error.message });
+  }
+});
+
 module.exports = router;
 
 
