@@ -210,11 +210,8 @@ class LinkGeneratorV2 {
           // Skip brands with empty or invalid names
           if (!brandName || brandName.trim() === '' || brandName.length === 0 || 
               !displayName || displayName.trim() === '' || displayName.length === 0) {
-            console.log(`⏭️ Skipping brand with invalid name: "${brandName}" / "${displayName}"`);
-            continue;
-          }
-          
-          console.log(`🔍 Checking brand: ${brandName} (${displayName}) against hostname: ${hostname}`);
+          continue;
+        }
           
           // More precise domain matching
           const exactDomainMatch = hostname === `${brandName}.com` || 
