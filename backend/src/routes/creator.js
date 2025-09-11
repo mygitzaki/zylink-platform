@@ -1758,54 +1758,23 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
-        // OPTIMIZED: Make API calls in parallel with timeout fallback
-        console.log(`[Analytics Enhanced] 🚀 Making parallel API calls with 25s timeout...`);
+        // Step 1: Get REAL clicks from Performance by SubId report
+        console.log(`[Analytics Enhanced] 🔍 Calling getPerformanceBySubId with:`, {
+          startDate,
+          endDate,
+          subId1: correctSubId1
+        });
         
-        let performanceData, detailedActions;
-        
-        try {
-          // Set a 25-second timeout for the parallel calls
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('API calls timeout after 25 seconds')), 25000)
-          );
-          
-          const apiCallsPromise = Promise.all([
-            // Step 1: Get REAL clicks from Performance by SubId report
-            impact.getPerformanceBySubId({
-              startDate,
-              endDate,
-              subId1: correctSubId1
-            }),
-            // Step 2: Get COMMISSIONABLE sales only from Actions API
-            impact.getAllActionsDetailed({
-              startDate: startDate + 'T00:00:00Z',
-              endDate: endDate + 'T23:59:59Z',
-              subId1: correctSubId1,
-              actionType: 'SALE'
-            })
-          ]);
-          
-          [performanceData, detailedActions] = await Promise.race([apiCallsPromise, timeoutPromise]);
-          
-        } catch (timeoutError) {
-          console.log(`[Analytics Enhanced] ⚠️ API calls timed out, using fallback data`);
-          // Use fallback data to prevent complete failure
-          performanceData = { success: false, data: { clicks: 0 }, error: 'Timeout' };
-          detailedActions = { success: false, actions: [], error: 'Timeout' };
-          // Set a flag to indicate API failure
-          impactData.apiFailed = true;
-        }
+        const performanceData = await impact.getPerformanceBySubId({
+          startDate,
+          endDate,
+          subId1: correctSubId1
+        });
         
         console.log(`[Analytics Enhanced] 📊 Performance API response:`, {
           success: performanceData.success,
           data: performanceData.data,
           error: performanceData.error
-        });
-        
-        console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
-          success: detailedActions.success,
-          actionsCount: detailedActions.actions?.length || 0,
-          error: detailedActions.error
         });
         
         let realClicks = 0;
@@ -1816,8 +1785,29 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] ❌ Performance API failed:`, performanceData.error);
         }
         
+        // Step 2: Get COMMISSIONABLE sales only from Actions API
         let realConversions = 0;
         let realRevenue = 0;
+        
+        console.log(`[Analytics Enhanced] 🔍 Calling getAllActionsDetailed with:`, {
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE'
+        });
+        
+        const detailedActions = await impact.getAllActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE'
+        });
+        
+        console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
+          success: detailedActions.success,
+          actionsCount: detailedActions.actions?.length || 0,
+          error: detailedActions.error
+        });
         
         if (detailedActions.success && detailedActions.actions) {
           // Filter for this creator's actions
@@ -1841,12 +1831,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           const businessRate = creator?.commissionRate || 70;
           realRevenue = (grossRevenue * businessRate) / 100;
           
-          console.log(`[Analytics Enhanced] ✅ COMMISSIONABLE ONLY filtering:`);
-          console.log(`  - Total actions: ${creatorActions.length}`);
-          console.log(`  - Commissionable actions: ${realConversions}`);
-          console.log(`  - Gross commission: $${grossRevenue.toFixed(2)}`);
-          console.log(`  - Creator revenue (${businessRate}%): $${realRevenue.toFixed(2)}`);
-          console.log(`  - Real clicks: ${realClicks}`);
+          console.log(`[Analytics Enhanced] ✅ COMMISSIONABLE ONLY: ${realConversions} conversions, $${realRevenue.toFixed(2)} revenue`);
+        } else {
+          console.log(`[Analytics Enhanced] ❌ Actions API failed:`, detailedActions.error);
         }
         
         // Calculate real conversion rate from real data
@@ -1869,20 +1856,6 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       }
     } catch (error) {
       console.error('[Analytics Enhanced] Error fetching Impact.com data:', error.message);
-    }
-    
-    // FALLBACK: Only apply fallback if API actually failed, not if it returned zero data
-    if (impactData && impactData.apiFailed) {
-      console.log(`[Analytics Enhanced] 🔄 Using fallback data due to API timeout/failure`);
-      // Provide some basic data so charts don't show empty
-      impactData = {
-        clicks: 1, // Show at least 1 click to prevent empty charts
-        conversions: 0,
-        revenue: 0,
-        conversionRate: 0
-      };
-    } else if (impactData && impactData.clicks === 0 && impactData.conversions === 0 && impactData.revenue === 0) {
-      console.log(`[Analytics Enhanced] 📊 API succeeded but returned zero data - this is normal`);
     }
     
     // 2. Get Database Data as Fallback
