@@ -1592,6 +1592,69 @@ router.post('/reset-impact-counters', async (req, res) => {
   }
 });
 
+// Debug Impact.com API status
+router.get('/debug-impact-api', async (req, res) => {
+  try {
+    console.log('🔍 [ADMIN] Debugging Impact.com API status...');
+    
+    const ImpactWebService = require('../services/impactWebService');
+    const impact = new ImpactWebService();
+    
+    // Check configuration
+    const isConfigured = impact.isConfigured();
+    const credentials = {
+      accountSid: !!impact.accountSid,
+      authToken: !!impact.authToken,
+      programId: !!impact.programId
+    };
+    
+    // Test with a known SubId1
+    const testSubId1 = 'a2f43d61-b4fe-4c2c-8caa-72f2b43fc09b';
+    const startDate = '2025-08-13';
+    const endDate = '2025-09-11';
+    
+    let performanceResult = null;
+    let actionsResult = null;
+    
+    if (isConfigured) {
+      try {
+        // Test Performance API
+        performanceResult = await impact.getPerformanceBySubId({
+          startDate,
+          endDate,
+          subId1: testSubId1
+        });
+        
+        // Test Actions API
+        actionsResult = await impact.getActionsDetailed({
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: testSubId1,
+          actionType: 'SALE'
+        });
+      } catch (apiError) {
+        console.error('API test error:', apiError);
+      }
+    }
+    
+    res.json({
+      isConfigured,
+      credentials,
+      testSubId1,
+      dateRange: { startDate, endDate },
+      performanceResult,
+      actionsResult,
+      counters: {
+        activeCalls: impact.activeCalls,
+        lastCallTime: impact.lastCallTime
+      }
+    });
+  } catch (error) {
+    console.error('Debug API failed:', error);
+    res.status(500).json({ message: 'Debug API failed', error: error.message });
+  }
+});
+
 // Update Walmart display name endpoint (one-time fix - no auth required)
 router.post('/fix-walmart-display', async (req, res) => {
   try {
