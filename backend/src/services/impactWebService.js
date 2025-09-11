@@ -19,8 +19,8 @@ class ImpactWebService {
     this.cache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
     this.lastCallTime = 0;
-    this.minCallInterval = 3000; // 3 seconds between calls (Impact.com safe)
-    this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
+    this.minCallInterval = 1000; // 1 second between calls (reduced for faster response)
+    this.maxConcurrentCalls = 2; // Allow 2 concurrent calls for faster response
     this.activeCalls = 0;
     
     // Global rate limiting queue
