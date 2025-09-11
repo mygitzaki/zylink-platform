@@ -19,9 +19,19 @@ class ImpactWebService {
     this.cache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
     this.lastCallTime = 0;
-    this.minCallInterval = 1000; // 1 second between calls (safe default)
-    this.maxConcurrentCalls = 2; // Maximum concurrent API calls
+    this.minCallInterval = 3000; // 3 seconds between calls (Impact.com safe)
+    this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
     this.activeCalls = 0;
+    
+    // Global rate limiting queue
+    this.apiQueue = [];
+    this.isProcessingQueue = false;
+    this.circuitBreaker = {
+      failures: 0,
+      lastFailureTime: 0,
+      threshold: 5, // Open circuit after 5 failures
+      timeout: 60000 // 1 minute timeout before retry
+    };
     
     // Validate required credentials
     this.validateCredentials();
@@ -94,6 +104,98 @@ class ImpactWebService {
   // Release concurrency control
   releaseCall() {
     this.activeCalls = Math.max(0, this.activeCalls - 1);
+  }
+
+  // Circuit breaker check
+  isCircuitOpen() {
+    const now = Date.now();
+    if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
+      if (now - this.circuitBreaker.lastFailureTime < this.circuitBreaker.timeout) {
+        return true; // Circuit is open
+      } else {
+        // Reset circuit breaker after timeout
+        this.circuitBreaker.failures = 0;
+        console.log('[ImpactWebService] 🔄 Circuit breaker reset - retrying API calls');
+      }
+    }
+    return false;
+  }
+
+  // Record API failure
+  recordFailure() {
+    this.circuitBreaker.failures++;
+    this.circuitBreaker.lastFailureTime = Date.now();
+    console.log(`[ImpactWebService] ⚠️ API failure recorded (${this.circuitBreaker.failures}/${this.circuitBreaker.threshold})`);
+  }
+
+  // Record API success
+  recordSuccess() {
+    if (this.circuitBreaker.failures > 0) {
+      this.circuitBreaker.failures = 0;
+      console.log('[ImpactWebService] ✅ API success - circuit breaker reset');
+    }
+  }
+
+  // Queue API call for processing
+  async queueApiCall(apiFunction, ...args) {
+    return new Promise((resolve, reject) => {
+      this.apiQueue.push({
+        apiFunction,
+        args,
+        resolve,
+        reject,
+        timestamp: Date.now()
+      });
+      
+      // Start processing queue if not already running
+      if (!this.isProcessingQueue) {
+        this.processQueue();
+      }
+    });
+  }
+
+  // Process API queue with proper rate limiting
+  async processQueue() {
+    if (this.isProcessingQueue) return;
+    
+    this.isProcessingQueue = true;
+    console.log(`[ImpactWebService] 🔄 Processing API queue (${this.apiQueue.length} calls pending)`);
+    
+    while (this.apiQueue.length > 0) {
+      // Check circuit breaker
+      if (this.isCircuitOpen()) {
+        console.log('[ImpactWebService] 🚫 Circuit breaker open - pausing API calls');
+        await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+        continue;
+      }
+      
+      const call = this.apiQueue.shift();
+      
+      try {
+        // Wait for rate limiting
+        await this.waitForRateLimit();
+        
+        // Execute API call
+        const result = await call.apiFunction.apply(this, call.args);
+        call.resolve(result);
+        this.recordSuccess();
+        
+      } catch (error) {
+        call.reject(error);
+        this.recordFailure();
+        
+        // If it's a rate limit error, add longer delay
+        if (error.message && (error.message.includes('rate limit') || error.message.includes('429'))) {
+          console.log('[ImpactWebService] ⏳ Rate limit hit - adding extra delay');
+          await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds for rate limits
+        }
+      } finally {
+        this.releaseCall();
+      }
+    }
+    
+    this.isProcessingQueue = false;
+    console.log('[ImpactWebService] ✅ API queue processing complete');
   }
 
   cleanupCache() {
@@ -1076,19 +1178,27 @@ class ImpactWebService {
 
   // Get real clicks and performance data by SubId1 (NEW - for accurate analytics)
   async getPerformanceBySubId(options = {}) {
+    const { startDate, endDate, subId1, retryCount = 0, maxRetries = 3 } = options;
+    console.log(`🎯 Fetching real performance data for SubId1: ${subId1}`);
+    
+    // Check cache first
+    if (retryCount === 0) {
+      const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
+      const cached = this.getFromCache(cacheKey);
+      if (cached) {
+        console.log(`[ImpactWebService] 📦 Cache hit for getPerformanceBySubId - avoiding API call`);
+        return cached;
+      }
+    }
+
+    // Use queue system for rate limiting
+    return this.queueApiCall(this._getPerformanceBySubIdInternal, options);
+  }
+
+  // Internal method for performance data (called by queue)
+  async _getPerformanceBySubIdInternal(options = {}) {
     try {
       const { startDate, endDate, subId1, retryCount = 0, maxRetries = 3 } = options;
-      console.log(`🎯 Fetching real performance data for SubId1: ${subId1}`);
-      
-      // Check cache first
-      if (retryCount === 0) {
-        const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
-        const cached = this.getFromCache(cacheKey);
-        if (cached) {
-          console.log(`[ImpactWebService] 📦 Cache hit for getPerformanceBySubId - avoiding API call`);
-          return cached;
-        }
-      }
 
       // Wait for rate limiting
       await this.waitForRateLimit();

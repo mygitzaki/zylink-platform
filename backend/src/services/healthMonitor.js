@@ -125,7 +125,7 @@ class HealthMonitor {
         console.log(`⚠️ Health check impact-api failed: ${error.message}`);
         return false;
       }
-    }, 300000); // Check every 5 minutes
+    }, 600000); // Check every 10 minutes instead of 5 // Check every 5 minutes
 
     // Server responsiveness check
     this.registerCheck('server-response', async () => {

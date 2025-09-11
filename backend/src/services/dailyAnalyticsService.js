@@ -82,7 +82,8 @@ class DailyAnalyticsService {
 
         // Rate limiting between batches
         if (i + batchSize < creators.length) {
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+          console.log(`⏳ [Daily Analytics] Waiting 30 seconds before next batch...`);
+          await new Promise(resolve => setTimeout(resolve, 30000)); // 30 second delay between batches
         }
       }
 
