@@ -193,22 +193,8 @@ class LinkGeneratorV2 {
         }
       }
       
-      // Special handling for Walmart domains
-      if (hostname.includes('walmart.com')) {
-        const walmartBrand = brands.find(brand => this.isWalmartBrand(brand));
-        if (walmartBrand) {
-          console.log(`✅ Auto-detected Walmart from domain: ${walmartBrand.displayName} for URL: ${hostname}`);
-          return walmartBrand;
-        }
-      }
-      
-      // Fallback: Check for domain matches for other brands
+      // Check for domain matches for all brands
       for (const brand of brands) {
-        // Skip Walmart brands as they're handled above
-        if (this.isWalmartBrand(brand)) {
-          continue;
-        }
-        
         const brandName = brand.name.toLowerCase();
         const displayName = brand.displayName.toLowerCase();
         
@@ -216,19 +202,28 @@ class LinkGeneratorV2 {
         const domainName = hostname.replace('www.', '').split('.')[0];
         const domainWithoutSuffix = domainName.split('-')[0]; // "coolway" from "coolway-us"
         
-        // Check if URL hostname contains brand name or vice versa
-        if (hostname.includes(brandName) || 
-            hostname.includes(displayName) ||
-            brandName.includes(domainName) ||
-            brandName.includes(domainWithoutSuffix) ||
-            displayName.includes(domainName) ||
-            displayName.includes(domainWithoutSuffix) ||
-            domainName.includes(brandName) ||
-            domainWithoutSuffix.includes(brandName) ||
-            domainName.includes(displayName) ||
-            domainWithoutSuffix.includes(displayName)) {
-          console.log(`✅ Auto-detected brand from domain: ${brand.displayName} for URL: ${hostname} (matched: ${brandName})`);
+        // Special handling for Walmart domains
+        if (hostname.includes('walmart.com') && this.isWalmartBrand(brand)) {
+          console.log(`✅ Auto-detected Walmart from domain: ${brand.displayName} for URL: ${hostname}`);
           return brand;
+        }
+        
+        // General domain matching for all other brands
+        if (!this.isWalmartBrand(brand)) {
+          // Check if URL hostname contains brand name or vice versa
+          if (hostname.includes(brandName) || 
+              hostname.includes(displayName) ||
+              brandName.includes(domainName) ||
+              brandName.includes(domainWithoutSuffix) ||
+              displayName.includes(domainName) ||
+              displayName.includes(domainWithoutSuffix) ||
+              domainName.includes(brandName) ||
+              domainWithoutSuffix.includes(brandName) ||
+              domainName.includes(displayName) ||
+              domainWithoutSuffix.includes(displayName)) {
+            console.log(`✅ Auto-detected brand from domain: ${brand.displayName} for URL: ${hostname} (matched: ${brandName})`);
+            return brand;
+          }
         }
       }
       
