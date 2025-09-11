@@ -41,7 +41,7 @@ class LinkGeneratorV2 {
         const brand = await this.getBrandConfig(brandId);
         if (brand) {
           // Use brand's impactProgramId or fallback to default for Walmart
-          programId = brand.impactProgramId || (brand.name === 'walmart' ? process.env.IMPACT_PROGRAM_ID : null);
+          programId = brand.impactProgramId || ((brand.name === 'walmart' || brand.name === 'walmart creator') ? process.env.IMPACT_PROGRAM_ID : null);
           if (programId) {
             console.log(`🎯 Using brand-specific program ID: ${programId} for brand: ${brand.displayName}`);
           }
@@ -136,7 +136,7 @@ class LinkGeneratorV2 {
           return true;
         }
         // Include brands that can use the default program ID (like Walmart)
-        if (brand.name === 'walmart' && process.env.IMPACT_PROGRAM_ID) {
+        if ((brand.name === 'walmart' || brand.name === 'walmart creator') && process.env.IMPACT_PROGRAM_ID) {
           return true;
         }
         return false;
@@ -144,19 +144,19 @@ class LinkGeneratorV2 {
       
       console.log(`🔍 Available brands for detection: ${brands.length}`);
       brands.forEach(brand => {
-        const programId = brand.impactProgramId || (brand.name === 'walmart' ? process.env.IMPACT_PROGRAM_ID : 'none');
+        const programId = brand.impactProgramId || ((brand.name === 'walmart' || brand.name === 'walmart creator') ? process.env.IMPACT_PROGRAM_ID : 'none');
         console.log(`  - ${brand.displayName} (${brand.name}) - Program ID: ${programId}`);
       });
       
       // Check if Walmart is in the results
-      const walmartBrand = brands.find(brand => brand.name === 'walmart');
+      const walmartBrand = brands.find(brand => brand.name === 'walmart' || brand.name === 'walmart creator');
       if (walmartBrand) {
         const programId = walmartBrand.impactProgramId || process.env.IMPACT_PROGRAM_ID;
         console.log(`✅ Walmart found in detection results: ${walmartBrand.displayName} (${walmartBrand.name}) - Program ID: ${programId}`);
       } else {
         console.log(`❌ Walmart NOT found in detection results`);
         // Check if Walmart is in allBrands but filtered out
-        const walmartInAll = allBrands.find(brand => brand.name === 'walmart');
+        const walmartInAll = allBrands.find(brand => brand.name === 'walmart' || brand.name === 'walmart creator');
         if (walmartInAll) {
           console.log(`🔍 Walmart found in allBrands but filtered out: impactProgramId = "${walmartInAll.impactProgramId}"`);
         } else {
