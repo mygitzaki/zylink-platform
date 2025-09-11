@@ -52,8 +52,7 @@ export default function LinkGenerator() {
       setSuccess('Link generated successfully!')
       setProductUrl('')
       
-      // Refresh dashboard data to show new link
-      await loadDashboardData()
+      // REMOVED: loadDashboardData call since we no longer load dashboard data
       
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
