@@ -1466,6 +1466,39 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// Test auto-detection endpoint
+router.post('/test-auto-detection', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ message: 'URL is required' });
+    }
+    
+    console.log(`🧪 [TEST] Testing auto-detection for: ${url}`);
+    
+    const { LinkGeneratorV2 } = require('../services/linkGeneratorV2');
+    const linkGenerator = new LinkGeneratorV2();
+    
+    const detectedBrand = await linkGenerator.detectBrandFromUrl(url);
+    
+    res.json({
+      success: true,
+      url: url,
+      detectedBrand: detectedBrand ? {
+        id: detectedBrand.id,
+        name: detectedBrand.name,
+        displayName: detectedBrand.displayName,
+        impactProgramId: detectedBrand.impactProgramId
+      } : null
+    });
+    
+  } catch (error) {
+    console.error('❌ Error testing auto-detection:', error);
+    res.status(500).json({ message: 'Auto-detection test failed', error: error.message });
+  }
+});
+
 // Update Walmart display name endpoint (one-time fix - no auth required)
 router.post('/fix-walmart-display', async (req, res) => {
   try {
