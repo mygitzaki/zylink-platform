@@ -1507,7 +1507,7 @@ router.post('/test-auto-detection', async (req, res) => {
     
     console.log(`🧪 [TEST] Testing auto-detection for: ${url}`);
     
-    const { LinkGeneratorV2 } = require('../services/linkGeneratorV2');
+    const LinkGeneratorV2 = require('../services/linkGeneratorV2');
     const linkGenerator = new LinkGeneratorV2();
     
     const detectedBrand = await linkGenerator.detectBrandFromUrl(url);
