@@ -172,6 +172,12 @@ class LinkGeneratorV2 {
         const brandName = brand.name.toLowerCase();
         const displayName = brand.displayName.toLowerCase();
         
+        // Skip brands with empty or invalid names
+        if (!brandName || brandName.trim() === '' || brandName.length === 0 || 
+            !displayName || displayName.trim() === '' || displayName.length === 0) {
+          continue;
+        }
+        
         // Check if brand name appears in URL path or search params
         if (urlPath.includes(brandName) || 
             urlPath.includes(displayName) ||
