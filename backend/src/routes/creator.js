@@ -1759,14 +1759,14 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         console.log(`[Analytics Enhanced] Fetching REAL clicks + COMMISSIONABLE sales for SubId1: ${correctSubId1}`);
         
         // OPTIMIZED: Make API calls in parallel with timeout fallback
-        console.log(`[Analytics Enhanced] 🚀 Making parallel API calls with 15s timeout...`);
+        console.log(`[Analytics Enhanced] 🚀 Making parallel API calls with 25s timeout...`);
         
         let performanceData, detailedActions;
         
         try {
-          // Set a 15-second timeout for the parallel calls
+          // Set a 25-second timeout for the parallel calls
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('API calls timeout after 15 seconds')), 15000)
+            setTimeout(() => reject(new Error('API calls timeout after 25 seconds')), 25000)
           );
           
           const apiCallsPromise = Promise.all([
@@ -1792,6 +1792,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           // Use fallback data to prevent complete failure
           performanceData = { success: false, data: { clicks: 0 }, error: 'Timeout' };
           detailedActions = { success: false, actions: [], error: 'Timeout' };
+          // Set a flag to indicate API failure
+          impactData.apiFailed = true;
         }
         
         console.log(`[Analytics Enhanced] 📊 Performance API response:`, {
@@ -1869,9 +1871,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       console.error('[Analytics Enhanced] Error fetching Impact.com data:', error.message);
     }
     
-    // FALLBACK: If Impact.com data is not available, use basic fallback
-    if (impactData && impactData.clicks === 0 && impactData.conversions === 0 && impactData.revenue === 0) {
-      console.log(`[Analytics Enhanced] 🔄 Using fallback data due to API issues`);
+    // FALLBACK: Only apply fallback if API actually failed, not if it returned zero data
+    if (impactData && impactData.apiFailed) {
+      console.log(`[Analytics Enhanced] 🔄 Using fallback data due to API timeout/failure`);
       // Provide some basic data so charts don't show empty
       impactData = {
         clicks: 1, // Show at least 1 click to prevent empty charts
@@ -1879,6 +1881,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         revenue: 0,
         conversionRate: 0
       };
+    } else if (impactData && impactData.clicks === 0 && impactData.conversions === 0 && impactData.revenue === 0) {
+      console.log(`[Analytics Enhanced] 📊 API succeeded but returned zero data - this is normal`);
     }
     
     // 2. Get Database Data as Fallback
