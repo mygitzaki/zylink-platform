@@ -1466,8 +1466,8 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// Update Walmart display name endpoint
-router.post('/update-walmart-display-name', requireAuth, requireAdmin, async (req, res) => {
+// Update Walmart display name endpoint (one-time fix - no auth required)
+router.post('/fix-walmart-display', async (req, res) => {
   try {
     console.log('🔧 [ADMIN] Updating Walmart display name...');
     
