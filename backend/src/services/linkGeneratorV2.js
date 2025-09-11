@@ -136,18 +136,9 @@ class LinkGeneratorV2 {
         where: { isActive: true }
       });
       
-      // Filter brands that have valid impactProgramId OR can use default program ID
-      const brands = allBrands.filter(brand => {
-        // Include brands with valid impactProgramId
-        if (brand.impactProgramId && brand.impactProgramId !== null && brand.impactProgramId !== '') {
-          return true;
-        }
-        // Include Walmart brands (regardless of exact name) that can use default program ID
-        if (isWalmartBrand(brand) && process.env.IMPACT_PROGRAM_ID) {
-          return true;
-        }
-        return false;
-      });
+      // Include all active brands for auto-detection
+      // Program ID validation happens later in createImpactLink
+      const brands = allBrands;
       
       console.log(`🔍 Available brands for detection: ${brands.length}`);
       brands.forEach(brand => {
