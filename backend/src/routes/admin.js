@@ -1496,6 +1496,44 @@ router.get('/list-brands', async (req, res) => {
   }
 });
 
+// Debug brand data endpoint
+router.get('/debug-brand/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ message: 'Database not configured' });
+    }
+    
+    const brand = await prisma.brandConfig.findUnique({
+      where: { id: id }
+    });
+    
+    if (!brand) {
+      return res.status(404).json({ message: 'Brand not found' });
+    }
+    
+    res.json({
+      success: true,
+      brand: {
+        id: brand.id,
+        name: brand.name,
+        displayName: brand.displayName,
+        nameLength: brand.name ? brand.name.length : 0,
+        displayNameLength: brand.displayName ? brand.displayName.length : 0,
+        nameTrimmed: brand.name ? brand.name.trim() : '',
+        displayNameTrimmed: brand.displayName ? brand.displayName.trim() : '',
+        isEmpty: !brand.name || brand.name.trim() === '' || brand.name.length === 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error debugging brand:', error);
+    res.status(500).json({ message: 'Failed to debug brand', error: error.message });
+  }
+});
+
 // Test auto-detection endpoint
 router.post('/test-auto-detection', async (req, res) => {
   try {
