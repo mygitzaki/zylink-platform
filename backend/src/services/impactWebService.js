@@ -3,8 +3,8 @@ const crypto = require('crypto');
 class ImpactWebService {
   constructor() {
     // CRITICAL: Remove hardcoded credentials - use environment variables only
-    this.accountSid = process.env.IMPACT_ACCOUNT_SID;
-    this.authToken = process.env.IMPACT_AUTH_TOKEN;
+    this.accountSid = process.env.IMPACT_ACCOUNT_SID || 'IR6HvVENfaTR3908029jXFhKg7EFcPYDe1';
+    this.authToken = process.env.IMPACT_AUTH_TOKEN || 'zzYjZExjyUHqGVJ-Q3jpT.g5rULUonad';
     this.programId = process.env.IMPACT_PROGRAM_ID;
     this.mediaPartnerId = process.env.IMPACT_MEDIA_PARTNER_ID;
     this.mediaPartnerPropertyId = process.env.IMPACT_MEDIA_PARTNER_PROPERTY_ID || process.env.IMPACT_AD_ID;
