@@ -1724,7 +1724,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     res.set('Surrogate-Control', 'no-store');
     
     // 1. Get Real Impact.com Data (Real Clicks + Commissionable Sales Only)
-    let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
+    let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0, apiSuccess: false };
     let correctSubId1; // Declare at function scope
     let creator; // Declare at function scope
     let impact; // Declare at function scope
@@ -1863,7 +1863,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           clicks: realClicks,
           conversions: realConversions,
           revenue: realRevenue,
-          conversionRate: realConversionRate
+          conversionRate: realConversionRate,
+          apiSuccess: true
         };
         
         console.log(`[Analytics Enhanced] ✅ FINAL REAL DATA:`, {
@@ -1888,13 +1889,13 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       _sum: { clicks: true },
     });
     
-    // 3. Prioritize Impact.com Data - Only use database as absolute fallback
-    const hasImpactData = impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0;
+    // 3. Only use Impact.com Data if API calls were successful - Show zero if API fails
+    const hasImpactData = impactData.apiSuccess && (impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0);
     
     const finalData = {
-      clicks: hasImpactData ? impactData.clicks : (shortLinkAgg._sum.clicks || 0),
-      conversions: hasImpactData ? impactData.conversions : (linkAgg._sum.conversions || 0),
-      revenue: hasImpactData ? impactData.revenue : Number(linkAgg._sum.revenue || 0),
+      clicks: hasImpactData ? impactData.clicks : 0,
+      conversions: hasImpactData ? impactData.conversions : 0,
+      revenue: hasImpactData ? impactData.revenue : 0,
       conversionRate: hasImpactData ? impactData.conversionRate : 0
     };
     
@@ -1903,7 +1904,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       finalData.conversionRate = parseFloat(((finalData.conversions / finalData.clicks) * 100).toFixed(2));
     }
     
-    console.log(`[Analytics Enhanced] Using ${hasImpactData ? 'Impact.com' : 'database fallback'} data:`, {
+    console.log(`[Analytics Enhanced] Using ${hasImpactData ? 'Impact.com' : 'zero (API failed)'} data:`, {
       clicks: finalData.clicks,
       conversions: finalData.conversions,
       revenue: finalData.revenue.toFixed(2),
@@ -2211,7 +2212,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         lastClick: activity.createdAt,
         createdAt: activity.createdAt
       })),
-      dataSource: impactData.conversions > 0 ? 'impact_com' : 'database_fallback'
+      dataSource: hasImpactData ? 'impact_com' : 'zero_api_failed'
     };
     
     console.log(`[Analytics Enhanced] Response:`, {
