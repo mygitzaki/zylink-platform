@@ -1884,14 +1884,14 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       _sum: { clicks: true },
     });
     
-    // 3. Use Impact.com Data if we have any valid data - Graceful degradation
-    const hasValidData = impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0;
+    // 3. Only use Impact.com Data if API calls were successful - Show zero if API fails
+    const hasImpactData = impactData.apiSuccess && (impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0);
     
     const finalData = {
-      clicks: hasValidData ? impactData.clicks : 0,
-      conversions: hasValidData ? impactData.conversions : 0,
-      revenue: hasValidData ? impactData.revenue : 0,
-      conversionRate: hasValidData ? impactData.conversionRate : 0
+      clicks: hasImpactData ? impactData.clicks : 0,
+      conversions: hasImpactData ? impactData.conversions : 0,
+      revenue: hasImpactData ? impactData.revenue : 0,
+      conversionRate: hasImpactData ? impactData.conversionRate : 0
     };
     
     // Recalculate conversion rate with final data
@@ -1899,7 +1899,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       finalData.conversionRate = parseFloat(((finalData.conversions / finalData.clicks) * 100).toFixed(2));
     }
     
-    console.log(`[Analytics Enhanced] Using ${hasValidData ? 'Impact.com' : 'zero (no data)'} data:`, {
+    console.log(`[Analytics Enhanced] Using ${hasImpactData ? 'Impact.com' : 'zero (API failed)'} data:`, {
       clicks: finalData.clicks,
       conversions: finalData.conversions,
       revenue: finalData.revenue.toFixed(2),
@@ -2207,7 +2207,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         lastClick: activity.createdAt,
         createdAt: activity.createdAt
       })),
-      dataSource: hasValidData ? 'impact_com' : 'zero_no_data'
+      dataSource: hasImpactData ? 'impact_com' : 'zero_api_failed'
     };
     
     console.log(`[Analytics Enhanced] Response:`, {
