@@ -1884,8 +1884,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       _sum: { clicks: true },
     });
     
-    // 3. Only use Impact.com Data if API calls were successful - Show zero if API fails
-    const hasImpactData = impactData.apiSuccess && (impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0);
+    // 3. Use Impact.com Data if we have any valid data - Graceful degradation
+    const hasImpactData = impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0;
     
     const finalData = {
       clicks: hasImpactData ? impactData.clicks : 0,
