@@ -1795,63 +1795,59 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] ❌ Performance API failed:`, performanceData.error);
         }
         
-        // Step 2: Get conversions count from Actions API (first page only for speed)
+        // Step 2: Get conversions and revenue from Performance API (most reliable)
         let realConversions = 0;
         let realRevenue = 0;
         
-        console.log(`[Analytics Enhanced] 🔍 Calling getActionsDetailed (first page only) for conversion count...`);
-        
-        let detailedActions;
-        try {
-          // Add 15-second timeout for faster response
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Actions API timeout after 15 seconds')), 15000)
-          );
-          
-          detailedActions = await Promise.race([
-            impact.getActionsDetailed({
-              startDate: startDate + 'T00:00:00Z',
-              endDate: endDate + 'T23:59:59Z',
-              subId1: correctSubId1,
-              actionType: 'SALE',
-              pageSize: 2000 // Get first page with max page size
-            }),
-            timeoutPromise
-          ]);
-        } catch (timeoutError) {
-          console.log(`[Analytics Enhanced] ⚠️ Actions API timed out, using Performance API data only`);
-          detailedActions = { success: false, actions: [], error: 'Timeout' };
-        }
-        
-        console.log(`[Analytics Enhanced] 📊 Actions API response:`, {
-          success: detailedActions.success,
-          actionsCount: detailedActions.actions?.length || 0,
-          totalResults: detailedActions.totalResults || 0,
-          error: detailedActions.error
-        });
-        
-        if (detailedActions.success && detailedActions.actions) {
-          // Count conversions from first page (API already filters by SubId1)
-          const commissionableActions = detailedActions.actions.filter(action => {
-            const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
-          });
-          
-          // Use totalResults for accurate conversion count, not just first page
-          realConversions = detailedActions.totalResults || commissionableActions.length;
-          
-          console.log(`[Analytics Enhanced] ✅ Conversions: ${realConversions} (from totalResults: ${detailedActions.totalResults})`);
-        }
-        
-        // Step 3: Get REAL revenue from Performance API (already fetched above)
         if (performanceData.success && performanceData.data) {
+          // Use Performance API data for both conversions and revenue (most accurate)
+          realConversions = performanceData.data.actions || 0; // This is the commissionable actions count
           const grossRevenue = performanceData.data.commission || 0;
           const businessRate = creator?.commissionRate || 70;
           realRevenue = (grossRevenue * businessRate) / 100;
           
-          console.log(`[Analytics Enhanced] ✅ REAL REVENUE from Performance API: $${grossRevenue} gross -> $${realRevenue.toFixed(2)} net`);
+          console.log(`[Analytics Enhanced] ✅ PERFORMANCE API DATA: ${realConversions} conversions, $${grossRevenue} gross -> $${realRevenue.toFixed(2)} net`);
         } else {
-          console.log(`[Analytics Enhanced] ❌ Performance API failed for revenue calculation`);
+          console.log(`[Analytics Enhanced] ❌ Performance API failed, trying Actions API fallback...`);
+          
+          // Fallback to Actions API if Performance API fails
+          let detailedActions;
+          try {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Actions API timeout after 15 seconds')), 15000)
+            );
+            
+            detailedActions = await Promise.race([
+              impact.getActionsDetailed({
+                startDate: startDate + 'T00:00:00Z',
+                endDate: endDate + 'T23:59:59Z',
+                subId1: correctSubId1,
+                actionType: 'SALE',
+                pageSize: 2000
+              }),
+              timeoutPromise
+            ]);
+            
+            if (detailedActions.success && detailedActions.actions) {
+              const commissionableActions = detailedActions.actions.filter(action => {
+                const commission = parseFloat(action.Payout || action.Commission || 0);
+                return commission > 0;
+              });
+              
+              realConversions = commissionableActions.length;
+              
+              const grossRevenue = commissionableActions.reduce((sum, action) => {
+                return sum + parseFloat(action.Payout || action.Commission || 0);
+              }, 0);
+              
+              const businessRate = creator?.commissionRate || 70;
+              realRevenue = (grossRevenue * businessRate) / 100;
+              
+              console.log(`[Analytics Enhanced] ✅ ACTIONS API FALLBACK: ${realConversions} conversions, $${realRevenue.toFixed(2)} revenue`);
+            }
+          } catch (timeoutError) {
+            console.log(`[Analytics Enhanced] ❌ Both APIs failed, using zero data`);
+          }
         }
         
         // Calculate real conversion rate from real data
