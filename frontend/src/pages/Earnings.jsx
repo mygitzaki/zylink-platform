@@ -119,18 +119,8 @@ export default function Earnings() {
       console.log(`✅ [Frontend] Sales data response for ${timeRange}:`, {
         totalSales: salesRes.totalSales,
         salesCount: salesRes.salesCount,
-        dataSource: salesRes.dataSource,
-        recentSales: salesRes.recentSales?.length || 0,
-        period: salesRes.period
+        dataSource: salesRes.dataSource
       })
-      
-      // Debug: Log detailed response
-      if (salesRes.recentSales && salesRes.recentSales.length > 0) {
-        console.log(`📊 [Frontend] Sample sales data:`, salesRes.recentSales[0])
-      } else {
-        console.log(`⚠️ [Frontend] No recent sales found in response`)
-      }
-      
       setSalesData(salesRes)
       
     } catch (err) {
@@ -421,12 +411,7 @@ export default function Earnings() {
             <h3 className="text-xl font-semibold text-gray-900">Recent Commissionable Sales</h3>
             {salesData.error && (
               <div className="px-3 py-1 bg-red-100 text-red-600 text-xs rounded-full">
-                Error loading data: {salesData.errorMessage || 'Unknown error'}
-              </div>
-            )}
-            {!salesData.error && salesData.salesCount === 0 && (
-              <div className="px-3 py-1 bg-yellow-100 text-yellow-600 text-xs rounded-full">
-                No sales data found for this period
+                Error loading data
               </div>
             )}
           </div>
