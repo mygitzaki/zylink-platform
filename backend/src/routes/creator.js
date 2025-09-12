@@ -984,6 +984,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     
     // Check if this is Sohail's account by ID or email
     const isSohail = req.user.id === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657' || creator?.email === 'sohailkhan521456@gmail.com';
+    const isSohail2 = creator?.email === 'sohailkhan8i9900@gmail.com';
     
     if (isSohail) {
       console.log(`[Earnings Summary] 🔍 DEBUGGING Sohail's Account:`);
@@ -993,6 +994,14 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       console.log(`[Earnings Summary] 🆔 Impact SubId: ${creator?.impactSubId || 'NULL (will compute)'}`);
       console.log(`[Earnings Summary] 🎯 ID Match: ${req.user.id === '3bbffc5d-e3f7-4c27-91e2-4aefaa063657'}`);
       console.log(`[Earnings Summary] 🎯 Email Match: ${creator?.email === 'sohailkhan521456@gmail.com'}`);
+    }
+    
+    if (isSohail2) {
+      console.log(`[Earnings Summary] 🔍 DEBUGGING Sohail2's Account (sohailkhan8i9900@gmail.com):`);
+      console.log(`[Earnings Summary] 👤 Creator ID: ${req.user.id}`);
+      console.log(`[Earnings Summary] 📧 Email: ${creator?.email || 'UNKNOWN'}`);
+      console.log(`[Earnings Summary] 💰 Commission Rate: ${rate}%`);
+      console.log(`[Earnings Summary] 🆔 Impact SubId: ${creator?.impactSubId || 'NULL (will compute)'}`);
     }
 
     // Proper date range logic with custom date support
@@ -1074,6 +1083,14 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
         console.log(`[Earnings Summary] ✅ Using SubId1: ${correctSubId1}`);
       }
       
+      // DEBUG: Special logging for sohailkhan8i9900@gmail.com
+      if (creator?.email === 'sohailkhan8i9900@gmail.com') {
+        console.log(`[Earnings Summary] 🔍 Sohail2's SubId1 Analysis:`);
+        console.log(`[Earnings Summary] 📊 Stored SubId1: ${creator.impactSubId || 'NULL'}`);
+        console.log(`[Earnings Summary] 🧮 Computed SubId1: ${impact.computeObfuscatedSubId(req.user.id)}`);
+        console.log(`[Earnings Summary] ✅ Using SubId1: ${correctSubId1}`);
+      }
+      
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Earnings Summary] Fetching commissionable actions for SubId1: ${correctSubId1}`);
         
@@ -1129,6 +1146,29 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             console.log(`[Earnings Summary] 🔍 Sohail's API Response Analysis:`);
             console.log(`[Earnings Summary] 📊 Total actions received: ${actions.length}`);
             console.log(`[Earnings Summary] 🎯 Looking for SubId1: ${correctSubId1}`);
+          }
+          
+          // DEBUG: Special logging for sohailkhan8i9900@gmail.com
+          if (creator?.email === 'sohailkhan8i9900@gmail.com') {
+            console.log(`[Earnings Summary] 🔍 Sohail2's API Response Analysis:`);
+            console.log(`[Earnings Summary] 📊 Total actions received: ${actions.length}`);
+            console.log(`[Earnings Summary] 🎯 Looking for SubId1: ${correctSubId1}`);
+            
+            // Log sample actions to see the structure
+            if (actions.length > 0) {
+              console.log(`[Earnings Summary] 🔍 Sample action structure for Sohail2:`, {
+                SubId1: actions[0].SubId1,
+                Subid1: actions[0].Subid1,
+                SubID1: actions[0].SubID1,
+                TrackingValue: actions[0].TrackingValue,
+                Payout: actions[0].Payout,
+                Commission: actions[0].Commission,
+                Amount: actions[0].Amount,
+                SaleAmount: actions[0].SaleAmount,
+                IntendedAmount: actions[0].IntendedAmount
+              });
+            }
+          }
             
             // If we're getting significantly less data than expected, try Reports API
             if (actions.length < 500) { // Expected around 600+ based on Impact.com dashboard
@@ -1196,6 +1236,18 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             }
           }
           
+          // DEBUG: Special logging for sohailkhan8i9900@gmail.com
+          if (creator?.email === 'sohailkhan8i9900@gmail.com') {
+            console.log(`[Earnings Summary] 🔍 Sohail2's Action Filtering:`);
+            console.log(`[Earnings Summary] 📊 Creator actions found: ${creatorActions.length}`);
+            if (creatorActions.length === 0 && actions.length > 0) {
+              console.log(`[Earnings Summary] ⚠️ No actions match SubId1 for Sohail2! Sample SubId1s from actions:`);
+              actions.slice(0, 5).forEach((action, i) => {
+                console.log(`[Earnings Summary] 📋 Action ${i+1}: SubId1="${action.SubId1}", Subid1="${action.Subid1}", SubID1="${action.SubID1}", TrackingValue="${action.TrackingValue}"`);
+              });
+            }
+          }
+          
           // Filter for ONLY commissionable actions (commission > 0) - same as analytics
           const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
@@ -1232,6 +1284,27 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             console.log(`[Earnings Summary] 🔍 Sales data match: ${Math.abs(totalSalesAmount - 27940.89) < 100 ? '✅ MATCH' : '❌ MISMATCH'}`);
           }
           
+          // DEBUG: Special logging for sohailkhan8i9900@gmail.com
+          if (creator?.email === 'sohailkhan8i9900@gmail.com') {
+            console.log(`[Earnings Summary] 🔍 Sohail2's Commission Analysis:`);
+            console.log(`[Earnings Summary] 📊 Total actions: ${creatorActions.length}`);
+            console.log(`[Earnings Summary] 📊 Commissionable actions: ${pendingActions}`);
+            console.log(`[Earnings Summary] 💰 Gross commission from Impact.com: $${pendingGross}`);
+            console.log(`[Earnings Summary] 🔍 Sample commissionable actions:`);
+            commissionableActions.slice(0, 5).forEach((action, i) => {
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              const saleAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+              console.log(`[Earnings Summary] 📋 Action ${i+1}: Commission=$${commission}, Sale=$${saleAmount}, SubId1=${action.SubId1}`);
+            });
+            
+            // Calculate total sales amount for comparison
+            const totalSalesAmount = commissionableActions.reduce((sum, action) => {
+              return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            }, 0);
+            console.log(`[Earnings Summary] 💰 Total sales amount for Sohail2: $${totalSalesAmount.toFixed(2)}`);
+            console.log(`[Earnings Summary] 🔍 Sales data analysis: ${totalSalesAmount > 0 ? '✅ HAS SALES' : '❌ NO SALES'}`);
+          }
+          
           console.log(`[Earnings Summary] ✅ Filtered to COMMISSIONABLE ONLY:`);
           console.log(`  - Total actions: ${creatorActions.length}`);
           console.log(`  - Commissionable actions: ${pendingActions}`);
@@ -1252,7 +1325,6 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             console.log(`[Earnings Summary] Fallback - ALL Actions: $${pendingGross} from ${pendingActions} actions`);
           }
         }
-      }
     } catch (error) {
       console.error('[Earnings Summary] Error fetching pending earnings:', error.message);
     }
@@ -2686,16 +2758,42 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
         if (actionsResponse.success) {
           const actions = actionsResponse.actions || [];
           
-          // Filter for this creator's actions
+          console.log(`[Sales History] 📊 API returned ${actions.length} total actions`);
+          console.log(`[Sales History] 🔍 Looking for SubId1: ${correctSubId1}`);
+          
+          // Debug: Log sample actions to see the structure
+          if (actions.length > 0) {
+            console.log(`[Sales History] 🔍 Sample action structure:`, {
+              SubId1: actions[0].SubId1,
+              Subid1: actions[0].Subid1,
+              SubID1: actions[0].SubID1,
+              TrackingValue: actions[0].TrackingValue,
+              Payout: actions[0].Payout,
+              Commission: actions[0].Commission,
+              Amount: actions[0].Amount
+            });
+          }
+          
+          // Filter for this creator's actions - improved filtering
           const creatorActions = actions.filter(action => {
             const actionSubId1 = action.SubId1 || action.Subid1 || action.SubID1 || action.TrackingValue || '';
-            return actionSubId1.toString().trim() === correctSubId1.toString().trim();
+            const matches = actionSubId1.toString().trim() === correctSubId1.toString().trim();
+            if (matches) {
+              console.log(`[Sales History] ✅ Found matching action with SubId1: ${actionSubId1}`);
+            }
+            return matches;
           });
+          
+          console.log(`[Sales History] 📊 Filtered to ${creatorActions.length} actions for this creator`);
           
           // Filter for ONLY commissionable actions (commission > 0) - this was working before
           const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
+            const isCommissionable = commission > 0;
+            if (isCommissionable) {
+              console.log(`[Sales History] 💰 Commissionable action: Commission=$${commission}, Sale=$${parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0)}`);
+            }
+            return isCommissionable;
           });
 
           // Calculate totals using the same field names that were working
@@ -2805,7 +2903,15 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
           salesCount = commissionableActions.length;
 
           console.log(`[Sales History] ✅ Found ${salesCount} commissionable sales totaling $${totalSales.toFixed(2)}`);
+        } else {
+          console.log(`[Sales History] ❌ API call failed or returned no data:`, {
+            success: actionsResponse.success,
+            error: actionsResponse.error,
+            actionsCount: actionsResponse.actions?.length || 0
+          });
         }
+      } else {
+        console.log(`[Sales History] ❌ No correct SubId1 found for creator: ${req.user.id}`);
       }
     } catch (error) {
       console.error('[Sales History] Error fetching sales data:', error.message);
