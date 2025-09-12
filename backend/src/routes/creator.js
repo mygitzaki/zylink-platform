@@ -1918,6 +1918,18 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     
     // Get real daily data from Impact.com if available
     let dailyData = {};
+    
+    // DEBUG: Log the values that determine if we process daily data
+    console.log(`[Analytics Enhanced] 🔍 EARNINGS TREND DEBUG:`);
+    console.log(`[Analytics Enhanced] 📊 hasImpactData: ${hasImpactData}`);
+    console.log(`[Analytics Enhanced] 📊 correctSubId1: ${correctSubId1}`);
+    console.log(`[Analytics Enhanced] 📊 impactData:`, {
+      clicks: impactData.clicks,
+      conversions: impactData.conversions,
+      revenue: impactData.revenue,
+      apiSuccess: impactData.apiSuccess
+    });
+    
     if (hasImpactData && correctSubId1) {
       try {
         console.log(`[Analytics Enhanced] 🔍 Reusing actions data from previous call for earnings trend...`);
@@ -2112,6 +2124,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       } catch (error) {
         console.error('[Analytics Enhanced] Error fetching daily data:', error.message);
       }
+    } else {
+      console.log(`[Analytics Enhanced] ⚠️ Skipping daily data processing: hasImpactData=${hasImpactData}, correctSubId1=${correctSubId1}`);
+      console.log(`[Analytics Enhanced] 📊 Will use fallback zero data for all days`);
     }
     
     // Generate trend data with real daily data or fallback distribution
