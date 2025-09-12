@@ -1817,16 +1817,41 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               setTimeout(() => reject(new Error('Actions API timeout after 15 seconds')), 15000)
             );
             
-            detailedActions = await Promise.race([
-              impact.getActionsDetailed({
+            // Fetch ALL pages of Actions API data (pagination fix)
+            const allActions = [];
+            let page = 1;
+            const pageSize = 100;
+            let total = 0;
+            
+            while ((page - 1) * pageSize < total && page <= 10) {
+              const pageResult = await impact.getActionsDetailed({
                 startDate: startDate + 'T00:00:00Z',
                 endDate: endDate + 'T23:59:59Z',
                 subId1: correctSubId1,
                 actionType: 'SALE',
-                pageSize: 2000
-              }),
-              timeoutPromise
-            ]);
+                page,
+                pageSize
+              });
+              
+              if (pageResult.success && pageResult.actions) {
+                allActions.push(...pageResult.actions);
+                total = pageResult.totalResults || total;
+                console.log(`[Analytics Enhanced] 📄 Page ${page}: ${pageResult.actions.length} actions (Total so far: ${allActions.length}/${total})`);
+                
+                if (pageResult.actions.length < pageSize) break;
+                page++;
+              } else {
+                break;
+              }
+            }
+            
+            detailedActions = {
+              success: true,
+              actions: allActions,
+              totalResults: total
+            };
+            
+            console.log(`[Analytics Enhanced] ✅ PAGINATION COMPLETE: ${allActions.length} total actions from ${page-1} pages`);
             
             if (detailedActions.success && detailedActions.actions) {
               const commissionableActions = detailedActions.actions.filter(action => {
