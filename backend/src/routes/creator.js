@@ -1763,9 +1763,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         
         let performanceData;
         try {
-          // Add 10-second timeout to prevent server timeout
+          // Add 30-second timeout to allow API calls to complete
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Performance API timeout after 10 seconds')), 10000)
+            setTimeout(() => reject(new Error('Performance API timeout after 30 seconds')), 30000)
           );
           
           performanceData = await Promise.race([
@@ -1803,9 +1803,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         
         let detailedActions;
         try {
-          // Add 10-second timeout to prevent server timeout
+          // Add 30-second timeout to allow API calls to complete
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Actions API timeout after 10 seconds')), 10000)
+            setTimeout(() => reject(new Error('Actions API timeout after 30 seconds')), 30000)
           );
           
           detailedActions = await Promise.race([
