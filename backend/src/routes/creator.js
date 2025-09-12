@@ -1795,19 +1795,75 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] ❌ Performance API failed:`, performanceData.error);
         }
         
-        // Step 2: Get conversions and revenue from Performance API (most reliable)
+        // Step 2: Get conversions and revenue from Actions API (most accurate for sales)
         let realConversions = 0;
         let realRevenue = 0;
         
-        if (performanceData.success && performanceData.data) {
-          // Use Performance API data for both conversions and revenue (most accurate)
-          realConversions = performanceData.data.actions || 0; // This is the commissionable actions count
-          const grossRevenue = performanceData.data.commission || 0;
-          const businessRate = creator?.commissionRate || 70;
-          realRevenue = (grossRevenue * businessRate) / 100;
+        // Always use Actions API for sales data (Performance API doesn't have individual transaction amounts)
+        let detailedActions;
+        try {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Actions API timeout after 15 seconds')), 15000)
+          );
           
-          console.log(`[Analytics Enhanced] ✅ PERFORMANCE API DATA: ${realConversions} conversions, $${grossRevenue} gross -> $${realRevenue.toFixed(2)} net`);
-        } else {
+          detailedActions = await Promise.race([
+            impact.getActionsDetailed({ 
+              startDate: startDate + 'T00:00:00Z', 
+              endDate: endDate + 'T23:59:59Z', 
+              subId1: correctSubId1, 
+              actionType: 'SALE' 
+            }),
+            timeoutPromise
+          ]);
+          
+          if (detailedActions.success && detailedActions.actions) {
+            const actions = detailedActions.actions;
+            const commissionableActions = actions.filter(action => {
+              const commission = parseFloat(action.Payout || action.Commission || 0);
+              return commission > 0;
+            });
+            
+            realConversions = commissionableActions.length;
+            
+            // Calculate REAL sales from individual transaction amounts
+            const totalSalesAmount = commissionableActions.reduce((sum, action) => {
+              return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            }, 0);
+            
+            // Calculate commission from individual payouts
+            const totalCommission = commissionableActions.reduce((sum, action) => {
+              return sum + parseFloat(action.Payout || action.Commission || 0);
+            }, 0);
+            
+            const businessRate = creator?.commissionRate || 70;
+            realRevenue = (totalCommission * businessRate) / 100;
+            
+            console.log(`[Analytics Enhanced] ✅ ACTIONS API DATA: ${realConversions} conversions, $${totalSalesAmount.toFixed(2)} sales, $${totalCommission.toFixed(2)} gross commission -> $${realRevenue.toFixed(2)} net`);
+          } else {
+            console.log(`[Analytics Enhanced] ❌ Actions API failed, trying Performance API fallback...`);
+            
+            // Fallback to Performance API if Actions API fails
+            if (performanceData.success && performanceData.data) {
+              realConversions = performanceData.data.actions || 0;
+              const grossRevenue = performanceData.data.commission || 0;
+              const businessRate = creator?.commissionRate || 70;
+              realRevenue = (grossRevenue * businessRate) / 100;
+              
+              console.log(`[Analytics Enhanced] ✅ PERFORMANCE API FALLBACK: ${realConversions} conversions, $${grossRevenue} gross -> $${realRevenue.toFixed(2)} net`);
+            }
+          }
+        } catch (timeoutError) {
+          console.log(`[Analytics Enhanced] ❌ Actions API failed, trying Performance API fallback...`);
+          
+          // Fallback to Performance API if Actions API fails
+          if (performanceData.success && performanceData.data) {
+            realConversions = performanceData.data.actions || 0;
+            const grossRevenue = performanceData.data.commission || 0;
+            const businessRate = creator?.commissionRate || 70;
+            realRevenue = (grossRevenue * businessRate) / 100;
+            
+            console.log(`[Analytics Enhanced] ✅ PERFORMANCE API FALLBACK: ${realConversions} conversions, $${grossRevenue} gross -> $${realRevenue.toFixed(2)} net`);
+          } else {
           console.log(`[Analytics Enhanced] ❌ Performance API failed, trying Actions API fallback...`);
           
           // Fallback to Actions API if Performance API fails
