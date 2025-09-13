@@ -1829,8 +1829,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             let page = 1;
             const pageSize = 100;
             let total = 0;
+            let hasMorePages = true;
             
-            while ((page - 1) * pageSize < total && page <= 10) {
+            while (hasMorePages && page <= 10) {
               const pageResult = await impact.getActionsDetailed({
           startDate: startDate + 'T00:00:00Z',
           endDate: endDate + 'T23:59:59Z',
@@ -1845,7 +1846,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
                 total = pageResult.totalResults || total;
                 console.log(`[Analytics Enhanced] 📄 Page ${page}: ${pageResult.actions.length} actions (Total so far: ${allActions.length}/${total})`);
                 
-                if (pageResult.actions.length < pageSize) break;
+                // Check if we have more pages
+                hasMorePages = pageResult.actions.length === pageSize && allActions.length < total;
                 page++;
               } else {
                 break;
