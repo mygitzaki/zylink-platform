@@ -23,15 +23,14 @@ export default function CreatorAnalytics() {
 
   useEffect(() => {
     // Load cached data immediately to avoid showing zeros
-    loadCachedDataFirst()
-    // Only fetch fresh data if cache is expired or doesn't exist
-    const needsFreshData = !loadFromCache('data', timeRange, true)
+    const hasCachedData = loadCachedDataFirst()
     
-    if (needsFreshData) {
+    // Only fetch fresh data if no valid cache exists
+    if (!hasCachedData) {
       console.log('🔄 Analytics cache expired or missing - fetching fresh data')
       loadAnalytics()
     } else {
-      console.log('📦 Using cached analytics data - no API calls needed for 2 hours')
+      console.log('📦 Using cached analytics data - no API calls needed for 4 hours')
     }
   }, [timeRange])
 
@@ -52,7 +51,9 @@ export default function CreatorAnalytics() {
         console.warn('Failed to set cache timestamp:', error)
       }
       setLoading(false)
+      return true // Cache was found and loaded
     }
+    return false // No cache found
   }
 
   // Cache utilities for API fallback
@@ -77,8 +78,8 @@ export default function CreatorAnalytics() {
       const cached = localStorage.getItem(getCacheKey(type, range))
       if (cached) {
         const cacheData = JSON.parse(cached)
-        // Use cache if less than 2 hours old (120 minutes)
-        if (Date.now() - cacheData.timestamp < 120 * 60 * 1000) {
+        // Use cache if less than 4 hours old (240 minutes)
+        if (Date.now() - cacheData.timestamp < 240 * 60 * 1000) {
           console.log(`📦 Using cached ${type} data for ${range}${silent ? ' (silent)' : ''}`)
           if (!silent) {
             setLastUpdated(new Date(cacheData.timestamp))

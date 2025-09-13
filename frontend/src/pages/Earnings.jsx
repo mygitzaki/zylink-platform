@@ -118,8 +118,8 @@ export default function Earnings() {
       const cached = localStorage.getItem(getCacheKey(type, range))
       if (cached) {
         const cacheData = JSON.parse(cached)
-        // Use cache if less than 2 hours old (120 minutes)
-        if (Date.now() - cacheData.timestamp < 120 * 60 * 1000) {
+        // Use cache if less than 4 hours old (240 minutes)
+        if (Date.now() - cacheData.timestamp < 240 * 60 * 1000) {
           console.log(`📦 Using cached ${type} data for ${range}${silent ? ' (silent)' : ''}`)
           if (!silent) {
             setLastUpdated(new Date(cacheData.timestamp))
