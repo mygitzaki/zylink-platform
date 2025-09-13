@@ -15,9 +15,9 @@ class ImpactWebService {
     this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
     this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
     
-    // Enhanced caching system to reduce API calls
+    // Enhanced caching system to reduce API calls and solve rate limiting
     this.cache = new Map();
-    this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
+    this.cacheTimeout = 120 * 60 * 1000; // 2 hours (7200 seconds) to solve rate limit issues
     this.lastCallTime = 0;
     this.minCallInterval = 4000; // 4 seconds between calls (1000 calls/hour = 3.6s between calls)
     this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
@@ -89,10 +89,27 @@ class ImpactWebService {
       data,
       timestamp: Date.now()
     });
-    console.log(`[ImpactWebService] 💾 Cached data for ${key}`);
+    console.log(`[ImpactWebService] 💾 Cached data for ${key} (expires in 2 hours)`);
     
     // Clean up old cache entries to prevent memory leaks
     this.cleanupCache();
+  }
+
+  // Check if we should skip API calls due to rate limits
+  shouldSkipApiCall() {
+    // If rate limit is very low or we're in a rate limit situation, prefer cache
+    if (this.rateLimitRemaining < 10) {
+      console.log(`[ImpactWebService] ⚠️ Rate limit low (${this.rateLimitRemaining}), preferring cache`);
+      return true;
+    }
+    
+    // If circuit breaker is open, skip API calls
+    if (this.isCircuitOpen()) {
+      console.log(`[ImpactWebService] 🚫 Circuit breaker open, preferring cache`);
+      return true;
+    }
+    
+    return false;
   }
 
   // TEMPORARILY DISABLED: Rate limiting removed for testing
@@ -664,12 +681,21 @@ class ImpactWebService {
       } = options;
 
       // Check cache first (only for first attempt)
+      const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
       if (retryCount === 0) {
-        const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
         const cached = this.getFromCache(cacheKey);
         if (cached) {
           console.log(`[ImpactWebService] 📦 Cache hit - avoiding API call`);
           return cached;
+        }
+        
+        // If rate limited and we have any cache (even expired), use it instead of failing
+        if (this.shouldSkipApiCall()) {
+          const expiredCache = this.cache.get(cacheKey);
+          if (expiredCache) {
+            console.log(`[ImpactWebService] 🚨 Rate limited - using expired cache instead of API call`);
+            return expiredCache.data;
+          }
         }
       }
 
