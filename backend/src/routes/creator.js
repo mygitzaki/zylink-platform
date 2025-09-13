@@ -2021,9 +2021,12 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       try {
         console.log(`[Analytics Enhanced] 🔍 Reusing actions data from previous call for earnings trend...`);
         
-        // OPTIMIZED: Reuse the detailedActions data from the parallel call above
+        // OPTIMIZED: Reuse the allActions data from the parallel call above
         // instead of making another API call
-        const allActions = detailedActions || { success: false, actions: [] }; // Ensure fallback
+        console.log(`[Analytics Enhanced] 🔍 Using allActions from previous call:`, {
+          success: allActions?.success,
+          actionsCount: allActions?.actions?.length || 0
+        });
         
         if (allActions.success && allActions.actions) {
           console.log(`[Analytics Enhanced] ✅ Fetched ${allActions.actions.length} total actions for period`);
