@@ -685,7 +685,9 @@ class ImpactWebService {
       if (retryCount === 0) {
         const cached = this.getFromCache(cacheKey);
         if (cached) {
-          console.log(`[ImpactWebService] 📦 Cache hit - avoiding API call`);
+          console.log(`[ImpactWebService] 📦 BACKEND CACHE HIT - Serving cached data, NO API call made`);
+          console.log(`[ImpactWebService] 🕒 Cache age: ${Math.round((Date.now() - this.cache.get(cacheKey)?.timestamp) / (60 * 1000))} minutes old`);
+          console.log(`[ImpactWebService] ⚡ API call avoided - using server-side cached response`);
           return cached;
         }
         
@@ -693,8 +695,13 @@ class ImpactWebService {
         if (this.shouldSkipApiCall()) {
           const expiredCache = this.cache.get(cacheKey);
           if (expiredCache) {
-            console.log(`[ImpactWebService] 🚨 Rate limited - using expired cache instead of API call`);
+            const cacheAge = Math.round((Date.now() - expiredCache.timestamp) / (60 * 1000));
+            console.log(`[ImpactWebService] 🚨 RATE LIMITED - Using expired cache instead of API call`);
+            console.log(`[ImpactWebService] 📦 Serving ${cacheAge} minute old cached data to avoid rate limit`);
+            console.log(`[ImpactWebService] ⚡ Zero API calls made - protecting against rate limit`);
             return expiredCache.data;
+          } else {
+            console.log(`[ImpactWebService] ❌ Rate limited AND no cache available - will attempt API call anyway`);
           }
         }
       }
@@ -850,6 +857,9 @@ class ImpactWebService {
       if (retryCount === 0) {
         const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
         this.setCache(cacheKey, result);
+        console.log(`[ImpactWebService] ✅ FRESH API DATA - Successfully fetched and cached for 2 hours`);
+        console.log(`[ImpactWebService] 📊 API Response: ${result.actions?.length || 0} actions, cached until ${new Date(Date.now() + this.cacheTimeout).toLocaleTimeString()}`);
+        console.log(`[ImpactWebService] 🚀 Next ${Math.round(this.cacheTimeout / (60 * 1000))} minutes will use cache, no API calls`);
       }
 
       return result;
@@ -1278,8 +1288,21 @@ class ImpactWebService {
       const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
       const cached = this.getFromCache(cacheKey);
       if (cached) {
-        console.log(`[ImpactWebService] 📦 Cache hit for getPerformanceBySubId - avoiding API call`);
+        console.log(`[ImpactWebService] 📦 BACKEND CACHE HIT - Performance data served from cache, NO API call made`);
+        console.log(`[ImpactWebService] 🕒 Cache age: ${Math.round((Date.now() - this.cache.get(cacheKey)?.timestamp) / (60 * 1000))} minutes old`);
+        console.log(`[ImpactWebService] ⚡ Performance API call avoided - using server-side cached response`);
         return cached;
+      }
+      
+      // If rate limited, try to use expired cache for performance data too
+      if (this.shouldSkipApiCall()) {
+        const expiredCache = this.cache.get(cacheKey);
+        if (expiredCache) {
+          const cacheAge = Math.round((Date.now() - expiredCache.timestamp) / (60 * 1000));
+          console.log(`[ImpactWebService] 🚨 RATE LIMITED - Using expired performance cache instead of API call`);
+          console.log(`[ImpactWebService] 📦 Serving ${cacheAge} minute old performance data to avoid rate limit`);
+          return expiredCache.data;
+        }
       }
     }
 
@@ -1355,6 +1378,9 @@ class ImpactWebService {
           if (retryCount === 0) {
             const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
             this.setCache(cacheKey, result);
+            console.log(`[ImpactWebService] ✅ FRESH PERFORMANCE DATA - Successfully fetched and cached for 2 hours`);
+            console.log(`[ImpactWebService] 📊 Performance Response: ${result.data?.clicks || 0} clicks, ${result.data?.actions || 0} actions`);
+            console.log(`[ImpactWebService] 🚀 Next ${Math.round(this.cacheTimeout / (60 * 1000))} minutes will use performance cache, no API calls`);
           }
           
           return result;
