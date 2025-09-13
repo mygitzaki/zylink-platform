@@ -1802,11 +1802,11 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         if (performanceData.success && performanceData.data) {
           // Use Performance API data for both conversions and revenue (most accurate)
           realConversions = performanceData.data.actions || 0; // This is the commissionable actions count
-          const grossRevenue = performanceData.data.commission || 0;
+          const grossRevenue = performanceData.data.sales || 0; // Use actual sales amount, not commission
           const businessRate = creator?.commissionRate || 70;
           realRevenue = (grossRevenue * businessRate) / 100;
           
-          console.log(`[Analytics Enhanced] ✅ PERFORMANCE API DATA: ${realConversions} conversions, $${grossRevenue} gross -> $${realRevenue.toFixed(2)} net`);
+          console.log(`[Analytics Enhanced] ✅ PERFORMANCE API DATA: ${realConversions} conversions, $${grossRevenue} sales -> $${realRevenue.toFixed(2)} net commission`);
         } else {
           console.log(`[Analytics Enhanced] ❌ Performance API failed, trying Actions API fallback...`);
           
@@ -1862,7 +1862,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               realConversions = commissionableActions.length;
               
               const grossRevenue = commissionableActions.reduce((sum, action) => {
-                return sum + parseFloat(action.Payout || action.Commission || 0);
+                return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
               }, 0);
               
               const businessRate = creator?.commissionRate || 70;
