@@ -37,21 +37,15 @@ export default function Earnings() {
   const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
-    // Load cached data immediately to avoid showing zeros
+    // Load cached data first to avoid showing zeros while API loads
     loadCachedDataFirst()
-    // Only fetch fresh data if cache is expired or doesn't exist
-    const needsFreshData = !loadFromCache('summary', timeRange, true) || 
-                          !loadFromCache('analytics', timeRange, true) || 
-                          !loadFromCache('sales', timeRange, true)
     
-    if (needsFreshData) {
-      console.log('🔄 Cache expired or missing - fetching fresh data')
-      loadEarningsSummary()
-      loadAnalytics()
-      loadSalesData()
-    } else {
-      console.log('📦 Using cached data - no API calls needed for 2 hours')
-    }
+    // Always try to fetch fresh data for the current time range
+    // The individual API functions will handle cache vs fresh data logic
+    console.log(`🔄 Attempting to load fresh data for ${timeRange}`)
+    loadEarningsSummary()
+    loadAnalytics()
+    loadSalesData()
   }, [timeRange])
 
   const loadCachedDataFirst = () => {
@@ -163,10 +157,14 @@ export default function Earnings() {
 
   const loadEarningsSummary = async () => {
     try {
-      // Only show loading if we don't have cached data
-      if (!loadFromCache('summary', timeRange, true)) {
-        setLoading(true)
+      // Check if we have valid cached data for this specific time range
+      const validCache = loadFromCache('summary', timeRange, true)
+      if (validCache && validCache.commissionEarned > 0) {
+        console.log(`📦 [FRONTEND] Valid cache exists for ${timeRange} - skipping API call`)
+        return
       }
+      
+      setLoading(true)
       let path = '/api/creator/earnings-summary'
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}`

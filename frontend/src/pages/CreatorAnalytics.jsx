@@ -22,16 +22,13 @@ export default function CreatorAnalytics() {
   const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
-    // Load cached data immediately to avoid showing zeros
-    const hasCachedData = loadCachedDataFirst()
+    // Load cached data first to avoid showing zeros while API loads
+    loadCachedDataFirst()
     
-    // Only fetch fresh data if no valid cache exists
-    if (!hasCachedData) {
-      console.log('🔄 Analytics cache expired or missing - fetching fresh data')
-      loadAnalytics()
-    } else {
-      console.log('📦 Using cached analytics data - no API calls needed for 4 hours')
-    }
+    // Always try to fetch fresh data for the current time range
+    // The API function will handle cache vs fresh data logic
+    console.log(`🔄 Attempting to load fresh analytics data for ${timeRange}`)
+    loadAnalytics()
   }, [timeRange])
 
   const loadCachedDataFirst = () => {
@@ -106,10 +103,14 @@ export default function CreatorAnalytics() {
 
   const loadAnalytics = async () => {
     try {
-      // Only show loading if we don't have cached data
-      if (!loadFromCache('data', timeRange, true)) {
-        setLoading(true)
+      // Check if we have valid cached data for this specific time range
+      const validCache = loadFromCache('data', timeRange, true)
+      if (validCache && validCache.totalRevenue > 0) {
+        console.log(`📦 [FRONTEND] Valid analytics cache exists for ${timeRange} - skipping API call`)
+        return
       }
+      
+      setLoading(true)
       
       // If no token, skip loading
       if (!token) {
