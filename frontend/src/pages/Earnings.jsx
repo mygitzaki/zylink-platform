@@ -60,29 +60,30 @@ export default function Earnings() {
     let cachedAnalytics = loadFromCache('analytics', timeRange, true)
     let cachedSales = loadFromCache('sales', timeRange, true)
     
-    // Smart fallback: if current timeRange has no/zero data, try other timeRange
+    // Smart fallback: only use other timeRange data if current cache is completely missing
+    // Don't fallback if cache exists but has zeros - let API provide fresh data
     const otherRange = timeRange === '7d' ? '30d' : '7d';
     
-    if (!cachedSummary || (cachedSummary && cachedSummary.commissionEarned === 0)) {
+    if (!cachedSummary) {
       const fallbackSummary = loadFromCache('summary', otherRange, true);
       if (fallbackSummary && fallbackSummary.commissionEarned > 0) {
-        console.log(`📦 Using ${otherRange} summary data as fallback for ${timeRange} (has real data)`);
+        console.log(`📦 Using ${otherRange} summary data as temporary fallback for ${timeRange} (no cache exists)`);
         cachedSummary = fallbackSummary;
       }
     }
     
-    if (!cachedAnalytics || (cachedAnalytics && (!cachedAnalytics.earningsTrend || cachedAnalytics.earningsTrend.length === 0))) {
+    if (!cachedAnalytics) {
       const fallbackAnalytics = loadFromCache('analytics', otherRange, true);
       if (fallbackAnalytics && fallbackAnalytics.earningsTrend && fallbackAnalytics.earningsTrend.length > 0) {
-        console.log(`📦 Using ${otherRange} analytics data as fallback for ${timeRange} (has real data)`);
+        console.log(`📦 Using ${otherRange} analytics data as temporary fallback for ${timeRange} (no cache exists)`);
         cachedAnalytics = fallbackAnalytics;
       }
     }
     
-    if (!cachedSales || (cachedSales && cachedSales.totalSales === 0)) {
+    if (!cachedSales) {
       const fallbackSales = loadFromCache('sales', otherRange, true);
       if (fallbackSales && fallbackSales.totalSales > 0) {
-        console.log(`📦 Using ${otherRange} sales data as fallback for ${timeRange} (has real data)`);
+        console.log(`📦 Using ${otherRange} sales data as temporary fallback for ${timeRange} (no cache exists)`);
         cachedSales = fallbackSales;
       }
     }
@@ -190,7 +191,7 @@ export default function Earnings() {
       setEarningsSummary(summaryRes)
       setLastUpdated(new Date())
       setIsOffline(false)
-      console.log(`✅ [FRONTEND] FRESH EARNINGS DATA - Loaded from API and cached for 2 hours`)
+      console.log(`✅ [FRONTEND] FRESH EARNINGS DATA - Loaded from API and cached for 4 hours`)
       
     } catch (err) {
       console.error('Failed to load earnings summary:', err)
