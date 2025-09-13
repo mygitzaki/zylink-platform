@@ -15,7 +15,17 @@ export default function MyLinks() {
     let alive = true
     setLoading(true)
     apiFetch('/api/creator/links', { token })
-      .then(d => alive && setLinks(d.links || []))
+      .then(d => {
+        if (alive) {
+          // Filter out internal zylink-platform links
+          const filteredLinks = (d.links || []).filter(link => 
+            !link.destinationUrl?.includes('zylink-platform') &&
+            !link.shortLink?.includes('zylink-platform') &&
+            !link.impactLink?.includes('zylink-platform')
+          );
+          setLinks(filteredLinks);
+        }
+      })
       .catch(e => alive && setError(e.message))
       .finally(() => alive && setLoading(false))
     return () => { alive = false }

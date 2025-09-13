@@ -705,7 +705,17 @@ router.get('/links', requireAuth, async (req, res) => {
   const prisma = getPrisma();
   if (!prisma) return res.json({ links: [] });
   try {
-    const links = await prisma.link.findMany({ where: { creatorId: req.user.id } });
+    const allLinks = await prisma.link.findMany({ where: { creatorId: req.user.id } });
+    
+    // Filter out internal zylink-platform links (test/development links)
+    const links = allLinks.filter(link => 
+      !link.destinationUrl?.includes('zylink-platform') &&
+      !link.shortLink?.includes('zylink-platform') &&
+      !link.impactLink?.includes('zylink-platform')
+    );
+    
+    console.log(`[Links] Filtered ${allLinks.length} -> ${links.length} links (removed internal zylink-platform links)`);
+    
     // Enrich each link with real click counts from ShortLink table
     const enriched = await Promise.all((links || []).map(async (link) => {
       try {

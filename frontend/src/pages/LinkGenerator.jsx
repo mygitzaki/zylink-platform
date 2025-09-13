@@ -35,9 +35,16 @@ export default function LinkGenerator() {
       
       const linksRes = await apiFetch('/api/creator/links', { token })
       
+      // Filter out internal zylink-platform links from recent links
+      const filteredLinks = (linksRes.links || []).filter(link => 
+        !link.destinationUrl?.includes('zylink-platform') &&
+        !link.shortLink?.includes('zylink-platform') &&
+        !link.impactLink?.includes('zylink-platform')
+      );
+      
       setDashboardData({
-        totalLinks: linksRes.links?.length || 0,
-        recentLinks: linksRes.links?.slice(0, 3) || []
+        totalLinks: filteredLinks.length,
+        recentLinks: filteredLinks.slice(0, 3)
       })
     } catch (err) {
       console.error('Failed to load recent links:', err)
@@ -416,16 +423,9 @@ export default function LinkGenerator() {
                         <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-600">
                           <span className="flex items-center space-x-1">
                             <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                             </svg>
-                            <span>{link.clicks || 0} clicks</span>
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                            <span>${Number(link.revenue || 0).toFixed(2)} earned</span>
+                            <span>Created {new Date(link.createdAt).toLocaleDateString()}</span>
                           </span>
                         </div>
                       </div>
