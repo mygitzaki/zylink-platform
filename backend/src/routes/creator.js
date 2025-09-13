@@ -979,6 +979,9 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
     });
     const rate = creator?.commissionRate ?? 70;
     
+    // Initialize detailedActions for earnings trend processing
+    let detailedActions = { success: false, actions: [] };
+    
     // DEBUG: Special logging for sohailkhan521456@gmail.com
     console.log(`[Earnings Summary] 🔍 ALL CREATORS - Creator ID: ${req.user.id}, Email: ${creator?.email || 'UNKNOWN'}`);
     
@@ -1196,10 +1199,11 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             }
           }
           
-          // Filter for ONLY commissionable actions (commission > 0) - same as analytics
+          // Filter for ALL relevant actions (sales OR commission > 0) - includes all sales
           const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
+            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            return salesAmount > 0 || commission > 0;
           });
           
           pendingActions = commissionableActions.length;
@@ -1674,6 +1678,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     // Handle both preset days and custom date ranges
     let startDate, endDate, requestedDays, effectiveDays, now, startDateObj;
     
+    // Initialize detailedActions for earnings trend processing
+    let detailedActions = { success: false, actions: [] };
+    
     if (req.query.startDate && req.query.endDate) {
       // Custom date range from frontend
       startDate = req.query.startDate;
@@ -1857,7 +1864,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             if (detailedActions.success && detailedActions.actions) {
               const commissionableActions = detailedActions.actions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
+            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            return salesAmount > 0 || commission > 0;
           });
           
           realConversions = commissionableActions.length;
@@ -1997,7 +2005,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         
         // OPTIMIZED: Reuse the detailedActions data from the parallel call above
         // instead of making another API call
-        const allActions = detailedActions; // Reuse data from parallel call
+        const allActions = detailedActions || { success: false, actions: [] }; // Ensure fallback
         
         if (allActions.success && allActions.actions) {
           console.log(`[Analytics Enhanced] ✅ Fetched ${allActions.actions.length} total actions for period`);
@@ -2062,7 +2070,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             const dayActions = actionsByDate[dateStr] || [];
             const commissionableActions = dayActions.filter(action => {
               const commission = parseFloat(action.Payout || action.Commission || 0);
-              return commission > 0;
+              const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+              return salesAmount > 0 || commission > 0;
             });
             
             // Calculate daily sales (gross revenue) and commission
@@ -2378,10 +2387,11 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
             action.SubId1 === correctSubId1
           );
           
-          // Filter for ONLY commissionable actions (commission > 0)
+          // Filter for ALL relevant actions (sales OR commission > 0)
           const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
+            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            return salesAmount > 0 || commission > 0;
           });
           
           realData.conversions = commissionableActions.length;
@@ -2933,7 +2943,8 @@ router.get('/debug-impact/:subId1', requireAuth, requireApprovedCreator, async (
         
         const commissionableActions = creatorActions.filter(action => {
           const commission = parseFloat(action.Payout || action.Commission || 0);
-          return commission > 0;
+          const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+          return salesAmount > 0 || commission > 0;
         });
         
         results.actionsReport = {

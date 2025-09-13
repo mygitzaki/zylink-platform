@@ -95,30 +95,45 @@ class ImpactWebService {
     this.cleanupCache();
   }
 
-  // Simplified rate limiting - no concurrency control to avoid stuck counters
+  // Robust rate limiting with proper concurrency control
   async waitForRateLimit() {
     // TEMPORARY: If API is disabled, throw error immediately
     if (this.isApiDisabled()) {
       throw new Error('API temporarily disabled to prevent infinite loop');
     }
     
-    const now = Date.now();
-    
-    // SIMPLIFIED: Just wait for minimum interval between calls
-    const timeSinceLastCall = now - this.lastCallTime;
-    if (timeSinceLastCall < this.minCallInterval) {
-      const delay = this.minCallInterval - timeSinceLastCall;
-      console.log(`[ImpactWebService] ⏳ Rate limiting: waiting ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-    
-    this.lastCallTime = Date.now();
-    console.log(`[ImpactWebService] 🔄 API call started`);
+    return new Promise((resolve) => {
+      const tryCall = () => {
+        // Check concurrency limit
+        if (this.activeCalls >= this.maxConcurrentCalls) {
+          console.log(`[ImpactWebService] ⏳ Too many concurrent calls (${this.activeCalls}/${this.maxConcurrentCalls}), waiting...`);
+          setTimeout(tryCall, 100);
+          return;
+        }
+
+        // Check minimum interval
+        const timeSinceLastCall = Date.now() - this.lastCallTime;
+        if (timeSinceLastCall < this.minCallInterval) {
+          const waitTime = this.minCallInterval - timeSinceLastCall;
+          console.log(`[ImpactWebService] ⏳ Waiting ${waitTime}ms for minimum interval...`);
+          setTimeout(tryCall, waitTime);
+          return;
+        }
+
+        this.activeCalls++;
+        this.lastCallTime = Date.now();
+        console.log(`[ImpactWebService] 🔄 API call started (${this.activeCalls}/${this.maxConcurrentCalls})`);
+        resolve();
+      };
+
+      tryCall();
+    });
   }
 
-  // Release concurrency control (simplified)
+  // Release concurrency control
   releaseCall() {
-    console.log(`[ImpactWebService] ✅ API call completed`);
+    this.activeCalls = Math.max(0, this.activeCalls - 1);
+    console.log(`[ImpactWebService] ✅ API call completed (${this.activeCalls}/${this.maxConcurrentCalls})`);
   }
 
   // Emergency reset for stuck counters
@@ -137,7 +152,7 @@ class ImpactWebService {
     const reset = response.headers.get('X-RateLimit-Reset');
     
     if (limit) this.rateLimitRemaining = parseInt(remaining) || 0;
-    if (reset) this.rateLimitReset = parseInt(reset) * 1000; // Convert to milliseconds
+    if (reset) this.rateLimitReset = Date.now() + (parseInt(reset) * 1000); // Convert to milliseconds from now
     
     console.log(`[ImpactWebService] 📊 Rate Limit: ${remaining}/${limit} remaining, resets in ${Math.ceil((this.rateLimitReset - Date.now()) / 1000)}s`);
   }
