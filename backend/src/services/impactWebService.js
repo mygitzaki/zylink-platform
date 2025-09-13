@@ -50,6 +50,11 @@ class ImpactWebService {
   isConfigured() {
     return !!(this.accountSid && this.authToken && this.programId);
   }
+  
+  // TEMPORARY: Disable API calls to stop infinite loop
+  isApiDisabled() {
+    return true; // Temporarily disable all API calls
+  }
 
   // Cache management methods
   getCacheKey(method, params) {
@@ -81,6 +86,11 @@ class ImpactWebService {
 
   // Intelligent rate limiting with concurrency control
   async waitForRateLimit() {
+    // TEMPORARY: If API is disabled, throw error immediately
+    if (this.isApiDisabled()) {
+      throw new Error('API temporarily disabled to prevent infinite loop');
+    }
+    
     // AGGRESSIVE Safety check: reset activeCalls if it's been stuck for too long
     const now = Date.now();
     if (this.activeCalls > 0 && now - this.lastCallTime > 30000) { // 30 seconds timeout (reduced from 1 minute)
