@@ -17,7 +17,7 @@ class ImpactWebService {
     
     // Enhanced caching system to reduce API calls and solve rate limiting
     this.cache = new Map();
-    this.cacheTimeout = 120 * 60 * 1000; // 2 hours (7200 seconds) to solve rate limit issues
+    this.cacheTimeout = 240 * 60 * 1000; // 4 hours (14400 seconds) - extended to solve rate limit issues
     this.lastCallTime = 0;
     this.minCallInterval = 4000; // 4 seconds between calls (1000 calls/hour = 3.6s between calls)
     this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
@@ -98,8 +98,8 @@ class ImpactWebService {
   // Check if we should skip API calls due to rate limits
   shouldSkipApiCall() {
     // If rate limit is very low or we're in a rate limit situation, prefer cache
-    if (this.rateLimitRemaining < 10) {
-      console.log(`[ImpactWebService] ⚠️ Rate limit low (${this.rateLimitRemaining}), preferring cache`);
+    if (this.rateLimitRemaining < 100) {
+      console.log(`[ImpactWebService] ⚠️ Rate limit low (${this.rateLimitRemaining}/500), preferring cache`);
       return true;
     }
     
@@ -110,6 +110,17 @@ class ImpactWebService {
     }
     
     return false;
+  }
+
+  // Get expired cache when rate limited (emergency fallback)
+  getExpiredCache(key) {
+    const cached = this.cache.get(key);
+    if (cached) {
+      const age = Math.round((Date.now() - cached.timestamp) / (60 * 1000));
+      console.log(`[ImpactWebService] 🚨 EMERGENCY CACHE - Using ${age} minute old data to avoid rate limit`);
+      return cached.data;
+    }
+    return null;
   }
 
   // TEMPORARILY DISABLED: Rate limiting removed for testing
