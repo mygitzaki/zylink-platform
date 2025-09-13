@@ -39,10 +39,19 @@ export default function Earnings() {
   useEffect(() => {
     // Load cached data immediately to avoid showing zeros
     loadCachedDataFirst()
-    // Then fetch fresh data
-    loadEarningsSummary()
-    loadAnalytics()
-    loadSalesData()
+    // Only fetch fresh data if cache is expired or doesn't exist
+    const needsFreshData = !loadFromCache('summary', timeRange, true) || 
+                          !loadFromCache('analytics', timeRange, true) || 
+                          !loadFromCache('sales', timeRange, true)
+    
+    if (needsFreshData) {
+      console.log('🔄 Cache expired or missing - fetching fresh data')
+      loadEarningsSummary()
+      loadAnalytics()
+      loadSalesData()
+    } else {
+      console.log('📦 Using cached data - no API calls needed for 2 hours')
+    }
   }, [timeRange])
 
   const loadCachedDataFirst = () => {
@@ -439,42 +448,32 @@ export default function Earnings() {
             )}
             </div>
             
-            {/* Status Indicator */}
+            {/* Clean Status Indicator - Hide technical details from creators */}
             <div className="flex items-center gap-3">
-              {isOffline && (
-                <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  Cached Data
-                </div>
-              )}
               {lastUpdated && (
                 <span className="text-xs text-gray-500">
                   Updated: {lastUpdated.toLocaleTimeString()}
-                  {isOffline && (
-                    <span className="ml-2 text-amber-600">
-                      (expires in {Math.ceil((lastUpdated.getTime() + 120 * 60 * 1000 - Date.now()) / (60 * 1000))} min)
-                    </span>
-                  )}
                 </span>
               )}
-              <button
-                onClick={() => {
-                  // Force refresh bypasses cache
-                  console.log('🔄 Manual refresh - bypassing cache')
-                  localStorage.removeItem(getCacheKey('summary', timeRange))
-                  localStorage.removeItem(getCacheKey('analytics', timeRange))
-                  localStorage.removeItem(getCacheKey('sales', timeRange))
-                  loadEarningsSummary()
-                  loadAnalytics()
-                  loadSalesData()
-                }}
-                className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
-                title="Force refresh from API (bypasses 2-hour cache)"
-              >
-                Refresh
-              </button>
+              {/* Only show refresh button to admins or in development */}
+              {(process.env.NODE_ENV === 'development' || user?.role === 'ADMIN') && (
+                <button
+                  onClick={() => {
+                    // Force refresh bypasses cache
+                    console.log('🔄 Manual refresh - bypassing cache')
+                    localStorage.removeItem(getCacheKey('summary', timeRange))
+                    localStorage.removeItem(getCacheKey('analytics', timeRange))
+                    localStorage.removeItem(getCacheKey('sales', timeRange))
+                    loadEarningsSummary()
+                    loadAnalytics()
+                    loadSalesData()
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                  title="Force refresh from API (bypasses 2-hour cache)"
+                >
+                  Refresh
+                </button>
+              )}
               {process.env.NODE_ENV === 'development' && (
                 <button
                   onClick={testAPIFailure}
