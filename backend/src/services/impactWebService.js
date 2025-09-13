@@ -95,11 +95,25 @@ class ImpactWebService {
     this.cleanupCache();
   }
 
-  // Robust rate limiting with proper concurrency control
+  // Robust rate limiting with proper concurrency control and safety mechanisms
   async waitForRateLimit() {
     // TEMPORARY: If API is disabled, throw error immediately
     if (this.isApiDisabled()) {
       throw new Error('API temporarily disabled to prevent infinite loop');
+    }
+    
+    // Safety check: if activeCalls is stuck, force reset
+    if (this.activeCalls > this.maxConcurrentCalls) {
+      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls})`);
+      this.activeCalls = 0;
+    }
+    
+    // Safety check: if we've been waiting too long, force reset
+    const timeSinceLastCall = Date.now() - this.lastCallTime;
+    if (timeSinceLastCall > 60000) { // 60 seconds
+      console.log(`[ImpactWebService] 🚨 Safety reset: Last call was ${Math.round(timeSinceLastCall/1000)}s ago`);
+      this.activeCalls = 0;
+      this.lastCallTime = 0;
     }
     
     return new Promise((resolve) => {
@@ -130,10 +144,16 @@ class ImpactWebService {
     });
   }
 
-  // Release concurrency control
+  // Release concurrency control with safety checks
   releaseCall() {
     this.activeCalls = Math.max(0, this.activeCalls - 1);
     console.log(`[ImpactWebService] ✅ API call completed (${this.activeCalls}/${this.maxConcurrentCalls})`);
+    
+    // Safety check: if activeCalls goes negative, reset to 0
+    if (this.activeCalls < 0) {
+      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls went negative (${this.activeCalls}), resetting to 0`);
+      this.activeCalls = 0;
+    }
   }
 
   // Emergency reset for stuck counters
@@ -203,7 +223,7 @@ class ImpactWebService {
     }
   }
 
-  // Queue API call for processing
+  // Queue API call for processing with timeout
   async queueApiCall(apiFunction, ...args) {
     return new Promise((resolve, reject) => {
       this.apiQueue.push({
@@ -219,6 +239,16 @@ class ImpactWebService {
         this.processQueue();
       }
     });
+  }
+
+  // Wrapper for API calls with timeout protection
+  async executeWithTimeout(apiFunction, timeoutMs = 30000, ...args) {
+    return Promise.race([
+      apiFunction.apply(this, args),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`API call timeout after ${timeoutMs}ms`)), timeoutMs)
+      )
+    ]);
   }
 
   // Process API queue with proper rate limiting
@@ -676,6 +706,7 @@ class ImpactWebService {
 
   // Fetch Actions with rich filtering and paging
   async getActionsDetailed(options = {}) {
+    let callStarted = false;
     try {
       const {
         startDate,
@@ -703,6 +734,7 @@ class ImpactWebService {
 
       // Wait for rate limiting
       await this.waitForRateLimit();
+      callStarted = true;
 
       // Normalize dates to Impact Actions API format (ISO 8601 with time and Z suffix)
       const toImpactActionsDate = (val) => {
@@ -767,7 +799,8 @@ class ImpactWebService {
         }
       });
 
-      let response = await doFetch(url);
+      // Use timeout wrapper to prevent hanging
+      let response = await this.executeWithTimeout(doFetch, 30000, url);
       
       // Handle rate limit headers
       this.handleRateLimitHeaders(response);
@@ -808,7 +841,7 @@ class ImpactWebService {
           if (subId1) qpNoDates.set('SubId1', subId1);
           if (campaignId) qpNoDates.set('CampaignId', String(campaignId));
           const fallbackUrl = `${this.apiBaseUrl}/Mediapartners/${this.accountSid}/Actions?${qpNoDates.toString()}`;
-          const retry = await doFetch(fallbackUrl);
+          const retry = await this.executeWithTimeout(doFetch, 30000, fallbackUrl);
           if (!retry.ok) {
             return { success: false, status: response.status, error: errorText, actions: [], totalResults: 0 };
           }
@@ -869,8 +902,10 @@ class ImpactWebService {
       console.log(`[ImpactWebService] ❌ API failed after ${retryCount + 1} attempts: ${error.message}`);
       return { success: false, error: error.message, actions: [], totalResults: 0 };
     } finally {
-      // Always release the call lock
-      this.releaseCall();
+      // Only release the call lock if a call was actually started
+      if (callStarted) {
+        this.releaseCall();
+      }
     }
   }
 
