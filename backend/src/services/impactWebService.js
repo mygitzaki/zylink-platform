@@ -19,8 +19,10 @@ class ImpactWebService {
     this.cache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
     this.lastCallTime = 0;
-    this.minCallInterval = 2000; // 2 seconds between calls (conservative for rate limits)
+    this.minCallInterval = 4000; // 4 seconds between calls (1000 calls/hour = 3.6s between calls)
     this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
+    this.rateLimitRemaining = 1000; // Track remaining rate limit
+    this.rateLimitReset = 0; // Track when rate limit resets
     this.activeCalls = 0;
     
     // Global rate limiting queue
@@ -53,7 +55,7 @@ class ImpactWebService {
   
   // TEMPORARY: Disable API calls to stop infinite loop
   isApiDisabled() {
-    return true; // Temporarily disable all API calls
+    return false; // Re-enable API calls with proper rate limiting
   }
 
   // Cache management methods
@@ -91,50 +93,28 @@ class ImpactWebService {
       throw new Error('API temporarily disabled to prevent infinite loop');
     }
     
-    // AGGRESSIVE Safety check: reset activeCalls if it's been stuck for too long
+    // Check if we should wait due to rate limits
+    const rateLimitWait = this.shouldWaitForRateLimit();
+    if (rateLimitWait > 0) {
+      console.log(`[ImpactWebService] ⏳ Waiting for rate limit reset: ${Math.ceil(rateLimitWait / 1000)}s`);
+      await new Promise(resolve => setTimeout(resolve, rateLimitWait));
+    }
+    
+    // Safety check: reset activeCalls if it's been stuck for too long
     const now = Date.now();
-    if (this.activeCalls > 0 && now - this.lastCallTime > 30000) { // 30 seconds timeout (reduced from 1 minute)
-      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls stuck at ${this.activeCalls} for >30s, resetting`);
+    if (this.activeCalls > 0 && now - this.lastCallTime > 60000) { // 1 minute timeout
+      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls stuck at ${this.activeCalls} for >1min, resetting`);
       this.activeCalls = 0;
     }
     
-    // Additional safety: if activeCalls is greater than maxConcurrentCalls, reset it
-    if (this.activeCalls > this.maxConcurrentCalls) {
-      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls}), resetting`);
-      this.activeCalls = 0;
-    }
-    
-    // ULTRA AGGRESSIVE: If we've been stuck for more than 10 seconds, force reset
-    if (this.activeCalls > 0 && now - this.lastCallTime > 10000) {
-      console.log(`[ImpactWebService] 🚨 ULTRA Safety reset: activeCalls stuck at ${this.activeCalls} for >10s, forcing reset`);
-      this.activeCalls = 0;
-    }
-    
-    // CIRCUIT BREAKER: If we keep getting stuck, disable API calls temporarily
-    if (this.circuitBreaker.failures >= 10) {
-      console.log(`[ImpactWebService] 🚨 CIRCUIT BREAKER OPEN: Too many failures (${this.circuitBreaker.failures}), disabling API calls for 5 minutes`);
-      throw new Error('Circuit breaker open - API calls disabled due to repeated failures');
-    }
-    
-    // Wait if we have too many concurrent calls with timeout
-    let waitCount = 0;
-    const maxWaitCount = 300; // 30 seconds max wait (300 * 100ms)
-    
-    while (this.activeCalls >= this.maxConcurrentCalls && waitCount < maxWaitCount) {
+    // Wait if we have too many concurrent calls
+    while (this.activeCalls >= this.maxConcurrentCalls) {
       console.log(`[ImpactWebService] ⏳ Too many concurrent calls (${this.activeCalls}/${this.maxConcurrentCalls}), waiting...`);
       await new Promise(resolve => setTimeout(resolve, 100));
-      waitCount++;
     }
     
-    // If we've been waiting too long, force reset
-    if (waitCount >= maxWaitCount) {
-      console.log(`[ImpactWebService] 🚨 Timeout waiting for concurrency, forcing reset`);
-      this.activeCalls = 0;
-    }
-    
-    // Wait for minimum interval between calls
+    // Wait for minimum interval between calls (4 seconds for 1000 calls/hour)
     const timeSinceLastCall = now - this.lastCallTime;
-    
     if (timeSinceLastCall < this.minCallInterval) {
       const delay = this.minCallInterval - timeSinceLastCall;
       console.log(`[ImpactWebService] ⏳ Rate limiting: waiting ${delay}ms`);
@@ -163,6 +143,36 @@ class ImpactWebService {
     console.log(`[ImpactWebService] 🚨 Emergency reset: activeCalls was ${this.activeCalls}, resetting to 0`);
     this.activeCalls = 0;
     this.lastCallTime = 0;
+    this.rateLimitRemaining = 1000; // Reset rate limit counter
+    this.rateLimitReset = 0;
+  }
+  
+  // Handle rate limit response headers
+  handleRateLimitHeaders(response) {
+    const limit = response.headers.get('X-RateLimit-Limit');
+    const remaining = response.headers.get('X-RateLimit-Remaining');
+    const reset = response.headers.get('X-RateLimit-Reset');
+    
+    if (limit) this.rateLimitRemaining = parseInt(remaining) || 0;
+    if (reset) this.rateLimitReset = parseInt(reset) * 1000; // Convert to milliseconds
+    
+    console.log(`[ImpactWebService] 📊 Rate Limit: ${remaining}/${limit} remaining, resets in ${Math.ceil((this.rateLimitReset - Date.now()) / 1000)}s`);
+  }
+  
+  // Check if we should wait due to rate limits
+  shouldWaitForRateLimit() {
+    const now = Date.now();
+    
+    // If we have rate limit info and we're close to the limit, wait
+    if (this.rateLimitRemaining < 10) {
+      const waitTime = Math.max(0, this.rateLimitReset - now);
+      if (waitTime > 0) {
+        console.log(`[ImpactWebService] ⏳ Rate limit almost reached (${this.rateLimitRemaining} remaining), waiting ${Math.ceil(waitTime / 1000)}s`);
+        return waitTime;
+      }
+    }
+    
+    return 0;
   }
 
   // Circuit breaker check
@@ -761,14 +771,26 @@ class ImpactWebService {
 
       let response = await doFetch(url);
       
+      // Handle rate limit headers
+      this.handleRateLimitHeaders(response);
+      
       // Handle rate limiting with exponential backoff
       if (!response.ok) {
         const errorText = await response.text();
         const isRateLimit = response.status === 429 || errorText.includes('rate limit');
         
         if (isRateLimit && retryCount < maxRetries) {
-          const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
-          console.log(`[ImpactWebService] ⏳ Rate limit hit, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          // Get rate limit reset time from headers
+          const resetTime = response.headers.get('X-RateLimit-Reset');
+          let delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+          
+          if (resetTime) {
+            const resetTimestamp = parseInt(resetTime) * 1000;
+            const now = Date.now();
+            delay = Math.max(delay, resetTimestamp - now + 1000); // Wait until reset + 1 second buffer
+          }
+          
+          console.log(`[ImpactWebService] ⏳ Rate limit hit (429), retrying in ${Math.ceil(delay / 1000)}s (attempt ${retryCount + 1}/${maxRetries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           
           return this.getActionsDetailed({
