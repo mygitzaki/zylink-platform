@@ -1707,9 +1707,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     
     // Use the same simple, proven date calculation as earnings-summary
       effectiveDays = requestedDays;
-      // FIXED: Include the current day by adding 1 day to end date
-      const endDateObj = new Date(now.getTime() + (24 * 60 * 60 * 1000));
-      endDate = endDateObj.toISOString().split('T')[0];
+      // Use same date calculation as earnings-summary for consistency
+      endDate = now.toISOString().split('T')[0];
       // FIXED: Subtract (days - 1) to include the current day in the range
       startDateObj = new Date(now.getTime() - ((effectiveDays - 1) * 24 * 60 * 60 * 1000));
       startDate = startDateObj.toISOString().split('T')[0];
@@ -2417,9 +2416,9 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
           
           realData.conversions = commissionableActions.length;
           
-          // Calculate revenue from commissionable actions only
+          // Calculate revenue from commissionable actions only (use sales amount, not commission)
           const grossRevenue = commissionableActions.reduce((sum, action) => {
-            return sum + parseFloat(action.Payout || action.Commission || 0);
+            return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
           }, 0);
           
           const businessRate = creator?.commissionRate || 70;
