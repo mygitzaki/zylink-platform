@@ -64,7 +64,7 @@ app.use((req, res, next) => {
 });
 
 // 🛡️ Safety middleware (before everything else)
-app.use(requestTimeout(60000)); // 60 second timeout for Impact.com API calls
+app.use(requestTimeout(120000)); // 120 second timeout for Impact.com API calls (increased for analytics)
 app.use(requestLogger);
 app.use(memoryMonitor);
 

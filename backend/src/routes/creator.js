@@ -1665,6 +1665,10 @@ router.post('/payment-setup', requireAuth, async (req, res) => {
 
 // NEW: Enhanced Analytics with Real Impact.com Data
 router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (req, res) => {
+  // Set a longer timeout for analytics endpoint (5 minutes)
+  req.setTimeout(300000);
+  res.setTimeout(300000);
+  
   try {
     const prisma = getPrisma();
     if (!prisma) return res.json({ 
@@ -1729,6 +1733,21 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     res.set('Expires', '0');
     res.set('Surrogate-Control', 'no-store');
     
+    // Set a response timeout to prevent hanging
+    const responseTimeout = setTimeout(() => {
+      if (!res.headersSent) {
+        console.log(`[Analytics Enhanced] ⏰ Response timeout - sending partial data`);
+        res.status(200).json({
+          earningsTrend: [],
+          performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
+          topLinks: [],
+          recentActivity: [],
+          partial: true,
+          message: 'Analytics data is still loading...'
+        });
+      }
+    }, 180000); // 3 minutes timeout
+    
     // 1. Get Real Impact.com Data (Real Clicks + Commissionable Sales Only)
     let impactData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0, apiSuccess: false };
     let correctSubId1; // Declare at function scope
@@ -1769,9 +1788,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
         
         let performanceData;
         try {
-          // Add 30-second timeout to allow API calls to complete
+          // Add 60-second timeout to allow API calls to complete
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Performance API timeout after 30 seconds')), 30000)
+            setTimeout(() => reject(new Error('Performance API timeout after 60 seconds')), 60000)
           );
           
           performanceData = await Promise.race([
@@ -1821,7 +1840,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           let detailedActions;
           try {
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Actions API timeout after 60 seconds')), 60000)
+              setTimeout(() => reject(new Error('Actions API timeout after 120 seconds')), 120000)
             );
             
             // Fetch ALL pages of Actions API data (pagination fix)
@@ -2316,10 +2335,14 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       totalItems: earningsTrend.length
     });
     
+    // Clear the response timeout since we're sending data
+    clearTimeout(responseTimeout);
     res.json(response);
     
   } catch (error) {
     console.error('[Analytics Enhanced] Error:', error.message);
+    // Clear the response timeout on error too
+    clearTimeout(responseTimeout);
     res.status(500).json({ 
       message: 'Failed to load enhanced analytics', 
       error: error.message,
