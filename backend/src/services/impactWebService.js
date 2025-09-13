@@ -678,7 +678,7 @@ class ImpactWebService {
       callStarted = true;
 
       // Normalize dates to Impact Actions API format (ISO 8601 with time and Z suffix)
-      const toImpactActionsDate = (val) => {
+      const toImpactActionsDate = (val, isEndDate = false) => {
         if (!val) return undefined;
         try {
           // If already in ISO 8601 format with time and Z, keep as-is
@@ -688,13 +688,14 @@ class ImpactWebService {
           
           // If it's just YYYY-MM-DD, add time and Z suffix
           if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-            return `${iso}T00:00:00Z`;
+            return `${iso}${isEndDate ? 'T23:59:59Z' : 'T00:00:00Z'}`;
           }
           
           // If it's MM/DD/YYYY, convert to ISO 8601
           if (/^\d{2}\/\d{2}\/\d{4}$/.test(iso)) {
             const [m, d, y] = iso.split('/');
-            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00Z`;
+            const base = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            return `${base}${isEndDate ? 'T23:59:59Z' : 'T00:00:00Z'}`;
           }
           
           // Try to parse as date and convert to ISO 8601
@@ -703,7 +704,8 @@ class ImpactWebService {
             const year = d.getUTCFullYear();
             const month = String(d.getUTCMonth() + 1).padStart(2, '0');
             const day = String(d.getUTCDate()).padStart(2, '0');
-            return `${year}-${month}-${day}T00:00:00Z`;
+            const base = `${year}-${month}-${day}`;
+            return `${base}${isEndDate ? 'T23:59:59Z' : 'T00:00:00Z'}`;
           }
         } catch {}
         return undefined;
@@ -712,8 +714,8 @@ class ImpactWebService {
       const qp = new URLSearchParams();
       qp.set('Page', String(page));
       qp.set('PageSize', String(pageSize));
-      const sd = toImpactActionsDate(startDate);
-      const ed = toImpactActionsDate(endDate);
+      const sd = toImpactActionsDate(startDate, false);
+      const ed = toImpactActionsDate(endDate, true);
       if (sd) qp.set('StartDate', sd);
       if (ed) qp.set('EndDate', ed);
       
@@ -933,7 +935,16 @@ class ImpactWebService {
       if (startDate && endDate) {
         const beforeDateFilter = filteredActions.length;
         const startDateObj = new Date(startDate);
-        const endDateObj = new Date(endDate);
+        let endDateObj = new Date(endDate);
+        // Make end date inclusive by setting to end of day (UTC)
+        if (!isNaN(endDateObj)) {
+          endDateObj = new Date(Date.UTC(
+            endDateObj.getUTCFullYear(),
+            endDateObj.getUTCMonth(),
+            endDateObj.getUTCDate(),
+            23, 59, 59, 999
+          ));
+        }
         
         filteredActions = filteredActions.filter(action => {
           if (!action.EventDate) return false;
