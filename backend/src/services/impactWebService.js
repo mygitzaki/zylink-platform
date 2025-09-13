@@ -81,10 +81,10 @@ class ImpactWebService {
 
   // Intelligent rate limiting with concurrency control
   async waitForRateLimit() {
-    // Safety check: reset activeCalls if it's been stuck for too long
+    // AGGRESSIVE Safety check: reset activeCalls if it's been stuck for too long
     const now = Date.now();
-    if (this.activeCalls > 0 && now - this.lastCallTime > 60000) { // 1 minute timeout
-      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls stuck at ${this.activeCalls} for >1min, resetting`);
+    if (this.activeCalls > 0 && now - this.lastCallTime > 30000) { // 30 seconds timeout (reduced from 1 minute)
+      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls stuck at ${this.activeCalls} for >30s, resetting`);
       this.activeCalls = 0;
     }
     
@@ -92,6 +92,18 @@ class ImpactWebService {
     if (this.activeCalls > this.maxConcurrentCalls) {
       console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls}), resetting`);
       this.activeCalls = 0;
+    }
+    
+    // ULTRA AGGRESSIVE: If we've been stuck for more than 10 seconds, force reset
+    if (this.activeCalls > 0 && now - this.lastCallTime > 10000) {
+      console.log(`[ImpactWebService] 🚨 ULTRA Safety reset: activeCalls stuck at ${this.activeCalls} for >10s, forcing reset`);
+      this.activeCalls = 0;
+    }
+    
+    // CIRCUIT BREAKER: If we keep getting stuck, disable API calls temporarily
+    if (this.circuitBreaker.failures >= 10) {
+      console.log(`[ImpactWebService] 🚨 CIRCUIT BREAKER OPEN: Too many failures (${this.circuitBreaker.failures}), disabling API calls for 5 minutes`);
+      throw new Error('Circuit breaker open - API calls disabled due to repeated failures');
     }
     
     // Wait if we have too many concurrent calls with timeout
@@ -128,6 +140,12 @@ class ImpactWebService {
   releaseCall() {
     this.activeCalls = Math.max(0, this.activeCalls - 1);
     console.log(`[ImpactWebService] ✅ API call completed (${this.activeCalls}/${this.maxConcurrentCalls})`);
+    
+    // Additional safety: if activeCalls is still stuck, force reset
+    if (this.activeCalls > this.maxConcurrentCalls) {
+      console.log(`[ImpactWebService] 🚨 Safety reset in releaseCall: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls}), resetting`);
+      this.activeCalls = 0;
+    }
   }
 
   // Emergency reset for stuck counters
