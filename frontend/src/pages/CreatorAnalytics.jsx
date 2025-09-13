@@ -66,6 +66,22 @@ export default function CreatorAnalytics() {
   // Cache utilities for API fallback
   const getCacheKey = (type, range) => `analytics_${type}_${range}_${user?.id || 'anonymous'}`
   
+  const hasValidCache = (type, range = timeRange) => {
+    try {
+      const cached = localStorage.getItem(getCacheKey(type, range))
+      if (cached) {
+        const cacheData = JSON.parse(cached)
+        // Check if cache is still valid (less than 4 hours old)
+        if (Date.now() - cacheData.timestamp < 240 * 60 * 1000) {
+          return cacheData.data
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check cache validity:', error)
+    }
+    return null
+  }
+  
   const saveToCache = (type, data, range = timeRange) => {
     try {
       const cacheData = {
@@ -104,9 +120,9 @@ export default function CreatorAnalytics() {
   const loadAnalytics = async () => {
     try {
       // Check if we have valid cached data for this specific time range
-      const validCache = loadFromCache('data', timeRange, true)
+      const validCache = hasValidCache('data', timeRange)
       if (validCache && validCache.totalRevenue > 0) {
-        console.log(`📦 [FRONTEND] Valid analytics cache exists for ${timeRange} - skipping API call`)
+        console.log(`📦 [FRONTEND] Valid analytics cache exists for ${timeRange} (${Math.round((240 * 60 * 1000 - (Date.now() - JSON.parse(localStorage.getItem(getCacheKey('data', timeRange)))?.timestamp)) / (60 * 1000))} min remaining) - skipping API call`)
         return
       }
       
@@ -176,7 +192,7 @@ export default function CreatorAnalytics() {
       setAnalytics(analyticsData)
       setLastUpdated(new Date())
       setIsOffline(false)
-      console.log(`✅ [FRONTEND] FRESH ANALYTICS DATA - Loaded from API and cached for 2 hours`)
+      console.log(`✅ [FRONTEND] FRESH ANALYTICS DATA - Loaded from API and cached for 4 hours`)
       
       console.log('✅ Analytics data loaded successfully')
       console.log('📊 Final analytics state:', {
