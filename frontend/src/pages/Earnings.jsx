@@ -47,15 +47,13 @@ export default function Earnings() {
 
   const loadCachedDataFirst = () => {
     // Load cached data immediately to show something while API loads
-    const cachedSummary = loadFromCache('summary')
-    const cachedAnalytics = loadFromCache('analytics')
-    const cachedSales = loadFromCache('sales')
+    const cachedSummary = loadFromCache('summary', timeRange, true) // silent = true
+    const cachedAnalytics = loadFromCache('analytics', timeRange, true)
+    const cachedSales = loadFromCache('sales', timeRange, true)
     
     if (cachedSummary) {
       console.log('📦 Pre-loading cached earnings summary')
       setEarningsSummary(cachedSummary)
-      setLastUpdated(new Date(JSON.parse(localStorage.getItem(getCacheKey('summary', timeRange)))?.timestamp))
-      setIsOffline(true)
     }
     
     if (cachedAnalytics) {
@@ -71,6 +69,21 @@ export default function Earnings() {
     // If we have any cached data, we're not really loading from scratch
     if (cachedSummary || cachedAnalytics || cachedSales) {
       setLoading(false)
+      // Set timestamp from the most recent cache
+      try {
+        const timestamps = [
+          cachedSummary && JSON.parse(localStorage.getItem(getCacheKey('summary', timeRange)))?.timestamp,
+          cachedAnalytics && JSON.parse(localStorage.getItem(getCacheKey('analytics', timeRange)))?.timestamp,
+          cachedSales && JSON.parse(localStorage.getItem(getCacheKey('sales', timeRange)))?.timestamp
+        ].filter(Boolean)
+        
+        if (timestamps.length > 0) {
+          setLastUpdated(new Date(Math.max(...timestamps)))
+          setIsOffline(true) // Will be set to false when fresh data loads
+        }
+      } catch (error) {
+        console.warn('Failed to set cache timestamp:', error)
+      }
     }
   }
 
@@ -91,16 +104,18 @@ export default function Earnings() {
     }
   }
   
-  const loadFromCache = (type, range = timeRange) => {
+  const loadFromCache = (type, range = timeRange, silent = false) => {
     try {
       const cached = localStorage.getItem(getCacheKey(type, range))
       if (cached) {
         const cacheData = JSON.parse(cached)
         // Use cache if less than 10 minutes old
         if (Date.now() - cacheData.timestamp < 10 * 60 * 1000) {
-          console.log(`📦 Using cached ${type} data for ${range}`)
-          setLastUpdated(new Date(cacheData.timestamp))
-          setIsOffline(true)
+          console.log(`📦 Using cached ${type} data for ${range}${silent ? ' (silent)' : ''}`)
+          if (!silent) {
+            setLastUpdated(new Date(cacheData.timestamp))
+            setIsOffline(true)
+          }
           return cacheData.data
         }
       }
@@ -113,7 +128,7 @@ export default function Earnings() {
   const loadEarningsSummary = async () => {
     try {
       // Only show loading if we don't have cached data
-      if (!loadFromCache('summary')) {
+      if (!loadFromCache('summary', timeRange, true)) {
         setLoading(true)
       }
       let path = '/api/creator/earnings-summary'

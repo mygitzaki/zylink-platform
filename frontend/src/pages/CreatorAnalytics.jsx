@@ -30,13 +30,20 @@ export default function CreatorAnalytics() {
 
   const loadCachedDataFirst = () => {
     // Load cached data immediately to show something while API loads
-    const cachedData = loadFromCache('data')
+    const cachedData = loadFromCache('data', timeRange, true) // silent = true
     
     if (cachedData) {
       console.log('📦 Pre-loading cached analytics data')
       setAnalytics(cachedData)
-      setLastUpdated(new Date(JSON.parse(localStorage.getItem(getCacheKey('data', timeRange)))?.timestamp))
-      setIsOffline(true)
+      try {
+        const timestamp = JSON.parse(localStorage.getItem(getCacheKey('data', timeRange)))?.timestamp
+        if (timestamp) {
+          setLastUpdated(new Date(timestamp))
+          setIsOffline(true) // Will be set to false when fresh data loads
+        }
+      } catch (error) {
+        console.warn('Failed to set cache timestamp:', error)
+      }
       setLoading(false)
     }
   }
@@ -58,16 +65,18 @@ export default function CreatorAnalytics() {
     }
   }
   
-  const loadFromCache = (type, range = timeRange) => {
+  const loadFromCache = (type, range = timeRange, silent = false) => {
     try {
       const cached = localStorage.getItem(getCacheKey(type, range))
       if (cached) {
         const cacheData = JSON.parse(cached)
         // Use cache if less than 10 minutes old
         if (Date.now() - cacheData.timestamp < 10 * 60 * 1000) {
-          console.log(`📦 Using cached ${type} data for ${range}`)
-          setLastUpdated(new Date(cacheData.timestamp))
-          setIsOffline(true)
+          console.log(`📦 Using cached ${type} data for ${range}${silent ? ' (silent)' : ''}`)
+          if (!silent) {
+            setLastUpdated(new Date(cacheData.timestamp))
+            setIsOffline(true)
+          }
           return cacheData.data
         }
       }
@@ -80,7 +89,7 @@ export default function CreatorAnalytics() {
   const loadAnalytics = async () => {
     try {
       // Only show loading if we don't have cached data
-      if (!loadFromCache('data')) {
+      if (!loadFromCache('data', timeRange, true)) {
         setLoading(true)
       }
       
