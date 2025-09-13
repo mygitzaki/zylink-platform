@@ -2020,44 +2020,52 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       try {
         console.log(`[Analytics Enhanced] 🔍 Reusing actions data from previous call for earnings trend...`);
         
-        // OPTIMIZED: Reuse the detailedActions data from the parallel call above
-        // instead of making another API call
-        console.log(`[Analytics Enhanced] 🔍 Using detailedActions from previous call:`, {
-          success: detailedActions?.success,
-          actionsCount: detailedActions?.actions?.length || 0
+        // Get detailed actions for earnings trend generation
+        console.log(`[Analytics Enhanced] 🔍 Fetching detailed actions for earnings trend...`);
+        
+        const trendActions = await impact.getAllActionsDetailed({
+          startDate,
+          endDate,
+          subId1: correctSubId1,
+          actionType: 'SALE'
         });
         
-        if (detailedActions.success && detailedActions.actions) {
-          console.log(`[Analytics Enhanced] ✅ Fetched ${detailedActions.actions.length} total actions for period`);
+        console.log(`[Analytics Enhanced] 🔍 Trend actions result:`, {
+          success: trendActions?.success,
+          actionsCount: trendActions?.actions?.length || 0
+        });
+        
+        if (trendActions.success && trendActions.actions) {
+          console.log(`[Analytics Enhanced] ✅ Fetched ${trendActions.actions.length} total actions for period`);
           console.log(`[Analytics Enhanced] 🔍 Looking for SubId1: ${correctSubId1}`);
           
           // Debug: Show first few actions to understand the data structure
-          if (detailedActions.actions.length > 0) {
+          if (trendActions.actions.length > 0) {
             console.log(`[Analytics Enhanced] 🔍 First action sample:`, {
-              SubId1: detailedActions.actions[0].SubId1,
-              EventDate: detailedActions.actions[0].EventDate,
-              Payout: detailedActions.actions[0].Payout,
-              Amount: detailedActions.actions[0].Amount,
-              State: detailedActions.actions[0].State
+              SubId1: trendActions.actions[0].SubId1,
+              EventDate: trendActions.actions[0].EventDate,
+              Payout: trendActions.actions[0].Payout,
+              Amount: trendActions.actions[0].Amount,
+              State: trendActions.actions[0].State
             });
             
             // Show all available fields in the first action
-            console.log(`[Analytics Enhanced] 🔍 All fields in first action:`, Object.keys(detailedActions.actions[0]));
-            console.log(`[Analytics Enhanced] 🔍 Full first action:`, detailedActions.actions[0]);
+            console.log(`[Analytics Enhanced] 🔍 All fields in first action:`, Object.keys(trendActions.actions[0]));
+            console.log(`[Analytics Enhanced] 🔍 Full first action:`, trendActions.actions[0]);
             
             // Check SubId1 values in returned actions for debugging
-            const uniqueSubIds = [...new Set(detailedActions.actions.map(action => action.SubId1))];
+            const uniqueSubIds = [...new Set(trendActions.actions.map(action => action.SubId1))];
             console.log(`[Analytics Enhanced] 🔍 Unique SubId1 values in returned actions:`, uniqueSubIds);
             console.log(`[Analytics Enhanced] 🔍 Expected SubId1: ${correctSubId1}`);
-            console.log(`[Analytics Enhanced] 🔍 Actions with expected SubId1: ${detailedActions.actions.filter(action => action.SubId1 === correctSubId1).length}`);
+            console.log(`[Analytics Enhanced] 🔍 Actions with expected SubId1: ${trendActions.actions.filter(action => action.SubId1 === correctSubId1).length}`);
           }
           
           // Group actions by date - FILTER BY SubId1 since API doesn't filter properly
           const actionsByDate = {};
           let matchingActions = 0;
-          let totalActions = detailedActions.actions.length;
+          let totalActions = trendActions.actions.length;
           
-          detailedActions.actions.forEach(action => {
+          trendActions.actions.forEach(action => {
             // CRITICAL: Filter by SubId1 to ensure creator data isolation
             // This is essential for security - each creator must only see their own data
             if (action.SubId1 === correctSubId1) {
