@@ -234,6 +234,13 @@ export default function Earnings() {
 
   const loadAnalytics = async () => {
     try {
+      // Check if we have valid cached data for this specific time range
+      const validCache = hasValidCache('analytics', timeRange)
+      if (validCache && validCache.earningsTrend && validCache.earningsTrend.length > 0) {
+        console.log(`📦 [FRONTEND] Valid analytics cache exists for ${timeRange} - skipping API call`)
+        return
+      }
+      
       let path = '/api/creator/analytics-enhanced'
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}`
@@ -256,7 +263,7 @@ export default function Earnings() {
       setAnalytics(analyticsRes)
       setLastUpdated(new Date())
       setIsOffline(false)
-      console.log(`✅ [FRONTEND] FRESH ANALYTICS DATA - Loaded from API and cached for 2 hours`)
+      console.log(`✅ [FRONTEND] FRESH ANALYTICS DATA - Loaded from API and cached for 4 hours`)
       
     } catch (err) {
       console.error('Failed to load analytics:', err)
@@ -281,6 +288,13 @@ export default function Earnings() {
 
   const loadSalesData = async (limit = salesLimit) => {
     try {
+      // Check if we have valid cached data for this specific time range
+      const validCache = hasValidCache('sales', timeRange)
+      if (validCache && validCache.totalSales > 0) {
+        console.log(`📦 [FRONTEND] Valid sales cache exists for ${timeRange} - skipping API call`)
+        return
+      }
+      
       let path = '/api/creator/sales-history'
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}&limit=${limit}`
@@ -307,7 +321,7 @@ export default function Earnings() {
       setSalesData(salesRes)
       setLastUpdated(new Date())
       setIsOffline(false)
-      console.log(`✅ [FRONTEND] FRESH SALES DATA - Loaded from API and cached for 2 hours`)
+      console.log(`✅ [FRONTEND] FRESH SALES DATA - Loaded from API and cached for 4 hours`)
       
     } catch (err) {
       console.error('❌ Failed to load sales data:', err)
