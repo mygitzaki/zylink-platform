@@ -1199,11 +1199,10 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
             }
           }
           
-          // Filter for ALL relevant actions (sales OR commission > 0) - includes all sales
+          // Filter for ONLY commissionable actions (commission > 0) - creators only see commissionable sales
           const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            return salesAmount > 0 || commission > 0;
+            return commission > 0;
           });
           
           pendingActions = commissionableActions.length;
@@ -1864,8 +1863,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             if (detailedActions.success && detailedActions.actions) {
               const commissionableActions = detailedActions.actions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            return salesAmount > 0 || commission > 0;
+            return commission > 0;
           });
           
           realConversions = commissionableActions.length;
@@ -2070,8 +2068,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             const dayActions = actionsByDate[dateStr] || [];
             const commissionableActions = dayActions.filter(action => {
               const commission = parseFloat(action.Payout || action.Commission || 0);
-              const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-              return salesAmount > 0 || commission > 0;
+              return commission > 0;
             });
             
             // Calculate daily sales (gross revenue) and commission
@@ -2387,11 +2384,10 @@ router.get('/analytics', requireAuth, requireApprovedCreator, async (req, res) =
             action.SubId1 === correctSubId1
           );
           
-          // Filter for ALL relevant actions (sales OR commission > 0)
+          // Filter for ONLY commissionable actions (commission > 0)
           const commissionableActions = creatorActions.filter(action => {
             const commission = parseFloat(action.Payout || action.Commission || 0);
-            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            return salesAmount > 0 || commission > 0;
+            return commission > 0;
           });
           
           realData.conversions = commissionableActions.length;
@@ -2738,10 +2734,10 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             return actionSubId1.toString().trim() === correctSubId1.toString().trim();
           });
           
-          // Filter for ALL sales actions (regardless of commission) - show all sales
+          // Filter for ONLY commissionable sales (commission > 0) - creators only see commissionable sales
           const commissionableActions = creatorActions.filter(action => {
-            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-            return salesAmount > 0; // Show all sales, not just those with commission
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
           });
 
           // Calculate totals using the same field names that were working
@@ -2943,8 +2939,7 @@ router.get('/debug-impact/:subId1', requireAuth, requireApprovedCreator, async (
         
         const commissionableActions = creatorActions.filter(action => {
           const commission = parseFloat(action.Payout || action.Commission || 0);
-          const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-          return salesAmount > 0 || commission > 0;
+          return commission > 0;
         });
         
         results.actionsReport = {
