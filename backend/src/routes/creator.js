@@ -1836,7 +1836,6 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] ❌ Performance API failed, trying Actions API fallback...`);
           
           // Fallback to Actions API if Performance API fails
-          let detailedActions;
           try {
             const timeoutPromise = new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Actions API timeout after 120 seconds')), 120000)
