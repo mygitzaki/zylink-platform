@@ -162,6 +162,7 @@ export default function CreatorAnalytics() {
       setAnalytics(analyticsData)
       setLastUpdated(new Date())
       setIsOffline(false)
+      console.log(`✅ [FRONTEND] FRESH ANALYTICS DATA - Loaded from API and cached for 2 hours`)
       
       console.log('✅ Analytics data loaded successfully')
       console.log('📊 Final analytics state:', {
@@ -179,7 +180,7 @@ export default function CreatorAnalytics() {
       // Try to load from cache first
       const cachedData = loadFromCache('data')
       if (cachedData) {
-        console.log('📦 Using cached analytics data due to API failure')
+        console.log('📦 [FRONTEND] CACHED ANALYTICS DATA - Using cached data due to API failure')
         setAnalytics(cachedData)
       } else {
         console.log('⚠️ No cached analytics data available, using safe defaults')

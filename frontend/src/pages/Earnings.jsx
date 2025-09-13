@@ -163,6 +163,7 @@ export default function Earnings() {
       setEarningsSummary(summaryRes)
       setLastUpdated(new Date())
       setIsOffline(false)
+      console.log(`✅ [FRONTEND] FRESH EARNINGS DATA - Loaded from API and cached for 2 hours`)
       
     } catch (err) {
       console.error('Failed to load earnings summary:', err)
@@ -170,7 +171,7 @@ export default function Earnings() {
       // Try to load from cache first
       const cachedData = loadFromCache('summary')
       if (cachedData) {
-        console.log('📦 Using cached earnings summary data due to API failure')
+        console.log('📦 [FRONTEND] CACHED EARNINGS DATA - Using cached data due to API failure')
         setEarningsSummary(cachedData)
       } else {
         console.log('⚠️ No cached data available, using safe defaults')
@@ -214,6 +215,7 @@ export default function Earnings() {
       setAnalytics(analyticsRes)
       setLastUpdated(new Date())
       setIsOffline(false)
+      console.log(`✅ [FRONTEND] FRESH ANALYTICS DATA - Loaded from API and cached for 2 hours`)
       
     } catch (err) {
       console.error('Failed to load analytics:', err)
@@ -264,6 +266,7 @@ export default function Earnings() {
       setSalesData(salesRes)
       setLastUpdated(new Date())
       setIsOffline(false)
+      console.log(`✅ [FRONTEND] FRESH SALES DATA - Loaded from API and cached for 2 hours`)
       
     } catch (err) {
       console.error('❌ Failed to load sales data:', err)
