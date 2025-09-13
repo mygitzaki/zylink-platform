@@ -89,7 +89,7 @@ class ImpactWebService {
       data,
       timestamp: Date.now()
     });
-    console.log(`[ImpactWebService] 💾 Cached data for ${key} (expires in 2 hours)`);
+    console.log(`[ImpactWebService] 💾 Cached data for ${key} (expires in 4 hours)`);
     
     // Clean up old cache entries to prevent memory leaks
     this.cleanupCache();
@@ -868,7 +868,7 @@ class ImpactWebService {
       if (retryCount === 0) {
         const cacheKey = this.getCacheKey('getActionsDetailed', { startDate, endDate, status, actionType, page, pageSize, subId1, campaignId });
         this.setCache(cacheKey, result);
-        console.log(`[ImpactWebService] ✅ FRESH API DATA - Successfully fetched and cached for 2 hours`);
+        console.log(`[ImpactWebService] ✅ FRESH API DATA - Successfully fetched and cached for 4 hours`);
         console.log(`[ImpactWebService] 📊 API Response: ${result.actions?.length || 0} actions, cached until ${new Date(Date.now() + this.cacheTimeout).toLocaleTimeString()}`);
         console.log(`[ImpactWebService] 🚀 Next ${Math.round(this.cacheTimeout / (60 * 1000))} minutes will use cache, no API calls`);
       }
@@ -1389,7 +1389,7 @@ class ImpactWebService {
           if (retryCount === 0) {
             const cacheKey = this.getCacheKey('getPerformanceBySubId', { startDate, endDate, subId1 });
             this.setCache(cacheKey, result);
-            console.log(`[ImpactWebService] ✅ FRESH PERFORMANCE DATA - Successfully fetched and cached for 2 hours`);
+            console.log(`[ImpactWebService] ✅ FRESH PERFORMANCE DATA - Successfully fetched and cached for 4 hours`);
             console.log(`[ImpactWebService] 📊 Performance Response: ${result.data?.clicks || 0} clicks, ${result.data?.actions || 0} actions`);
             console.log(`[ImpactWebService] 🚀 Next ${Math.round(this.cacheTimeout / (60 * 1000))} minutes will use performance cache, no API calls`);
           }
