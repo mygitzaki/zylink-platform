@@ -88,10 +88,26 @@ class ImpactWebService {
       this.activeCalls = 0;
     }
     
-    // Wait if we have too many concurrent calls
-    while (this.activeCalls >= this.maxConcurrentCalls) {
+    // Additional safety: if activeCalls is greater than maxConcurrentCalls, reset it
+    if (this.activeCalls > this.maxConcurrentCalls) {
+      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls}), resetting`);
+      this.activeCalls = 0;
+    }
+    
+    // Wait if we have too many concurrent calls with timeout
+    let waitCount = 0;
+    const maxWaitCount = 300; // 30 seconds max wait (300 * 100ms)
+    
+    while (this.activeCalls >= this.maxConcurrentCalls && waitCount < maxWaitCount) {
       console.log(`[ImpactWebService] ⏳ Too many concurrent calls (${this.activeCalls}/${this.maxConcurrentCalls}), waiting...`);
       await new Promise(resolve => setTimeout(resolve, 100));
+      waitCount++;
+    }
+    
+    // If we've been waiting too long, force reset
+    if (waitCount >= maxWaitCount) {
+      console.log(`[ImpactWebService] 🚨 Timeout waiting for concurrency, forcing reset`);
+      this.activeCalls = 0;
     }
     
     // Wait for minimum interval between calls
