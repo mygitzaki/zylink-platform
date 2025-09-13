@@ -24,8 +24,15 @@ export default function CreatorAnalytics() {
   useEffect(() => {
     // Load cached data immediately to avoid showing zeros
     loadCachedDataFirst()
-    // Then fetch fresh data
-    loadAnalytics()
+    // Only fetch fresh data if cache is expired or doesn't exist
+    const needsFreshData = !loadFromCache('data', timeRange, true)
+    
+    if (needsFreshData) {
+      console.log('🔄 Analytics cache expired or missing - fetching fresh data')
+      loadAnalytics()
+    } else {
+      console.log('📦 Using cached analytics data - no API calls needed for 2 hours')
+    }
   }, [timeRange])
 
   const loadCachedDataFirst = () => {
@@ -273,24 +280,49 @@ export default function CreatorAnalytics() {
             </div>
             
             {/* Time Range Selector */}
-            <Card variant="glass" className="w-full sm:w-auto">
-              <div className="flex space-x-2">
+            <div className="flex items-center gap-4">
+              <Card variant="glass" className="w-full sm:w-auto">
+                <div className="flex space-x-2">
+                  <Button
+                    variant={timeRange === '7d' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setTimeRange('7d')}
+                  >
+                    7 Days
+                  </Button>
+                  <Button
+                    variant={timeRange === '30d' ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setTimeRange('30d')}
+                  >
+                    30 Days
+                  </Button>
+                </div>
+              </Card>
+              
+              {/* Clean status indicator for analytics */}
+              {lastUpdated && (
+                <span className="text-xs text-gray-400">
+                  Updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+              
+              {/* Only show refresh button to admins or in development */}
+              {(process.env.NODE_ENV === 'development' || user?.role === 'ADMIN') && (
                 <Button
-                  variant={timeRange === '7d' ? 'primary' : 'secondary'}
+                  variant="secondary"
                   size="sm"
-                  onClick={() => setTimeRange('7d')}
+                  onClick={() => {
+                    console.log('🔄 Manual analytics refresh - bypassing cache')
+                    localStorage.removeItem(getCacheKey('data', timeRange))
+                    loadAnalytics()
+                  }}
+                  className="text-xs"
                 >
-                  7 Days
+                  Refresh
                 </Button>
-                <Button
-                  variant={timeRange === '30d' ? 'primary' : 'secondary'}
-                  size="sm"
-                  onClick={() => setTimeRange('30d')}
-                >
-                  30 Days
-                </Button>
-              </div>
-            </Card>
+              )}
+            </div>
           </div>
         </div>
 
