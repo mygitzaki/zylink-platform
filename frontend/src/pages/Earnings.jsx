@@ -120,6 +120,22 @@ export default function Earnings() {
   // Cache utilities for API fallback
   const getCacheKey = (type, range) => `earnings_${type}_${range}_${user?.id || 'anonymous'}`
   
+  const hasValidCache = (type, range = timeRange) => {
+    try {
+      const cached = localStorage.getItem(getCacheKey(type, range))
+      if (cached) {
+        const cacheData = JSON.parse(cached)
+        // Check if cache is still valid (less than 4 hours old)
+        if (Date.now() - cacheData.timestamp < 240 * 60 * 1000) {
+          return cacheData.data
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check cache validity:', error)
+    }
+    return null
+  }
+  
   const saveToCache = (type, data, range = timeRange) => {
     try {
       const cacheData = {
@@ -158,9 +174,9 @@ export default function Earnings() {
   const loadEarningsSummary = async () => {
     try {
       // Check if we have valid cached data for this specific time range
-      const validCache = loadFromCache('summary', timeRange, true)
+      const validCache = hasValidCache('summary', timeRange)
       if (validCache && validCache.commissionEarned > 0) {
-        console.log(`📦 [FRONTEND] Valid cache exists for ${timeRange} - skipping API call`)
+        console.log(`📦 [FRONTEND] Valid cache exists for ${timeRange} (${Math.round((240 * 60 * 1000 - (Date.now() - JSON.parse(localStorage.getItem(getCacheKey('summary', timeRange)))?.timestamp)) / (60 * 1000))} min remaining) - skipping API call`)
         return
       }
       
