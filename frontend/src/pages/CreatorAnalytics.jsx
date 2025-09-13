@@ -36,7 +36,17 @@ export default function CreatorAnalytics() {
 
   const loadCachedDataFirst = () => {
     // Load cached data immediately to show something while API loads
-    const cachedData = loadFromCache('data', timeRange, true) // silent = true
+    let cachedData = loadFromCache('data', timeRange, true) // silent = true
+    
+    // Smart fallback: if current timeRange has no/zero data, try other timeRange
+    if (!cachedData || (cachedData && cachedData.totalRevenue === 0)) {
+      const otherRange = timeRange === '7d' ? '30d' : '7d';
+      const fallbackData = loadFromCache('data', otherRange, true);
+      if (fallbackData && fallbackData.totalRevenue > 0) {
+        console.log(`📦 Using ${otherRange} analytics data as fallback for ${timeRange} (has real data)`);
+        cachedData = fallbackData;
+      }
+    }
     
     if (cachedData) {
       console.log('📦 Pre-loading cached analytics data')

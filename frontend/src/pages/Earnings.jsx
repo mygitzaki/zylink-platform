@@ -56,9 +56,36 @@ export default function Earnings() {
 
   const loadCachedDataFirst = () => {
     // Load cached data immediately to show something while API loads
-    const cachedSummary = loadFromCache('summary', timeRange, true) // silent = true
-    const cachedAnalytics = loadFromCache('analytics', timeRange, true)
-    const cachedSales = loadFromCache('sales', timeRange, true)
+    let cachedSummary = loadFromCache('summary', timeRange, true) // silent = true
+    let cachedAnalytics = loadFromCache('analytics', timeRange, true)
+    let cachedSales = loadFromCache('sales', timeRange, true)
+    
+    // Smart fallback: if current timeRange has no/zero data, try other timeRange
+    const otherRange = timeRange === '7d' ? '30d' : '7d';
+    
+    if (!cachedSummary || (cachedSummary && cachedSummary.commissionEarned === 0)) {
+      const fallbackSummary = loadFromCache('summary', otherRange, true);
+      if (fallbackSummary && fallbackSummary.commissionEarned > 0) {
+        console.log(`📦 Using ${otherRange} summary data as fallback for ${timeRange} (has real data)`);
+        cachedSummary = fallbackSummary;
+      }
+    }
+    
+    if (!cachedAnalytics || (cachedAnalytics && (!cachedAnalytics.earningsTrend || cachedAnalytics.earningsTrend.length === 0))) {
+      const fallbackAnalytics = loadFromCache('analytics', otherRange, true);
+      if (fallbackAnalytics && fallbackAnalytics.earningsTrend && fallbackAnalytics.earningsTrend.length > 0) {
+        console.log(`📦 Using ${otherRange} analytics data as fallback for ${timeRange} (has real data)`);
+        cachedAnalytics = fallbackAnalytics;
+      }
+    }
+    
+    if (!cachedSales || (cachedSales && cachedSales.totalSales === 0)) {
+      const fallbackSales = loadFromCache('sales', otherRange, true);
+      if (fallbackSales && fallbackSales.totalSales > 0) {
+        console.log(`📦 Using ${otherRange} sales data as fallback for ${timeRange} (has real data)`);
+        cachedSales = fallbackSales;
+      }
+    }
     
     if (cachedSummary) {
       console.log('📦 Pre-loading cached earnings summary')
