@@ -1842,31 +1842,31 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               setTimeout(() => reject(new Error('Actions API timeout after 120 seconds')), 120000)
             );
             
-            // Fetch ALL pages of Actions API data (pagination fix)
+            // Fetch ALL pages of Actions API data (use same proven logic as earnings summary)
             const allActions = [];
             let page = 1;
+            let total = Infinity;
             const pageSize = 100;
-            let total = 0;
-            let hasMorePages = true;
             
-            while (hasMorePages && page <= 10) {
+            while ((page - 1) * pageSize < total && page <= 10) {
               const pageResult = await impact.getActionsDetailed({
-          startDate: startDate + 'T00:00:00Z',
-          endDate: endDate + 'T23:59:59Z',
-          subId1: correctSubId1,
-          actionType: 'SALE',
+                startDate: startDate + 'T00:00:00Z',
+                endDate: endDate + 'T23:59:59Z',
+                subId1: correctSubId1,
+                actionType: 'SALE',
                 page,
                 pageSize
               });
               
               if (pageResult.success && pageResult.actions) {
-                allActions.push(...pageResult.actions);
+                const arr = Array.isArray(pageResult.actions) ? pageResult.actions : [];
+                allActions.push(...arr);
                 total = pageResult.totalResults || total;
-                console.log(`[Analytics Enhanced] 📄 Page ${page}: ${pageResult.actions.length} actions (Total so far: ${allActions.length}/${total})`);
+                console.log(`[Analytics Enhanced] 📄 Page ${page}: ${arr.length} actions (Total so far: ${allActions.length}/${total})`);
                 
-                // Check if we have more pages
-                hasMorePages = pageResult.actions.length === pageSize && allActions.length < total;
-                page++;
+                // Stop if we get less than pageSize (same logic as earnings summary)
+                if (arr.length < pageSize) break;
+                page += 1;
               } else {
                 break;
               }
@@ -1878,7 +1878,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               totalResults: total
             };
             
-            console.log(`[Analytics Enhanced] ✅ PAGINATION COMPLETE for ${requestedDays} days: ${allActions.length} total actions from ${page-1} pages`);
+            console.log(`[Analytics Enhanced] ✅ PAGINATION COMPLETE for ${requestedDays} days: ${allActions.length} total actions from ${page-1} pages (total available: ${total})`);
             
             if (detailedActions.success && detailedActions.actions) {
               const commissionableActions = detailedActions.actions.filter(action => {
