@@ -95,65 +95,17 @@ class ImpactWebService {
     this.cleanupCache();
   }
 
-  // Robust rate limiting with proper concurrency control and safety mechanisms
+  // TEMPORARILY DISABLED: Rate limiting removed for testing
   async waitForRateLimit() {
-    // TEMPORARY: If API is disabled, throw error immediately
-    if (this.isApiDisabled()) {
-      throw new Error('API temporarily disabled to prevent infinite loop');
-    }
-    
-    // Safety check: if activeCalls is stuck, force reset
-    if (this.activeCalls > this.maxConcurrentCalls) {
-      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls})`);
-      this.activeCalls = 0;
-    }
-    
-    // Safety check: if we've been waiting too long, force reset
-    const timeSinceLastCall = Date.now() - this.lastCallTime;
-    if (timeSinceLastCall > 60000) { // 60 seconds
-      console.log(`[ImpactWebService] 🚨 Safety reset: Last call was ${Math.round(timeSinceLastCall/1000)}s ago`);
-      this.activeCalls = 0;
-      this.lastCallTime = 0;
-    }
-    
-    return new Promise((resolve) => {
-      const tryCall = () => {
-        // Check concurrency limit
-        if (this.activeCalls >= this.maxConcurrentCalls) {
-          console.log(`[ImpactWebService] ⏳ Too many concurrent calls (${this.activeCalls}/${this.maxConcurrentCalls}), waiting...`);
-          setTimeout(tryCall, 100);
-          return;
-        }
-
-        // Check minimum interval
-        const timeSinceLastCall = Date.now() - this.lastCallTime;
-        if (timeSinceLastCall < this.minCallInterval) {
-          const waitTime = this.minCallInterval - timeSinceLastCall;
-          console.log(`[ImpactWebService] ⏳ Waiting ${waitTime}ms for minimum interval...`);
-          setTimeout(tryCall, waitTime);
-          return;
-        }
-
-        this.activeCalls++;
-        this.lastCallTime = Date.now();
-        console.log(`[ImpactWebService] 🔄 API call started (${this.activeCalls}/${this.maxConcurrentCalls})`);
-        resolve();
-      };
-
-      tryCall();
-    });
+    console.log(`[ImpactWebService] 🚫 RATE LIMITING DISABLED FOR TESTING`);
+    // Just return immediately without any rate limiting
+    return Promise.resolve();
   }
 
-  // Release concurrency control with safety checks
+  // TEMPORARILY DISABLED: Release call tracking removed for testing
   releaseCall() {
-    this.activeCalls = Math.max(0, this.activeCalls - 1);
-    console.log(`[ImpactWebService] ✅ API call completed (${this.activeCalls}/${this.maxConcurrentCalls})`);
-    
-    // Safety check: if activeCalls goes negative, reset to 0
-    if (this.activeCalls < 0) {
-      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls went negative (${this.activeCalls}), resetting to 0`);
-      this.activeCalls = 0;
-    }
+    console.log(`[ImpactWebService] 🚫 RELEASE CALL DISABLED FOR TESTING`);
+    // Do nothing since we're not tracking calls
   }
 
   // Emergency reset for stuck counters
@@ -223,22 +175,11 @@ class ImpactWebService {
     }
   }
 
-  // Queue API call for processing with timeout
+  // TEMPORARILY DISABLED: Queue system removed for testing
   async queueApiCall(apiFunction, ...args) {
-    return new Promise((resolve, reject) => {
-      this.apiQueue.push({
-        apiFunction,
-        args,
-        resolve,
-        reject,
-        timestamp: Date.now()
-      });
-      
-      // Start processing queue if not already running
-      if (!this.isProcessingQueue) {
-        this.processQueue();
-      }
-    });
+    console.log(`[ImpactWebService] 🚫 QUEUE SYSTEM DISABLED FOR TESTING`);
+    // Call the function directly without queuing
+    return apiFunction.apply(this, args);
   }
 
   // Wrapper for API calls with timeout protection
