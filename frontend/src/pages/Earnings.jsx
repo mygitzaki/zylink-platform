@@ -33,12 +33,50 @@ export default function Earnings() {
   const [timeRange, setTimeRange] = useState('30d')
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
     loadEarningsSummary()
     loadAnalytics()
     loadSalesData()
   }, [timeRange])
+
+  // Cache utilities for API fallback
+  const getCacheKey = (type, range) => `earnings_${type}_${range}_${user?.id || 'anonymous'}`
+  
+  const saveToCache = (type, data, range = timeRange) => {
+    try {
+      const cacheData = {
+        data,
+        timestamp: Date.now(),
+        timeRange: range
+      }
+      localStorage.setItem(getCacheKey(type, range), JSON.stringify(cacheData))
+      console.log(`💾 Cached ${type} data for ${range}`)
+    } catch (error) {
+      console.warn('Failed to cache data:', error)
+    }
+  }
+  
+  const loadFromCache = (type, range = timeRange) => {
+    try {
+      const cached = localStorage.getItem(getCacheKey(type, range))
+      if (cached) {
+        const cacheData = JSON.parse(cached)
+        // Use cache if less than 10 minutes old
+        if (Date.now() - cacheData.timestamp < 10 * 60 * 1000) {
+          console.log(`📦 Using cached ${type} data for ${range}`)
+          setLastUpdated(new Date(cacheData.timestamp))
+          setIsOffline(true)
+          return cacheData.data
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load cached data:', error)
+    }
+    return null
+  }
 
   const loadEarningsSummary = async () => {
     try {
@@ -58,21 +96,36 @@ export default function Earnings() {
       // DEBUG: Check if we're getting empty data
       if (!summaryRes || summaryRes.commissionEarned === undefined) {
         console.error('❌ Earnings summary response is empty or missing commissionEarned:', summaryRes)
+        throw new Error('Invalid earnings summary response')
       }
       
+      // Success: Save to cache and update state
+      saveToCache('summary', summaryRes)
       setEarningsSummary(summaryRes)
+      setLastUpdated(new Date())
+      setIsOffline(false)
       
     } catch (err) {
       console.error('Failed to load earnings summary:', err)
-      // Set safe defaults
-      setEarningsSummary({
-        commissionEarned: 0,
-        availableForWithdraw: 0,
-        pendingApproval: 0,
-        totalEarnings: 0,
-        payoutsRequested: 0,
-        analytics: { conversionRate: 0, averageOrderValue: 0, totalActions: 0 }
-      })
+      
+      // Try to load from cache first
+      const cachedData = loadFromCache('summary')
+      if (cachedData) {
+        console.log('📦 Using cached earnings summary data due to API failure')
+        setEarningsSummary(cachedData)
+      } else {
+        console.log('⚠️ No cached data available, using safe defaults')
+        // Only use defaults if no cache available
+        setEarningsSummary({
+          commissionEarned: 0,
+          availableForWithdraw: 0,
+          pendingApproval: 0,
+          totalEarnings: 0,
+          payoutsRequested: 0,
+          analytics: { conversionRate: 0, averageOrderValue: 0, totalActions: 0 }
+        })
+        setIsOffline(true)
+      }
     } finally {
       setLoading(false)
     }
@@ -91,16 +144,36 @@ export default function Earnings() {
       console.log(`🔄 [Frontend] Loading analytics for ${timeRange}: ${path}`)
       const analyticsRes = await apiFetch(path, { token })
       console.log(`✅ [Frontend] Analytics response for ${timeRange}:`, analyticsRes)
+      
+      // Validate analytics response
+      if (!analyticsRes || !analyticsRes.performanceMetrics) {
+        throw new Error('Invalid analytics response')
+      }
+      
+      // Success: Save to cache and update state
+      saveToCache('analytics', analyticsRes)
       setAnalytics(analyticsRes)
+      setLastUpdated(new Date())
+      setIsOffline(false)
       
     } catch (err) {
       console.error('Failed to load analytics:', err)
-      // Set safe defaults
-      setAnalytics({
-        earningsTrend: [],
-        performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
-        recentActivity: []
-      })
+      
+      // Try to load from cache first
+      const cachedData = loadFromCache('analytics')
+      if (cachedData) {
+        console.log('📦 Using cached analytics data due to API failure')
+        setAnalytics(cachedData)
+      } else {
+        console.log('⚠️ No cached analytics data available, using safe defaults')
+        // Only use defaults if no cache available
+        setAnalytics({
+          earningsTrend: [],
+          performanceMetrics: { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 },
+          recentActivity: []
+        })
+        setIsOffline(true)
+      }
     }
   }
 
@@ -121,18 +194,38 @@ export default function Earnings() {
         salesCount: salesRes.salesCount,
         dataSource: salesRes.dataSource
       })
+      
+      // Validate sales response
+      if (!salesRes || salesRes.totalSales === undefined) {
+        throw new Error('Invalid sales response')
+      }
+      
+      // Success: Save to cache and update state
+      saveToCache('sales', salesRes)
       setSalesData(salesRes)
+      setLastUpdated(new Date())
+      setIsOffline(false)
       
     } catch (err) {
       console.error('❌ Failed to load sales data:', err)
-      // Set safe defaults with error indication
-      setSalesData({
-        totalSales: 0,
-        salesCount: 0,
-        recentSales: [],
-        error: true,
-        errorMessage: err.message || 'Unable to load sales data'
-      })
+      
+      // Try to load from cache first
+      const cachedData = loadFromCache('sales')
+      if (cachedData) {
+        console.log('📦 Using cached sales data due to API failure')
+        setSalesData(cachedData)
+      } else {
+        console.log('⚠️ No cached sales data available, using safe defaults')
+        // Only use defaults if no cache available
+        setSalesData({
+          totalSales: 0,
+          salesCount: 0,
+          recentSales: [],
+          error: true,
+          errorMessage: err.message || 'Unable to load sales data'
+        })
+        setIsOffline(true)
+      }
     }
   }
 
@@ -167,6 +260,27 @@ export default function Earnings() {
   const resetSalesLimit = () => {
     setSalesLimit(10)
     loadSalesData(10)
+  }
+
+  // Test function to simulate API failure (for development only)
+  const testAPIFailure = () => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧪 Testing API failure simulation...')
+      // Temporarily override apiFetch to simulate failure
+      const originalApiFetch = window.apiFetch
+      window.apiFetch = () => Promise.reject(new Error('Simulated API failure'))
+      
+      // Try to load data (should use cache)
+      loadEarningsSummary()
+      loadAnalytics()
+      loadSalesData()
+      
+      // Restore original function after 5 seconds
+      setTimeout(() => {
+        window.apiFetch = originalApiFetch
+        console.log('🧪 API failure simulation ended')
+      }, 5000)
+    }
   }
 
   const formatCurrency = (amount) => {
@@ -231,8 +345,9 @@ export default function Earnings() {
 
         {/* Date Range Selector */}
         <div className="mb-8 bg-white rounded-lg shadow-sm p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-medium text-gray-700">Time Period:</span>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-sm font-medium text-gray-700">Time Period:</span>
             {['7d', '30d', 'custom'].map((range) => (
               <button
                 key={range}
@@ -272,6 +387,43 @@ export default function Earnings() {
                 </button>
               </div>
             )}
+            </div>
+            
+            {/* Status Indicator */}
+            <div className="flex items-center gap-3">
+              {isOffline && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Cached Data
+                </div>
+              )}
+              {lastUpdated && (
+                <span className="text-xs text-gray-500">
+                  Updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  loadEarningsSummary()
+                  loadAnalytics()
+                  loadSalesData()
+                }}
+                className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+              >
+                Refresh
+              </button>
+              {process.env.NODE_ENV === 'development' && (
+                <button
+                  onClick={testAPIFailure}
+                  className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors"
+                  title="Test API failure fallback (dev only)"
+                >
+                  Test Fallback
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

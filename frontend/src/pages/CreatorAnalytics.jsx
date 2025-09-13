@@ -18,10 +18,48 @@ export default function CreatorAnalytics() {
   })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
     loadAnalytics()
   }, [timeRange])
+
+  // Cache utilities for API fallback
+  const getCacheKey = (type, range) => `analytics_${type}_${range}_${user?.id || 'anonymous'}`
+  
+  const saveToCache = (type, data, range = timeRange) => {
+    try {
+      const cacheData = {
+        data,
+        timestamp: Date.now(),
+        timeRange: range
+      }
+      localStorage.setItem(getCacheKey(type, range), JSON.stringify(cacheData))
+      console.log(`💾 Cached ${type} data for ${range}`)
+    } catch (error) {
+      console.warn('Failed to cache data:', error)
+    }
+  }
+  
+  const loadFromCache = (type, range = timeRange) => {
+    try {
+      const cached = localStorage.getItem(getCacheKey(type, range))
+      if (cached) {
+        const cacheData = JSON.parse(cached)
+        // Use cache if less than 10 minutes old
+        if (Date.now() - cacheData.timestamp < 10 * 60 * 1000) {
+          console.log(`📦 Using cached ${type} data for ${range}`)
+          setLastUpdated(new Date(cacheData.timestamp))
+          setIsOffline(true)
+          return cacheData.data
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load cached data:', error)
+    }
+    return null
+  }
 
   const loadAnalytics = async () => {
     try {
@@ -73,7 +111,7 @@ export default function CreatorAnalytics() {
         dataSource: analyticsRes.dataSource || 'unknown'
       })
       
-      setAnalytics({
+      const analyticsData = {
         totalClicks,
         totalConversions,
         totalRevenue,
@@ -82,7 +120,13 @@ export default function CreatorAnalytics() {
         recentActivity: analyticsRes.recentActivity || [],
         monthlyTrends: analyticsRes.monthlyTrends || [],
         earningsTrend: analyticsRes.earningsTrend || []
-      })
+      }
+      
+      // Success: Save to cache and update state
+      saveToCache('data', analyticsData)
+      setAnalytics(analyticsData)
+      setLastUpdated(new Date())
+      setIsOffline(false)
       
       console.log('✅ Analytics data loaded successfully')
       console.log('📊 Final analytics state:', {
@@ -96,6 +140,27 @@ export default function CreatorAnalytics() {
       })
     } catch (err) {
       console.error('❌ Failed to load analytics:', err)
+      
+      // Try to load from cache first
+      const cachedData = loadFromCache('data')
+      if (cachedData) {
+        console.log('📦 Using cached analytics data due to API failure')
+        setAnalytics(cachedData)
+      } else {
+        console.log('⚠️ No cached analytics data available, using safe defaults')
+        // Only use defaults if no cache available
+        setAnalytics({
+          totalClicks: 0,
+          totalConversions: 0,
+          totalRevenue: 0,
+          averageOrderValue: 0,
+          recentActivity: [],
+          monthlyTrends: [],
+          earningsTrend: []
+        })
+        setIsOffline(true)
+      }
+      
       if (err.status === 401 || err.message?.includes('Missing token')) {
         console.log('🔄 401 detected - token may be expired. Use the Refresh button.')
       }
