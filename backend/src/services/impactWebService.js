@@ -95,50 +95,16 @@ class ImpactWebService {
     this.cleanupCache();
   }
 
-  // Intelligent rate limiting with concurrency control
+  // Simplified rate limiting - no concurrency control to avoid stuck counters
   async waitForRateLimit() {
     // TEMPORARY: If API is disabled, throw error immediately
     if (this.isApiDisabled()) {
       throw new Error('API temporarily disabled to prevent infinite loop');
     }
     
-    // ULTRA AGGRESSIVE: Force reset if stuck for more than 5 seconds
     const now = Date.now();
-    if (this.activeCalls > 0 && now - this.lastCallTime > 5000) {
-      console.log(`[ImpactWebService] 🚨 ULTRA AGGRESSIVE RESET: activeCalls stuck at ${this.activeCalls} for >5s, forcing reset`);
-      this.forceResetCounters();
-    }
     
-    // Check if we should wait due to rate limits
-    const rateLimitWait = this.shouldWaitForRateLimit();
-    if (rateLimitWait > 0) {
-      console.log(`[ImpactWebService] ⏳ Waiting for rate limit reset: ${Math.ceil(rateLimitWait / 1000)}s`);
-      await new Promise(resolve => setTimeout(resolve, rateLimitWait));
-    }
-    
-    // Safety check: reset activeCalls if it's been stuck for too long
-    if (this.activeCalls > 0 && now - this.lastCallTime > 30000) { // 30 seconds timeout
-      console.log(`[ImpactWebService] 🚨 Safety reset: activeCalls stuck at ${this.activeCalls} for >30s, resetting`);
-      this.forceResetCounters();
-    }
-    
-    // Wait if we have too many concurrent calls with timeout
-    let waitCount = 0;
-    const maxWaitCount = 50; // 5 seconds max wait (50 * 100ms)
-    
-    while (this.activeCalls >= this.maxConcurrentCalls && waitCount < maxWaitCount) {
-      console.log(`[ImpactWebService] ⏳ Too many concurrent calls (${this.activeCalls}/${this.maxConcurrentCalls}), waiting...`);
-      await new Promise(resolve => setTimeout(resolve, 100));
-      waitCount++;
-    }
-    
-    // If we've been waiting too long, force reset
-    if (waitCount >= maxWaitCount) {
-      console.log(`[ImpactWebService] 🚨 Timeout waiting for concurrency, forcing reset`);
-      this.forceResetCounters();
-    }
-    
-    // Wait for minimum interval between calls (4 seconds for 1000 calls/hour)
+    // SIMPLIFIED: Just wait for minimum interval between calls
     const timeSinceLastCall = now - this.lastCallTime;
     if (timeSinceLastCall < this.minCallInterval) {
       const delay = this.minCallInterval - timeSinceLastCall;
@@ -147,20 +113,12 @@ class ImpactWebService {
     }
     
     this.lastCallTime = Date.now();
-    this.activeCalls++;
-    console.log(`[ImpactWebService] 🔄 API call started (${this.activeCalls}/${this.maxConcurrentCalls})`);
+    console.log(`[ImpactWebService] 🔄 API call started`);
   }
 
-  // Release concurrency control
+  // Release concurrency control (simplified)
   releaseCall() {
-    this.activeCalls = Math.max(0, this.activeCalls - 1);
-    console.log(`[ImpactWebService] ✅ API call completed (${this.activeCalls}/${this.maxConcurrentCalls})`);
-    
-    // Additional safety: if activeCalls is still stuck, force reset
-    if (this.activeCalls > this.maxConcurrentCalls) {
-      console.log(`[ImpactWebService] 🚨 Safety reset in releaseCall: activeCalls (${this.activeCalls}) > maxConcurrentCalls (${this.maxConcurrentCalls}), resetting`);
-      this.activeCalls = 0;
-    }
+    console.log(`[ImpactWebService] ✅ API call completed`);
   }
 
   // Emergency reset for stuck counters

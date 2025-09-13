@@ -2728,10 +2728,10 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
             return actionSubId1.toString().trim() === correctSubId1.toString().trim();
           });
           
-          // Filter for ONLY commissionable actions (commission > 0) - this was working before
+          // Filter for ALL sales actions (regardless of commission) - show all sales
           const commissionableActions = creatorActions.filter(action => {
-            const commission = parseFloat(action.Payout || action.Commission || 0);
-            return commission > 0;
+            const salesAmount = parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
+            return salesAmount > 0; // Show all sales, not just those with commission
           });
 
           // Calculate totals using the same field names that were working
