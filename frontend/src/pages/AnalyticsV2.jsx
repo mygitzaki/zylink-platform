@@ -18,117 +18,13 @@ export default function AnalyticsV2() {
   })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30d')
-  const [lastUpdated, setLastUpdated] = useState(null)
-  const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
-    // Load cached data first to avoid showing zeros while API loads
-    const hasCachedData = loadCachedDataFirst()
-    
-    // Only fetch fresh data if no valid cache exists
-    if (!hasCachedData) {
-      console.log('🔄 AnalyticsV2 cache expired or missing - fetching fresh data')
-      loadAnalytics()
-    } else {
-      console.log('📦 Using cached AnalyticsV2 data - no API calls needed for 4 hours')
-    }
+    loadAnalytics()
   }, [timeRange])
-
-  // Cache utilities for API fallback
-  const getCacheKey = (type, range) => `analyticsv2_${type}_${range}_${user?.id || 'anonymous'}`
-  
-  const hasValidCache = (type, range = timeRange) => {
-    try {
-      const cached = localStorage.getItem(getCacheKey(type, range))
-      if (cached) {
-        const cacheData = JSON.parse(cached)
-        // Check if cache is still valid (less than 4 hours old)
-        if (Date.now() - cacheData.timestamp < 240 * 60 * 1000) {
-          return cacheData.data
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to check cache validity:', error)
-    }
-    return null
-  }
-  
-  const saveToCache = (type, data, range = timeRange) => {
-    try {
-      const cacheData = {
-        data,
-        timestamp: Date.now(),
-        timeRange: range
-      }
-      localStorage.setItem(getCacheKey(type, range), JSON.stringify(cacheData))
-      console.log(`💾 Cached AnalyticsV2 ${type} data for ${range}`)
-    } catch (error) {
-      console.warn('Failed to cache data:', error)
-    }
-  }
-  
-  const loadFromCache = (type, range = timeRange, silent = false) => {
-    try {
-      const cached = localStorage.getItem(getCacheKey(type, range))
-      if (cached) {
-        const cacheData = JSON.parse(cached)
-        // Use cache if less than 4 hours old (240 minutes)
-        if (Date.now() - cacheData.timestamp < 240 * 60 * 1000) {
-          if (!silent) {
-            console.log(`📦 Using cached AnalyticsV2 ${type} data for ${range}`)
-            setLastUpdated(new Date(cacheData.timestamp))
-            setIsOffline(true)
-          }
-          return cacheData.data
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load cached data:', error)
-    }
-    return null
-  }
-
-  const loadCachedDataFirst = () => {
-    // Load cached data immediately to show something while API loads
-    let cachedData = loadFromCache('data', timeRange, true) // silent = true
-    
-    // Smart fallback: if current timeRange has no meaningful data, try other timeRange
-    if (!cachedData || (cachedData && cachedData.totalRevenue === 0)) {
-      const otherRange = timeRange === '7d' ? '30d' : '7d'
-      const fallbackData = loadFromCache('data', otherRange, true)
-      if (fallbackData && fallbackData.totalRevenue > 0) {
-        console.log(`📦 Using AnalyticsV2 ${otherRange} data as fallback for ${timeRange} (has real data vs zeros)`)
-        cachedData = fallbackData
-      }
-    }
-    
-    if (cachedData) {
-      console.log('📦 Pre-loading cached AnalyticsV2 data')
-      setAnalytics(cachedData)
-      try {
-        const timestamp = JSON.parse(localStorage.getItem(getCacheKey('data', timeRange)))?.timestamp
-        if (timestamp) {
-          setLastUpdated(new Date(timestamp))
-          setIsOffline(true) // Will be set to false when fresh data loads
-        }
-      } catch (error) {
-        console.warn('Failed to set cache timestamp:', error)
-      }
-      setLoading(false)
-      return true // Cache was found and loaded
-    }
-    return false // No cache found
-  }
 
   const loadAnalytics = async () => {
     try {
-      // Check if we have valid cached data for this specific time range
-      const validCache = hasValidCache('data', timeRange)
-      if (validCache && (validCache.totalRevenue > 0 || validCache.totalClicks > 0)) {
-        console.log(`📦 [FRONTEND] Valid AnalyticsV2 cache exists for ${timeRange} - skipping API call`)
-        return
-      }
-      
       setLoading(true)
       
       // If no token, skip loading
@@ -177,7 +73,7 @@ export default function AnalyticsV2() {
         dataSource: analyticsRes.dataSource || 'unknown'
       })
       
-      const analyticsData = {
+      setAnalytics({
         totalClicks,
         totalConversions,
         totalRevenue,
@@ -186,14 +82,7 @@ export default function AnalyticsV2() {
         recentActivity: analyticsRes.recentActivity || [],
         monthlyTrends: analyticsRes.monthlyTrends || [],
         earningsTrend: analyticsRes.earningsTrend || []
-      }
-      
-      // Success: Save to cache and update state
-      saveToCache('data', analyticsData)
-      setAnalytics(analyticsData)
-      setLastUpdated(new Date())
-      setIsOffline(false)
-      console.log(`✅ [FRONTEND] FRESH ANALYTICSV2 DATA - Loaded from API and cached for 4 hours`)
+      })
       
       console.log('✅ Analytics data loaded successfully')
       console.log('📊 Final analytics state:', {
@@ -209,29 +98,7 @@ export default function AnalyticsV2() {
       console.error('❌ Failed to load analytics:', err)
       if (err.status === 401 || err.message?.includes('Missing token')) {
         console.log('🔄 401 detected - token may be expired. Use the Refresh button.')
-        return
       }
-      
-      // Try to load from cache first
-      const cachedData = loadFromCache('data')
-      if (cachedData) {
-        console.log('📦 [FRONTEND] CACHED ANALYTICSV2 DATA - Using cached data due to API failure')
-        setAnalytics(cachedData)
-        return
-      }
-      
-      // Set safe defaults only if no cache available
-      console.log('⚠️ No cache available, using zero defaults')
-      setAnalytics({
-        totalClicks: 0,
-        totalConversions: 0,
-        totalRevenue: 0,
-        conversionRate: 0,
-        averageOrderValue: 0,
-        recentActivity: [],
-        monthlyTrends: [],
-        earningsTrend: []
-      })
     } finally {
       setLoading(false)
     }
