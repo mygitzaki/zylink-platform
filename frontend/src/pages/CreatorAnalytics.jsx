@@ -22,8 +22,24 @@ export default function CreatorAnalytics() {
   const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
+    // Load cached data immediately to avoid showing zeros
+    loadCachedDataFirst()
+    // Then fetch fresh data
     loadAnalytics()
   }, [timeRange])
+
+  const loadCachedDataFirst = () => {
+    // Load cached data immediately to show something while API loads
+    const cachedData = loadFromCache('data')
+    
+    if (cachedData) {
+      console.log('📦 Pre-loading cached analytics data')
+      setAnalytics(cachedData)
+      setLastUpdated(new Date(JSON.parse(localStorage.getItem(getCacheKey('data', timeRange)))?.timestamp))
+      setIsOffline(true)
+      setLoading(false)
+    }
+  }
 
   // Cache utilities for API fallback
   const getCacheKey = (type, range) => `analytics_${type}_${range}_${user?.id || 'anonymous'}`
@@ -63,7 +79,10 @@ export default function CreatorAnalytics() {
 
   const loadAnalytics = async () => {
     try {
-      setLoading(true)
+      // Only show loading if we don't have cached data
+      if (!loadFromCache('data')) {
+        setLoading(true)
+      }
       
       // If no token, skip loading
       if (!token) {

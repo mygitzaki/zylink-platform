@@ -37,10 +37,42 @@ export default function Earnings() {
   const [isOffline, setIsOffline] = useState(false)
 
   useEffect(() => {
+    // Load cached data immediately to avoid showing zeros
+    loadCachedDataFirst()
+    // Then fetch fresh data
     loadEarningsSummary()
     loadAnalytics()
     loadSalesData()
   }, [timeRange])
+
+  const loadCachedDataFirst = () => {
+    // Load cached data immediately to show something while API loads
+    const cachedSummary = loadFromCache('summary')
+    const cachedAnalytics = loadFromCache('analytics')
+    const cachedSales = loadFromCache('sales')
+    
+    if (cachedSummary) {
+      console.log('📦 Pre-loading cached earnings summary')
+      setEarningsSummary(cachedSummary)
+      setLastUpdated(new Date(JSON.parse(localStorage.getItem(getCacheKey('summary', timeRange)))?.timestamp))
+      setIsOffline(true)
+    }
+    
+    if (cachedAnalytics) {
+      console.log('📦 Pre-loading cached analytics')
+      setAnalytics(cachedAnalytics)
+    }
+    
+    if (cachedSales) {
+      console.log('📦 Pre-loading cached sales')
+      setSalesData(cachedSales)
+    }
+    
+    // If we have any cached data, we're not really loading from scratch
+    if (cachedSummary || cachedAnalytics || cachedSales) {
+      setLoading(false)
+    }
+  }
 
   // Cache utilities for API fallback
   const getCacheKey = (type, range) => `earnings_${type}_${range}_${user?.id || 'anonymous'}`
@@ -80,7 +112,10 @@ export default function Earnings() {
 
   const loadEarningsSummary = async () => {
     try {
-      setLoading(true)
+      // Only show loading if we don't have cached data
+      if (!loadFromCache('summary')) {
+        setLoading(true)
+      }
       let path = '/api/creator/earnings-summary'
       if (timeRange === 'custom' && customStart && customEnd) {
         path += `?startDate=${customStart}&endDate=${customEnd}`
