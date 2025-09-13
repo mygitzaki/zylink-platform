@@ -70,8 +70,8 @@ export default function CreatorAnalytics() {
       const cached = localStorage.getItem(getCacheKey(type, range))
       if (cached) {
         const cacheData = JSON.parse(cached)
-        // Use cache if less than 10 minutes old
-        if (Date.now() - cacheData.timestamp < 10 * 60 * 1000) {
+        // Use cache if less than 2 hours old (120 minutes)
+        if (Date.now() - cacheData.timestamp < 120 * 60 * 1000) {
           console.log(`📦 Using cached ${type} data for ${range}${silent ? ' (silent)' : ''}`)
           if (!silent) {
             setLastUpdated(new Date(cacheData.timestamp))

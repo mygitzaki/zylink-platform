@@ -109,8 +109,8 @@ export default function Earnings() {
       const cached = localStorage.getItem(getCacheKey(type, range))
       if (cached) {
         const cacheData = JSON.parse(cached)
-        // Use cache if less than 10 minutes old
-        if (Date.now() - cacheData.timestamp < 10 * 60 * 1000) {
+        // Use cache if less than 2 hours old (120 minutes)
+        if (Date.now() - cacheData.timestamp < 120 * 60 * 1000) {
           console.log(`📦 Using cached ${type} data for ${range}${silent ? ' (silent)' : ''}`)
           if (!silent) {
             setLastUpdated(new Date(cacheData.timestamp))
@@ -452,15 +452,26 @@ export default function Earnings() {
               {lastUpdated && (
                 <span className="text-xs text-gray-500">
                   Updated: {lastUpdated.toLocaleTimeString()}
+                  {isOffline && (
+                    <span className="ml-2 text-amber-600">
+                      (expires in {Math.ceil((lastUpdated.getTime() + 120 * 60 * 1000 - Date.now()) / (60 * 1000))} min)
+                    </span>
+                  )}
                 </span>
               )}
               <button
                 onClick={() => {
+                  // Force refresh bypasses cache
+                  console.log('🔄 Manual refresh - bypassing cache')
+                  localStorage.removeItem(getCacheKey('summary', timeRange))
+                  localStorage.removeItem(getCacheKey('analytics', timeRange))
+                  localStorage.removeItem(getCacheKey('sales', timeRange))
                   loadEarningsSummary()
                   loadAnalytics()
                   loadSalesData()
                 }}
                 className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                title="Force refresh from API (bypasses 2-hour cache)"
               >
                 Refresh
               </button>
