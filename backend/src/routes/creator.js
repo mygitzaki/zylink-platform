@@ -2077,6 +2077,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           console.log(`[Analytics Enhanced] 📊 Filtered out: ${totalActions - matchingActions} actions`);
           
           console.log(`[Analytics Enhanced] 📊 Found ${matchingActions} actions for creator (SubId1: ${correctSubId1})`);
+          console.log(`[Analytics Enhanced] 📊 actionsByDate keys: ${Object.keys(actionsByDate).join(', ')}`);
+          console.log(`[Analytics Enhanced] 📊 actionsByDate sample:`, Object.keys(actionsByDate).slice(0, 3).map(date => ({ date, count: actionsByDate[date].length })));
           console.log(`[Analytics Enhanced] 📊 Grouped actions by date:`, Object.keys(actionsByDate));
           
           // Process each day in the requested period
@@ -2091,6 +2093,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               return commission > 0;
             });
             
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: ${dayActions.length} total actions, ${commissionableActions.length} commissionable`);
+            
             // Calculate daily sales (gross revenue) and commission
             const dailyGrossRevenue = commissionableActions.reduce((sum, action) => {
               return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
@@ -2103,6 +2107,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               const creatorCommission = (impactCommission * creatorCommissionRate) / 100;
               return sum + creatorCommission;
             }, 0);
+            
+            console.log(`[Analytics Enhanced] 📅 ${dateStr}: $${dailyGrossRevenue.toFixed(2)} sales, $${dailyCommission.toFixed(2)} commission`);
             
             // Debug: Log commission calculation for first day only
             if (i === (requestedDays - 1)) {
@@ -2741,12 +2747,12 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       if (correctSubId1 && correctSubId1 !== 'default') {
         console.log(`[Sales History] Fetching commissionable sales for SubId1: ${correctSubId1}`);
         
-        // Use the same Actions API that was working before
-        const actionsResponse = await impact.getActionsDetailed({
+        // Use getAllActionsDetailed for proper pagination (same as earnings-summary)
+        const actionsResponse = await impact.getAllActionsDetailed({
           subId1: correctSubId1,
           startDate,
           endDate,
-          pageSize: 1000 // Get more records to calculate totals
+          actionType: 'SALE'
         });
         
         if (actionsResponse.success) {
