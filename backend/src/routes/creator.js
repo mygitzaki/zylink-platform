@@ -10,9 +10,9 @@ const { EmailService } = require('../services/emailService');
 const { requireAuth, requireApprovedCreator } = require('../middleware/auth');
 
 // 🏢 ENTERPRISE-GRADE RATE LIMIT SOLUTION
-// 24-hour endpoint cache to eliminate 95% of API calls
+// Smart endpoint cache - only cache successful responses
 const endpointCache = new Map();
-const ENDPOINT_CACHE_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
+const ENDPOINT_CACHE_TIMEOUT = 4 * 60 * 60 * 1000; // 4 hours (balanced approach)
 
 const getEndpointCacheKey = (endpoint, userId, params) => {
   const paramStr = JSON.stringify(params || {});
@@ -30,12 +30,26 @@ const getFromEndpointCache = (key) => {
 };
 
 const setEndpointCache = (key, data) => {
+  // Smart caching: Don't cache zero/empty responses to allow fresh data when API recovers
+  const hasRealData = (
+    (data.commissionEarned && data.commissionEarned > 0) ||
+    (data.totalSales && data.totalSales > 0) ||
+    (data.totalRevenue && data.totalRevenue > 0) ||
+    (data.performanceMetrics && data.performanceMetrics.clicks > 0) ||
+    (data.earningsTrend && data.earningsTrend.some(item => item.revenue > 0 || item.commission > 0))
+  );
+  
+  if (!hasRealData) {
+    console.log(`[ENDPOINT CACHE] ⚠️ SKIPPING CACHE - Response has zero values, not caching to allow fresh data when API recovers`);
+    return;
+  }
+  
   endpointCache.set(key, {
     data,
     timestamp: Date.now()
   });
   const expiresAt = new Date(Date.now() + ENDPOINT_CACHE_TIMEOUT).toLocaleTimeString();
-  console.log(`[ENDPOINT CACHE] 💾 STORED - Response cached until tomorrow ${expiresAt}`);
+  console.log(`[ENDPOINT CACHE] 💾 STORED - Response cached until ${expiresAt} (4h TTL, only real data cached)`);
   
   // Clean up old cache entries to prevent memory leaks
   if (endpointCache.size > 1000) {
@@ -43,6 +57,13 @@ const setEndpointCache = (key, data) => {
     oldestKeys.forEach(key => endpointCache.delete(key));
     console.log(`[ENDPOINT CACHE] 🧹 Cleaned up ${oldestKeys.length} old entries`);
   }
+};
+
+// Cache management function to clear cache when needed
+const clearEndpointCache = (pattern) => {
+  const keysToDelete = Array.from(endpointCache.keys()).filter(key => key.includes(pattern));
+  keysToDelete.forEach(key => endpointCache.delete(key));
+  console.log(`[ENDPOINT CACHE] 🗑️ CLEARED - Removed ${keysToDelete.length} cache entries matching "${pattern}"`);
 };
 
 const router = express.Router();
@@ -1441,7 +1462,7 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
 
     // 🏢 ENTERPRISE CACHE - Store successful response for 24 hours
     setEndpointCache(cacheKey, summary);
-    console.log(`[ENTERPRISE] ✅ Earnings-summary cached for 24h - Next ${Math.round(ENDPOINT_CACHE_TIMEOUT / (60 * 60 * 1000))} hours will use cache`);
+    console.log(`[ENTERPRISE] ✅ Earnings-summary cached for 4h - Next ${Math.round(ENDPOINT_CACHE_TIMEOUT / (60 * 60 * 1000))} hours will use cache`);
 
     res.json(summary);
 
@@ -2408,7 +2429,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     
     // 🏢 ENTERPRISE CACHE - Store successful response for 24 hours
     setEndpointCache(cacheKey, response);
-    console.log(`[ENTERPRISE] ✅ Analytics-enhanced cached for 24h - Next ${Math.round(ENDPOINT_CACHE_TIMEOUT / (60 * 60 * 1000))} hours will use cache`);
+    console.log(`[ENTERPRISE] ✅ Analytics-enhanced cached for 4h - Next ${Math.round(ENDPOINT_CACHE_TIMEOUT / (60 * 60 * 1000))} hours will use cache`);
     
     // Clear the response timeout since we're sending data
     clearTimeout(responseTimeout);
@@ -2982,7 +3003,7 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
     
     // 🏢 ENTERPRISE CACHE - Store successful response for 24 hours
     setEndpointCache(cacheKey, response);
-    console.log(`[ENTERPRISE] ✅ Sales-history cached for 24h - Next ${Math.round(ENDPOINT_CACHE_TIMEOUT / (60 * 60 * 1000))} hours will use cache`);
+    console.log(`[ENTERPRISE] ✅ Sales-history cached for 4h - Next ${Math.round(ENDPOINT_CACHE_TIMEOUT / (60 * 60 * 1000))} hours will use cache`);
     
     res.json(response);
 

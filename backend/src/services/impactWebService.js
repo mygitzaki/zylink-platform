@@ -17,7 +17,7 @@ class ImpactWebService {
     
     // Enterprise-grade caching and rate limit protection
     this.cache = new Map();
-    this.cacheTimeout = 24 * 60 * 60 * 1000; // 24 hours (86400 seconds) - enterprise-grade caching
+    this.cacheTimeout = 4 * 60 * 60 * 1000; // 4 hours (14400 seconds) - balanced caching
     this.requestQueue = [];
     this.isProcessingQueue = false;
     this.circuitBreakerOpen = false;
