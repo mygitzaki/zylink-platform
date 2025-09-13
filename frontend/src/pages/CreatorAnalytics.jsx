@@ -121,7 +121,14 @@ export default function CreatorAnalytics() {
     try {
       // Check if we have valid cached data for this specific time range
       const validCache = hasValidCache('data', timeRange)
-      if (validCache && validCache.totalRevenue > 0) {
+      console.log(`🔍 [ANALYTICS] Cache check for ${timeRange}:`, {
+        cacheExists: !!validCache,
+        totalRevenue: validCache?.totalRevenue,
+        totalClicks: validCache?.totalClicks,
+        earningsTrend: validCache?.earningsTrend?.length
+      })
+      
+      if (validCache && (validCache.totalRevenue > 0 || validCache.totalClicks > 0)) {
         console.log(`📦 [FRONTEND] Valid analytics cache exists for ${timeRange} (${Math.round((240 * 60 * 1000 - (Date.now() - JSON.parse(localStorage.getItem(getCacheKey('data', timeRange)))?.timestamp)) / (60 * 1000))} min remaining) - skipping API call`)
         return
       }
