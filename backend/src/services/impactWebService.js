@@ -15,9 +15,13 @@ class ImpactWebService {
     this.useObfuscatedSubId1 = String(process.env.IMPACT_USE_OBFUSCATED_SUBID1 || 'false').toLowerCase() === 'true';
     this.subId1Salt = process.env.IMPACT_SUBID1_SALT || '';
     
-    // Enhanced caching system to reduce API calls and solve rate limiting
+    // Enterprise-grade caching and rate limit protection
     this.cache = new Map();
-    this.cacheTimeout = 240 * 60 * 1000; // 4 hours (14400 seconds) - extended to solve rate limit issues
+    this.cacheTimeout = 24 * 60 * 60 * 1000; // 24 hours (86400 seconds) - enterprise-grade caching
+    this.requestQueue = [];
+    this.isProcessingQueue = false;
+    this.circuitBreakerOpen = false;
+    this.lastRateLimitHit = null;
     this.lastCallTime = 0;
     this.minCallInterval = 4000; // 4 seconds between calls (1000 calls/hour = 3.6s between calls)
     this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
@@ -98,8 +102,8 @@ class ImpactWebService {
   // Check if we should skip API calls due to rate limits
   shouldSkipApiCall() {
     // If rate limit is very low or we're in a rate limit situation, prefer cache
-    if (this.rateLimitRemaining < 100) {
-      console.log(`[ImpactWebService] ⚠️ Rate limit low (${this.rateLimitRemaining}/500), preferring cache`);
+    if (this.rateLimitRemaining < 200) {
+      console.log(`[ImpactWebService] ⚠️ ENTERPRISE PROTECTION - Rate limit low (${this.rateLimitRemaining}/500), using cache only`);
       return true;
     }
     
