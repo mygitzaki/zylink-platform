@@ -19,8 +19,8 @@ class ImpactWebService {
     this.cache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes (increased from 10 minutes)
     this.lastCallTime = 0;
-    this.minCallInterval = 500; // 0.5 second between calls (optimized for faster response)
-    this.maxConcurrentCalls = 3; // Allow 3 concurrent calls for faster response
+    this.minCallInterval = 2000; // 2 seconds between calls (conservative for rate limits)
+    this.maxConcurrentCalls = 1; // Only 1 concurrent call to avoid rate limits
     this.activeCalls = 0;
     
     // Global rate limiting queue
@@ -875,7 +875,7 @@ class ImpactWebService {
         
         // Small delay between pages to be respectful to the API
         if (hasMorePages) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Increased to 1 second
         }
       }
 
