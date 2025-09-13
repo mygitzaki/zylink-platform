@@ -1815,7 +1815,7 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           let detailedActions;
           try {
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Actions API timeout after 15 seconds')), 15000)
+              setTimeout(() => reject(new Error('Actions API timeout after 60 seconds')), 60000)
             );
             
             // Fetch ALL pages of Actions API data (pagination fix)
@@ -1872,7 +1872,8 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               console.log(`[Analytics Enhanced] ✅ ACTIONS API FALLBACK: ${realConversions} conversions, $${realRevenue.toFixed(2)} revenue`);
             }
           } catch (timeoutError) {
-            console.log(`[Analytics Enhanced] ❌ Both APIs failed, using zero data`);
+            console.log(`[Analytics Enhanced] ❌ Actions API failed for ${requestedDays} days:`, timeoutError.message);
+            console.log(`[Analytics Enhanced] 🔄 This is likely due to rate limiting or large data volume for ${requestedDays} days`);
           }
         }
         
@@ -1914,11 +1915,44 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
     // 3. Use Impact.com Data if we have any valid data - Graceful degradation
     const hasImpactData = impactData.clicks > 0 || impactData.conversions > 0 || impactData.revenue > 0;
     
+    // If no Impact.com data and it's a longer period (30+ days), try to use database fallback
+    let fallbackData = { clicks: 0, conversions: 0, revenue: 0, conversionRate: 0 };
+    
+    if (!hasImpactData && requestedDays >= 30) {
+      console.log(`[Analytics Enhanced] 🔄 No Impact.com data for ${requestedDays} days, trying database fallback...`);
+      
+      // Try to get some data from database as fallback
+      try {
+        const dbLinkAgg = await prisma.link.aggregate({
+          where: { 
+            creatorId: req.user.id,
+            createdAt: {
+              gte: new Date(startDate),
+              lte: new Date(endDate)
+            }
+          },
+          _sum: { conversions: true, revenue: true, clicks: true }
+        });
+        
+        fallbackData = {
+          clicks: dbLinkAgg._sum.clicks || 0,
+          conversions: dbLinkAgg._sum.conversions || 0,
+          revenue: dbLinkAgg._sum.revenue || 0,
+          conversionRate: (dbLinkAgg._sum.clicks || 0) > 0 ? 
+            parseFloat(((dbLinkAgg._sum.conversions || 0) / (dbLinkAgg._sum.clicks || 0) * 100).toFixed(2)) : 0
+        };
+        
+        console.log(`[Analytics Enhanced] 📊 Database fallback data:`, fallbackData);
+      } catch (dbError) {
+        console.log(`[Analytics Enhanced] ❌ Database fallback also failed:`, dbError.message);
+      }
+    }
+    
     const finalData = {
-      clicks: hasImpactData ? impactData.clicks : 0,
-      conversions: hasImpactData ? impactData.conversions : 0,
-      revenue: hasImpactData ? impactData.revenue : 0,
-      conversionRate: hasImpactData ? impactData.conversionRate : 0
+      clicks: hasImpactData ? impactData.clicks : fallbackData.clicks,
+      conversions: hasImpactData ? impactData.conversions : fallbackData.conversions,
+      revenue: hasImpactData ? impactData.revenue : fallbackData.revenue,
+      conversionRate: hasImpactData ? impactData.conversionRate : fallbackData.conversionRate
     };
     
     // Recalculate conversion rate with final data
