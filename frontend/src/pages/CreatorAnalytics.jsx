@@ -126,9 +126,11 @@ export default function CreatorAnalytics() {
       // DEBUG: Check if we're getting empty data
       if (!analyticsRes || !analyticsRes.performanceMetrics) {
         console.error('❌ Analytics response is empty or missing performanceMetrics:', analyticsRes)
+        throw new Error('Invalid analytics response')
       }
       if (!earningsRes || earningsRes.commissionEarned === undefined) {
         console.error('❌ Earnings response is empty or missing commissionEarned:', earningsRes)
+        throw new Error('Invalid earnings response')
       }
       
       // Prioritize Impact.com data from analytics API, fallback to earnings API
