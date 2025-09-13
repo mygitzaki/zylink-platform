@@ -1085,7 +1085,19 @@ router.get('/earnings-summary', requireAuth, requireApprovedCreator, async (req,
       const endDateObj = new Date(customEnd);
       effectiveDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000)) + 1;
       requestedDays = effectiveDays; // Set to the same as effective days for custom ranges
-      console.log(`[Earnings Summary] Using CUSTOM date range: ${customStart} to ${customEnd} (${effectiveDays} days)`);
+      
+      // Backend validation: Limit custom date ranges to prevent pagination issues
+      if (effectiveDays > 90) {
+        console.log(`[Earnings Summary] ⚠️ CUSTOM RANGE TOO LARGE: ${effectiveDays} days (max 90)`);
+        return res.status(400).json({
+          error: 'Date range too large',
+          message: `Custom date range of ${effectiveDays} days exceeds 90-day limit. Please select a shorter range for complete data.`,
+          maxDays: 90,
+          requestedDays: effectiveDays
+        });
+      }
+      
+      console.log(`[Earnings Summary] Using CUSTOM date range: ${customStart} to ${customEnd} (${effectiveDays} days) ✅`);
       } else {
       // Use days parameter for preset ranges
       const rawDays = Number(req.query.days) || 30;
@@ -1773,10 +1785,21 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
       requestedDays = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to include both start and end dates
       effectiveDays = requestedDays;
       
+      // Backend validation: Limit custom date ranges to prevent pagination issues
+      if (effectiveDays > 90) {
+        console.log(`[Analytics Enhanced] ⚠️ CUSTOM RANGE TOO LARGE: ${effectiveDays} days (max 90)`);
+        return res.status(400).json({
+          error: 'Date range too large',
+          message: `Custom date range of ${effectiveDays} days exceeds 90-day limit. Please select a shorter range for complete data.`,
+          maxDays: 90,
+          requestedDays: effectiveDays
+        });
+      }
+      
       // Set now for debugging purposes
       now = new Date();
       
-      console.log(`[Analytics Enhanced] Using CUSTOM date range: ${startDate} to ${endDate} (${effectiveDays} days)`);
+      console.log(`[Analytics Enhanced] Using CUSTOM date range: ${startDate} to ${endDate} (${effectiveDays} days) ✅`);
     } else {
       // Preset days (7, 30, 90)
       requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
@@ -2806,6 +2829,17 @@ router.get('/sales-history', requireAuth, requireApprovedCreator, async (req, re
       const endDateObj = new Date(customEnd);
       effectiveDays = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (24 * 60 * 60 * 1000)) + 1;
       requestedDays = effectiveDays;
+      
+      // Backend validation: Limit custom date ranges to prevent pagination issues
+      if (effectiveDays > 90) {
+        console.log(`[Sales History] ⚠️ CUSTOM RANGE TOO LARGE: ${effectiveDays} days (max 90)`);
+        return res.status(400).json({
+          error: 'Date range too large',
+          message: `Custom date range of ${effectiveDays} days exceeds 90-day limit. Please select a shorter range for complete data.`,
+          maxDays: 90,
+          requestedDays: effectiveDays
+        });
+      }
     } else {
       requestedDays = Math.max(1, Math.min(90, Number(req.query.days) || 30));
       effectiveDays = requestedDays;

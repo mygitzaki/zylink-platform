@@ -913,7 +913,7 @@ class ImpactWebService {
         actionType,
         subId1,
         campaignId,
-        maxPages = 10 // Safety limit to prevent infinite loops
+        maxPages = 25 // Increased limit for longer date ranges (50,000 records max)
       } = options;
 
       console.log(`[ImpactWebService] 🔄 Fetching ALL pages for SubId1: ${subId1}`);
@@ -970,6 +970,14 @@ class ImpactWebService {
         if (hasMorePages) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // Increased to 1 second
         }
+      }
+
+      // Check if we hit pagination limits and warn about incomplete data
+      if (currentPage > maxPages && hasMorePages) {
+        console.log(`[ImpactWebService] ⚠️ PAGINATION LIMIT HIT - Fetched ${allActions.length} actions but more data available`);
+        console.log(`[ImpactWebService] 📊 Estimated total: ${totalResults} actions, fetched: ${allActions.length} (${Math.round(allActions.length / totalResults * 100)}%)`);
+        console.log(`[ImpactWebService] 💡 RECOMMENDATION: Reduce date range to 90 days or less for complete data`);
+        console.log(`[ImpactWebService] 🚨 DATA INCOMPLETE - This may cause lower totals than expected`);
       }
 
       console.log(`[ImpactWebService] 🎯 Fetched ${allActions.length} total actions across ${currentPage - 1} pages`);

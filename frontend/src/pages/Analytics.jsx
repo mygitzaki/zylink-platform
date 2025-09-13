@@ -64,6 +64,26 @@ export default function Analytics() {
   const [customEnd, setCustomEnd] = useState('')
 
   useEffect(() => {
+    // Validate custom date range before loading
+    if (timeRange === 'custom' && customStart && customEnd) {
+      const startDate = new Date(customStart)
+      const endDate = new Date(customEnd)
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+      
+      // Limit to 90 days to prevent pagination issues
+      if (daysDiff > 90) {
+        alert(`⚠️ Date range too large (${daysDiff} days). Please select a range of 90 days or less to ensure complete data.`)
+        return
+      }
+      
+      if (daysDiff < 1) {
+        alert('⚠️ End date must be after start date.')
+        return
+      }
+      
+      console.log(`📅 Analytics custom date range validated: ${daysDiff} days (within 90-day limit)`)
+    }
+    
     loadEarningsSummary()
     loadAnalytics()
     loadSalesData()
@@ -469,6 +489,9 @@ export default function Analytics() {
                   onChange={(e) => setCustomEnd(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 />
+                <span className="text-xs text-gray-500 ml-2">
+                  (Max 90 days for complete data)
+                </span>
               </div>
             )}
           </div>

@@ -126,6 +126,23 @@ export default function HistoricalAnalytics() {
 
   const handleCustomDateSubmit = () => {
     if (customStart && customEnd) {
+      // Validate date range to prevent pagination issues
+      const startDate = new Date(customStart)
+      const endDate = new Date(customEnd)
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+      
+      // Limit to 90 days to prevent pagination issues
+      if (daysDiff > 90) {
+        alert(`⚠️ Date range too large (${daysDiff} days). Please select a range of 90 days or less to ensure complete data.`)
+        return
+      }
+      
+      if (daysDiff < 1) {
+        alert('⚠️ End date must be after start date.')
+        return
+      }
+      
+      console.log(`📅 Admin analytics custom date range validated: ${daysDiff} days (within 90-day limit)`)
       setDateRange('custom')
       loadAnalytics()
     }

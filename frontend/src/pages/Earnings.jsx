@@ -357,6 +357,23 @@ export default function Earnings() {
 
   const handleCustomDateSubmit = () => {
     if (customStart && customEnd) {
+      // Validate date range to prevent pagination issues
+      const startDate = new Date(customStart)
+      const endDate = new Date(customEnd)
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))
+      
+      // Limit to 90 days to prevent pagination issues (25 pages × 2000 records = 50,000 max)
+      if (daysDiff > 90) {
+        alert(`⚠️ Date range too large (${daysDiff} days). Please select a range of 90 days or less to ensure complete data.`)
+        return
+      }
+      
+      if (daysDiff < 1) {
+        alert('⚠️ End date must be after start date.')
+        return
+      }
+      
+      console.log(`📅 Custom date range validated: ${daysDiff} days (within 90-day limit)`)
       loadEarningsSummary()
       loadAnalytics()
       loadSalesData()
@@ -502,6 +519,9 @@ export default function Earnings() {
                 >
                   Apply
                 </button>
+                <span className="text-xs text-gray-500 ml-2">
+                  (Max 90 days for complete data)
+                </span>
               </div>
             )}
             </div>
