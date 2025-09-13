@@ -1770,9 +1770,9 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           
           performanceData = await Promise.race([
             impact.getPerformanceBySubId({
-              startDate,
-              endDate,
-              subId1: correctSubId1
+          startDate,
+          endDate,
+          subId1: correctSubId1
             }),
             timeoutPromise
           ]);
@@ -1781,10 +1781,11 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           performanceData = { success: false, data: { clicks: 0 }, error: 'Timeout' };
         }
         
-        console.log(`[Analytics Enhanced] 📊 Performance API response:`, {
+        console.log(`[Analytics Enhanced] 📊 Performance API response for ${requestedDays} days:`, {
           success: performanceData.success,
           data: performanceData.data,
-          error: performanceData.error
+          error: performanceData.error,
+          dateRange: `${startDate} to ${endDate}`
         });
         
         let realClicks = 0;
@@ -1825,10 +1826,10 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
             
             while ((page - 1) * pageSize < total && page <= 10) {
               const pageResult = await impact.getActionsDetailed({
-                startDate: startDate + 'T00:00:00Z',
-                endDate: endDate + 'T23:59:59Z',
-                subId1: correctSubId1,
-                actionType: 'SALE',
+          startDate: startDate + 'T00:00:00Z',
+          endDate: endDate + 'T23:59:59Z',
+          subId1: correctSubId1,
+          actionType: 'SALE',
                 page,
                 pageSize
               });
@@ -1851,23 +1852,23 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
               totalResults: total
             };
             
-            console.log(`[Analytics Enhanced] ✅ PAGINATION COMPLETE: ${allActions.length} total actions from ${page-1} pages`);
+            console.log(`[Analytics Enhanced] ✅ PAGINATION COMPLETE for ${requestedDays} days: ${allActions.length} total actions from ${page-1} pages`);
             
             if (detailedActions.success && detailedActions.actions) {
               const commissionableActions = detailedActions.actions.filter(action => {
-                const commission = parseFloat(action.Payout || action.Commission || 0);
-                return commission > 0;
-              });
-              
-              realConversions = commissionableActions.length;
-              
-              const grossRevenue = commissionableActions.reduce((sum, action) => {
+            const commission = parseFloat(action.Payout || action.Commission || 0);
+            return commission > 0;
+          });
+          
+          realConversions = commissionableActions.length;
+          
+          const grossRevenue = commissionableActions.reduce((sum, action) => {
                 return sum + parseFloat(action.Amount || action.SaleAmount || action.IntendedAmount || 0);
-              }, 0);
-              
-              const businessRate = creator?.commissionRate || 70;
-              realRevenue = (grossRevenue * businessRate) / 100;
-              
+          }, 0);
+          
+          const businessRate = creator?.commissionRate || 70;
+          realRevenue = (grossRevenue * businessRate) / 100;
+          
               console.log(`[Analytics Enhanced] ✅ ACTIONS API FALLBACK: ${realConversions} conversions, $${realRevenue.toFixed(2)} revenue`);
             }
           } catch (timeoutError) {
@@ -1887,11 +1888,12 @@ router.get('/analytics-enhanced', requireAuth, requireApprovedCreator, async (re
           apiSuccess: true
         };
         
-        console.log(`[Analytics Enhanced] ✅ FINAL REAL DATA:`, {
+        console.log(`[Analytics Enhanced] ✅ FINAL REAL DATA for ${requestedDays} days:`, {
           clicks: realClicks,
           commissionableConversions: realConversions,
           revenue: realRevenue.toFixed(2),
-          conversionRate: realConversionRate + '%'
+          conversionRate: realConversionRate + '%',
+          dateRange: `${startDate} to ${endDate}`
         });
       }
     } catch (error) {
