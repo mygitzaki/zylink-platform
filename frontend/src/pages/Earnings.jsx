@@ -60,30 +60,29 @@ export default function Earnings() {
     let cachedAnalytics = loadFromCache('analytics', timeRange, true)
     let cachedSales = loadFromCache('sales', timeRange, true)
     
-    // Smart fallback: only use other timeRange data if current cache is completely missing
-    // Don't fallback if cache exists but has zeros - let API provide fresh data
+    // Smart fallback: use other timeRange data if current has no meaningful data
     const otherRange = timeRange === '7d' ? '30d' : '7d';
     
-    if (!cachedSummary) {
+    if (!cachedSummary || (cachedSummary && cachedSummary.commissionEarned === 0)) {
       const fallbackSummary = loadFromCache('summary', otherRange, true);
       if (fallbackSummary && fallbackSummary.commissionEarned > 0) {
-        console.log(`📦 Using ${otherRange} summary data as temporary fallback for ${timeRange} (no cache exists)`);
+        console.log(`📦 Using ${otherRange} summary data as fallback for ${timeRange} (has real data vs zeros)`);
         cachedSummary = fallbackSummary;
       }
     }
     
-    if (!cachedAnalytics) {
+    if (!cachedAnalytics || (cachedAnalytics && (!cachedAnalytics.earningsTrend || cachedAnalytics.earningsTrend.every(item => item.revenue === 0)))) {
       const fallbackAnalytics = loadFromCache('analytics', otherRange, true);
-      if (fallbackAnalytics && fallbackAnalytics.earningsTrend && fallbackAnalytics.earningsTrend.length > 0) {
-        console.log(`📦 Using ${otherRange} analytics data as temporary fallback for ${timeRange} (no cache exists)`);
+      if (fallbackAnalytics && fallbackAnalytics.earningsTrend && fallbackAnalytics.earningsTrend.some(item => item.revenue > 0)) {
+        console.log(`📦 Using ${otherRange} analytics data as fallback for ${timeRange} (has real data vs flat charts)`);
         cachedAnalytics = fallbackAnalytics;
       }
     }
     
-    if (!cachedSales) {
+    if (!cachedSales || (cachedSales && cachedSales.totalSales === 0)) {
       const fallbackSales = loadFromCache('sales', otherRange, true);
       if (fallbackSales && fallbackSales.totalSales > 0) {
-        console.log(`📦 Using ${otherRange} sales data as temporary fallback for ${timeRange} (no cache exists)`);
+        console.log(`📦 Using ${otherRange} sales data as fallback for ${timeRange} (has real data vs zeros)`);
         cachedSales = fallbackSales;
       }
     }

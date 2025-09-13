@@ -38,13 +38,12 @@ export default function CreatorAnalytics() {
     // Load cached data immediately to show something while API loads
     let cachedData = loadFromCache('data', timeRange, true) // silent = true
     
-    // Smart fallback: only use other timeRange data if current cache is completely missing
-    // Don't fallback if cache exists but has zeros - let API provide fresh data
-    if (!cachedData) {
+    // Smart fallback: use other timeRange data if current has no meaningful data
+    if (!cachedData || (cachedData && cachedData.totalRevenue === 0)) {
       const otherRange = timeRange === '7d' ? '30d' : '7d';
       const fallbackData = loadFromCache('data', otherRange, true);
       if (fallbackData && fallbackData.totalRevenue > 0) {
-        console.log(`📦 Using ${otherRange} analytics data as temporary fallback for ${timeRange} (no cache exists)`);
+        console.log(`📦 Using ${otherRange} analytics data as fallback for ${timeRange} (has real data vs zeros)`);
         cachedData = fallbackData;
       }
     }
